@@ -176,6 +176,7 @@ class EpisodeRunner:
         max_steps: int = 10,
         sandbox_mode: str = "auto",
         use_mock_solver: bool = False,
+        use_noop_solver: bool = False,
     ) -> List[Dict[str, Any]]:
         """Runs a batch of tasks in parallel using a thread pool."""
         results: List[Dict[str, Any]] = []
@@ -233,7 +234,12 @@ class EpisodeRunner:
             with ThreadPoolExecutor(max_workers=workers) as executor:
                 futures = {}
                 for tid, ep_id in tasks_to_run:
-                    agent = MockAgent(mode="solver") if use_mock_solver else None
+                    if use_noop_solver:
+                        agent = MockAgent(mode="noop_submit")
+                    elif use_mock_solver:
+                        agent = MockAgent(mode="solver")
+                    else:
+                        agent = None
                     fut = executor.submit(
                         self.run_episode,
                         task_id=tid,

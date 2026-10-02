@@ -281,6 +281,8 @@ class MockAgent(Agent):
             # Step 3: submit
             else:
                 action = {"type": "submit"}
+        elif self.mode == "noop_submit":
+            action = {"type": "submit"}
         elif self.mode == "regression":
             # Break something that was working
             action = {"type": "edit", "path": "mathutils.py", "content": "def broken(): raise Exception('Broken')"}

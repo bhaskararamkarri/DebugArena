@@ -1,10 +1,18 @@
-# AgentGym SFT Trajectory Dataset Card
+# AgentGym Dataset Card
 
 ## Dataset Summary
-The **AgentGym SFT Trajectory Dataset** contains multi-turn interaction traces of AI coding agents fixing real-world Python bugs inside isolated sandbox environments. Each trajectory includes the complete sequence of environment observations, shell execution outputs, file edits, and final verified submissions, paired with RL environment returns and code quality ratings.
+The **AgentGym Dataset** consists of multi-turn interaction trajectories of AI coding agents attempting real-world Python bug fixes inside isolated execution sandboxes.
+The environment records full observation-action cycles, terminal outputs, pytest test evaluations, RL reward deltas, and code quality evaluations.
 
-## Dataset Structure
-Each line in `agentgym_sft.jsonl` represents one solved episode with 100% test pass rate (`pass_rate == 1.0`):
+The dataset is exported in two core formats:
+1. **Supervised Fine-Tuning (SFT)**: Full multi-turn conversation traces of successful episodes (100% test pass rate).
+2. **Direct Preference Optimization (DPO)**: Paired trajectories on the same task comparing chosen (solved / higher return) against rejected (unsolved / lower return / regression) trajectories.
+
+---
+
+## 1. SFT Dataset (`agentgym_sft.jsonl`)
+
+Each row represents an episode where the agent achieved a 100% test pass rate (`pass_rate == 1.0`):
 
 ```json
 {
@@ -16,36 +24,60 @@ Each line in `agentgym_sft.jsonl` represents one solved episode with 100% test p
     {"role": "user", "content": "OBSERVATION:\nLast execution output: File updated: mathutils.py\nPass rate: 1.0"},
     {"role": "assistant", "content": "{\"type\": \"submit\"}"}
   ],
-  "return": 0.89,
-  "steps": 2,
-  "model": "nvidia/llama-3.1-nemotron-nano-4b-instruct",
-  "judge_score": 5
+  "return": 0.74,
+  "steps": 1,
+  "model": "nvidia/nemotron-3-nano-30b-a3b",
+  "judge_score": 4
 }
 ```
 
-## Fields
-- `task_id`: Benchmark identifier for the coding bug.
-- `messages`: Standard OpenAI / Hugging Face chat format containing the full reasoning and acting trace.
-- `return`: Cumulative RL return earned by the agent (pass rate gains minus step costs and regression penalties).
-- `steps`: Total number of interaction turns taken to solve the task.
-- `model`: Generator model identifier.
-- `judge_score`: Automated Nemotron code-quality score (1 to 5 scale).
+### SFT Splits:
+- `agentgym_sft.jsonl`: Complete deduplicated set of 53 solved trajectories.
+- `agentgym_sft_train.jsonl`: 43 trajectories (80% train split).
+- `agentgym_sft_val.jsonl`: 10 trajectories (20% validation split).
 
-## Verification & Quality
-- Every trajectory in this dataset achieved 100% test pass rate on hidden pytest test suites.
-- Sandboxed execution ensures no synthetic hallucination of test results or syntax validity.
-- Clean JSON schema adherence for immediate ingestion into SFT training pipelines.
+---
 
-## Intended Uses
-- Supervised Fine-Tuning (SFT) for instruction-following agent models.
-- Preference modeling (DPO, KTO) comparing high-return vs low-return trajectories.
-- Warm-starting Reinforcement Learning (PPO, GRPO) policies for coding agents.
+## 2. DPO Preference Dataset (`agentgym_dpo.jsonl`)
 
-## Limitations
-- Repositories are targeted to small modules (1–3 files, <60 lines) focusing on logic, boundary conditions, state management, and edge cases.
-- Currently restricted to Python 3.11+.
+Each row pairs a successful solution (`chosen`) against a failed or suboptimal attempt (`rejected`) for the identical task prompt:
 
-## Human-Verified SFT Subset (`agentgym_sft_human_verified.jsonl`)
+```json
+{
+  "task_id": "t16_lru_cache_eviction",
+  "prompt": "OBSERVATION:\nDescription: LRUCache should evict least recently used items...",
+  "chosen": [
+    {"role": "assistant", "content": "{\"type\": \"edit\", \"path\": \"lru_cache.py\", \"content\": \"...\"}"},
+    {"role": "user", "content": "OBSERVATION:\nPass rate: 1.0"},
+    {"role": "assistant", "content": "{\"type\": \"submit\"}"}
+  ],
+  "rejected": [
+    {"role": "assistant", "content": "{\"type\": \"edit\", \"path\": \"lru_cache.py\", \"content\": \"def broken()...\"}"},
+    {"role": "user", "content": "OBSERVATION:\nPass rate: 0.25"},
+    {"role": "assistant", "content": "{\"type\": \"submit\"}"}
+  ],
+  "chosen_return": 0.32,
+  "rejected_return": -1.09,
+  "chosen_pass_rate": 1.0,
+  "rejected_pass_rate": 0.25
+}
+```
+
+### DPO Splits:
+- `agentgym_dpo.jsonl`: 9 preference pairs.
+- `agentgym_dpo_train.jsonl`: 8 pairs (train split).
+- `agentgym_dpo_val.jsonl`: 1 pair (val split).
+
+---
+
+## 3. Data Processing & Validation
+- **Deduplication:** SHA-256 fingerprinting on message history eliminates identical trajectories across repeated evaluations.
+- **Validation:** Strict verification ensuring non-empty role/content structures and valid assistant JSON actions.
+- **Reproducibility:** Train/val splits are generated using fixed seed (`seed=42`).
+
+---
+
+## 4. Human-Verified SFT Subset (`agentgym_sft_human_verified.jsonl`)
 - **Status:** Optional partner integration (Tendem / Toloka expert review), not yet run pending reviewer submission.
-- **Workflow:** Solved episodes are bundled using `python scripts/make_review_pack.py` into `review_pack/review_pack.md` containing problem descriptions, original code, unified fix diffs, and 5 review questions (Correctness, Idiomatic Style, Side Effects, Score 1-5, and Rationale).
-- **Ingestion:** Filled reviews in `review_pack/reviews.json` are processed via `python scripts/import_review.py` (threshold: score $\ge 4$) to emit `dataset/agentgym_sft_human_verified.jsonl` with `human_score` and `human_comment` metadata.
+- **Review Package:** Solved episodes are compiled via `python scripts/make_review_pack.py` into `review_pack/review_pack.md` with problem descriptions, original buggy code, unified fix diffs, and 5 quality questions.
+- **Ingestion Pipeline:** Annotated evaluations in `review_pack/reviews.json` are filtered (rating $\ge 4$) via `python scripts/import_review.py` to produce `dataset/agentgym_sft_human_verified.jsonl`.

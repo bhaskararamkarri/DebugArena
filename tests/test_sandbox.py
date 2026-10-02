@@ -56,3 +56,14 @@ def test_hidden_tests_unreadable_during_agent_run_command():
     assert "FileNotFoundError" in obs["last_output"]
 
     env.close()
+
+
+def test_local_sandbox_timeout_interruption():
+    """Proves sandbox terminates runaway processes and enforces execution timeouts."""
+    sb = LocalSandbox(timeout=2)
+    res = sb.run_command(f'"{sys.executable}" -c "import time; time.sleep(10)"')
+    assert res.timed_out
+    assert res.exit_code != 0
+    assert "timed out" in res.stderr.lower()
+    sb.cleanup()
+

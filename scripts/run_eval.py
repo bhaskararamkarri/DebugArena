@@ -63,7 +63,12 @@ def parse_args():
     parser.add_argument(
         "--mock-solver",
         action="store_true",
-        help="Use built-in mock solver agent (offline testing)",
+        help="Use built-in mock solver agent (offline reference upper bound)",
+    )
+    parser.add_argument(
+        "--noop-solver",
+        action="store_true",
+        help="Use built-in no-op submit agent (offline baseline lower bound)",
     )
     parser.add_argument(
         "--no-judge",
@@ -152,6 +157,7 @@ def main():
         max_steps=args.max_steps,
         sandbox_mode=args.sandbox,
         use_mock_solver=args.mock_solver,
+        use_noop_solver=args.noop_solver,
     )
 
     # Render summary table

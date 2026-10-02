@@ -44,6 +44,14 @@ st.markdown(
 )
 
 
+def format_model_label(run_id: str, model_id: str) -> str:
+    if "mock" in run_id.lower() or "mock" in model_id.lower():
+        return "Reference solver (upper bound)"
+    if "noop" in run_id.lower() or "no_op" in run_id.lower():
+        return "No-op submit (lower bound)"
+    return model_id.split("/")[-1]
+
+
 def load_all_runs(runs_dir: str = "runs") -> Dict[str, Dict[str, Any]]:
     runs_path = Path(runs_dir)
     runs_data = {}
@@ -139,9 +147,11 @@ if page == "🏆 Leaderboard":
             summary = data.get("summary", {})
             trajs = data.get("trajectories", [])
 
-            model = summary.get("model", "")
-            if not model and trajs:
-                model = trajs[0].get("model", "unknown")
+            raw_model = summary.get("model", "")
+            if not raw_model and trajs:
+                raw_model = trajs[0].get("model", "unknown")
+
+            display_model = format_model_label(run_id, raw_model)
 
             total_tasks = summary.get("total_tasks", 0)
             solved_tasks = summary.get("solved_tasks", 0)
@@ -163,8 +173,8 @@ if page == "🏆 Leaderboard":
 
             rows.append({
                 "Run ID": run_id,
-                "Model": model.split("/")[-1],
-                "Full Model": model,
+                "Model": display_model,
+                "Full Model": raw_model,
                 "Tasks": total_tasks,
                 "Solved": solved_tasks,
                 "Success Rate (%)": round(success_rate * 100, 1),
@@ -183,12 +193,35 @@ if page == "🏆 Leaderboard":
         kpi3.metric("Top Avg Return", f"{best_run['Avg Return']}")
         kpi4.metric("Avg Quality Score", best_run["Judge Quality (1-5)"])
 
-        st.markdown("### 📋 Standings")
+        st.markdown("### 📋 Evaluation Runs Standings")
         st.dataframe(
             df[["Model", "Run ID", "Tasks", "Solved", "Success Rate (%)", "Avg Steps", "Avg Return", "Judge Quality (1-5)"]],
             use_container_width=True,
             hide_index=True,
         )
+
+        # Model Aggregates (Mean and Spread across runs)
+        st.markdown("### 📊 Model Aggregate Performance (Mean ± Spread)")
+        grouped_records = []
+        for model_name, grp in df.groupby("Model"):
+            runs_count = len(grp)
+            mean_succ = grp["Success Rate (%)"].mean()
+            min_succ = grp["Success Rate (%)"].min()
+            max_succ = grp["Success Rate (%)"].max()
+            spread_succ = (max_succ - min_succ) / 2.0
+            mean_ret = grp["Avg Return"].mean()
+            mean_steps = grp["Avg Steps"].mean()
+
+            succ_str = f"{mean_succ:.1f}% (±{spread_succ:.1f}%)" if runs_count > 1 else f"{mean_succ:.1f}%"
+            grouped_records.append({
+                "Model": model_name,
+                "Runs": runs_count,
+                "Success Rate": succ_str,
+                "Avg Return": round(mean_ret, 2),
+                "Avg Steps": round(mean_steps, 2),
+            })
+        agg_df = pd.DataFrame(grouped_records).sort_values(by="Avg Return", ascending=False)
+        st.dataframe(agg_df, use_container_width=True, hide_index=True)
 
         st.markdown("### 📈 Visual Comparison")
         col_c1, col_c2 = st.columns(2)
@@ -236,7 +269,7 @@ elif page == "📊 Task Breakdown":
         task_rows = []
         for run_id, data in runs_data.items():
             summary = data.get("summary", {})
-            model = summary.get("model", run_id).split("/")[-1]
+            model = format_model_label(run_id, summary.get("model", run_id))
             episodes = summary.get("episodes", [])
 
             if not episodes and data.get("trajectories"):
@@ -312,6 +345,65 @@ elif page == "📊 Task Breakdown":
                     .properties(height=300)
                 )
                 st.altair_chart(bug_chart, use_container_width=True)
+
+            # Failure Category Breakdown
+            st.markdown("---")
+            st.markdown("### ⚠️ Failure Mode & Error Category Breakdown")
+            failed_episodes = []
+            for run_id, data in runs_data.items():
+                if "baseline" in run_id:
+                    continue  # focus error analysis on real evaluated models
+                summary = data.get("summary", {})
+                disp_model = format_model_label(run_id, summary.get("model", run_id))
+                trajs = data.get("trajectories", [])
+                trajs_by_ep = {}
+                for t in trajs:
+                    eid = t.get("episode_id")
+                    if eid not in trajs_by_ep:
+                        trajs_by_ep[eid] = []
+                    trajs_by_ep[eid].append(t)
+
+                for ep in summary.get("episodes", []):
+                    if not ep.get("success"):
+                        ep_trajs = trajs_by_ep.get(ep.get("episode_id"), [])
+                        category = "Wrong fix"
+                        if any("error" in t.get("action", {}) or t.get("action", {}).get("type") not in ("edit", "run", "submit") for t in ep_trajs):
+                            category = "Invalid JSON"
+                        elif ep.get("regression_occurred") or any(t.get("reward", 0.0) <= -0.20 for t in ep_trajs):
+                            category = "Regression"
+                        elif ep.get("steps", 0) >= 10:
+                            category = "Ran out of steps"
+
+                        failed_episodes.append({
+                            "Model": disp_model,
+                            "Run ID": run_id,
+                            "Task ID": ep.get("task_id"),
+                            "Failure Category": category,
+                            "Final Pass Rate": f"{ep.get('final_pass_rate', 0.0):.1%}",
+                            "Steps": ep.get("steps", 0),
+                        })
+
+            if failed_episodes:
+                fdf = pd.DataFrame(failed_episodes)
+                fc1, fc2 = st.columns([1, 1])
+                with fc1:
+                    fc_chart = (
+                        alt.Chart(fdf)
+                        .mark_bar(cornerRadiusTopLeft=6, cornerRadiusTopRight=6)
+                        .encode(
+                            x=alt.X("Failure Category:N", sort="-y", title="Failure Mode"),
+                            y=alt.Y("count():Q", title="Number of Failures"),
+                            color=alt.Color("Failure Category:N", legend=None),
+                            tooltip=["Failure Category", "count()"],
+                        )
+                        .properties(height=280, title="Benchmark Failure Categories")
+                    )
+                    st.altair_chart(fc_chart, use_container_width=True)
+                with fc2:
+                    st.markdown("#### Failed Episode Details")
+                    st.dataframe(fdf[["Model", "Task ID", "Failure Category", "Final Pass Rate", "Steps"]], use_container_width=True, hide_index=True)
+            else:
+                st.success("No failed episodes found in active model runs!")
 
 
 # ==============================================================================
