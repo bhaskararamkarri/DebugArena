@@ -230,17 +230,19 @@ To evaluate the idiomatic quality, correctness, and safety of agent-generated co
 
 All evaluations below reflect **real empirical execution** across the full 20-task benchmark:
 
-| Model / Baseline | Pass Rate (%) | Solved Tasks | Avg Steps | Avg Return | Avg Judge Quality (1-5) |
-|---|---|---|---|---|---|
-| **`nvidia/nemotron-3-super-120b-a12b`** | **95.0%** | **19 / 20** | 1.20 | **+0.53** | 3.85 / 5.0 |
-| **`nvidia/nemotron-3-nano-30b-a3b`** | **90.0%** | **18 / 20** | 1.25 | **+0.40** | 3.80 / 5.0 |
-| **Reference solver (upper bound)** | **100.0%** | **20 / 20** | 2.00 | **+0.53** | 4.00 / 5.0 |
-| **No-op submit (lower bound)** | **0.0%** | **0 / 20** | 1.00 | **-0.01** | N/A |
+| Model / Baseline | Pass Rate (%) | 95% Wilson CI | Solved Tasks | Avg Steps | Avg Return | Avg Judge Quality (1-5) | Invalid JSON Rate |
+|---|---|---|---|---|---|---|---|
+| **`nvidia/nemotron-3-super-120b-a12b`** | **95.0%** | **[76.4%, 99.1%]** | **19 / 20** | 1.20 | **+0.53** | 3.85 / 5.0 | **0.0%** |
+| **`nvidia/nemotron-3-nano-30b-a3b`** | **90.0%** | **[69.9%, 97.2%]** | **18 / 20** | 1.25 | **+0.40** | 3.80 / 5.0 | **0.0%** |
+| **Reference solver (upper bound)** | **100.0%** | **[83.9%, 100.0%]** | **20 / 20** | 2.00 | **+0.53** | 4.00 / 5.0 | **0.0%** |
+| **No-op submit (lower bound)** | **0.0%** | **[0.0%, 16.1%]** | **0 / 20** | 1.00 | **-0.01** | N/A | **0.0%** |
+
+> **Statistical Note on Error Bars:** With $N=20$ tasks in the Core suite, binomial confidence intervals are wide (e.g., a 95.0% observed pass rate spans a 95% Wilson confidence interval of $[76.4\%, 99.1\%]$, and 90.0% spans $[69.9\%, 97.2\%]$). Single-run evaluations should be understood in the context of these statistical bounds.
 
 ### Key Empirical Findings:
 - **Nemotron Super (120B)** achieves a **95% pass rate**, solving 19 out of 20 tasks on its initial attempt with zero regressions.
-- **Nemotron Nano (30B)** delivers high efficiency (**90% pass rate**), but encountered a regression on `t16_lru_cache_eviction`, which the reward function penalized appropriately (-1.09 return).
-- In both models, our strict JSON output validation and alias normalization achieved a **0% invalid-JSON failure rate**.
+- **Nemotron Nano (30B)** delivers high efficiency (**90% pass rate**), but encountered syntax formatting regressions on `t15_matrix_transpose` and `t16_lru_cache_eviction`, which the reward function penalized appropriately (-0.92 and -1.09 returns).
+- In both models, our strict JSON output validation and alias normalization achieved a **0.0% invalid-JSON failure rate**.
 
 ---
 

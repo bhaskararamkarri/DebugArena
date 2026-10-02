@@ -44,6 +44,23 @@ st.markdown(
 )
 
 
+import math
+
+
+def compute_wilson_ci(k: int, n: int, confidence: float = 0.95) -> str:
+    """Computes 95% Wilson score interval for binomial proportion."""
+    if n == 0:
+        return "N/A"
+    z = 1.959964
+    p_hat = k / n
+    denom = 1 + (z ** 2) / n
+    center = (p_hat + (z ** 2) / (2 * n)) / denom
+    margin = (z / denom) * math.sqrt((p_hat * (1 - p_hat) / n) + (z ** 2) / (4 * (n ** 2)))
+    low = max(0.0, center - margin) * 100
+    high = min(1.0, center + margin) * 100
+    return f"[{low:.1f}%, {high:.1f}%]"
+
+
 def format_model_label(run_id: str, model_id: str) -> str:
     if "mock" in run_id.lower() or "mock" in model_id.lower():
         return "Reference solver (upper bound)"
@@ -178,6 +195,7 @@ if page == "🏆 Leaderboard":
                 "Tasks": total_tasks,
                 "Solved": solved_tasks,
                 "Success Rate (%)": round(success_rate * 100, 1),
+                "95% Wilson CI": compute_wilson_ci(solved_tasks, total_tasks),
                 "Avg Steps": avg_steps,
                 "Avg Return": avg_return,
                 "Judge Quality (1-5)": f"{avg_judge:.1f}" if avg_judge else "N/A",
@@ -194,8 +212,9 @@ if page == "🏆 Leaderboard":
         kpi4.metric("Avg Quality Score", best_run["Judge Quality (1-5)"])
 
         st.markdown("### 📋 Evaluation Runs Standings")
+        st.caption("ℹ️ *Note on sample size:* With 20 tasks per evaluation run, binomial error bars are wide (e.g., 95% Wilson confidence interval for 19/20 is [76.4%, 99.1%]).")
         st.dataframe(
-            df[["Model", "Run ID", "Tasks", "Solved", "Success Rate (%)", "Avg Steps", "Avg Return", "Judge Quality (1-5)"]],
+            df[["Model", "Run ID", "Tasks", "Solved", "Success Rate (%)", "95% Wilson CI", "Avg Steps", "Avg Return", "Judge Quality (1-5)"]],
             use_container_width=True,
             hide_index=True,
         )
