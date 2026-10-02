@@ -1,0 +1,15 @@
+{
+  "task_id": "t05_string_reverse_words",
+  "difficulty": "easy",
+  "bug_type": "string_reversal",
+  "description": "reverse_words(sentence) reverses every character in the string instead of reversing the order of words.",
+  "repo_files": {
+    "textutils.py": "def reverse_words(sentence: str) -> str:\n    \"\"\"Reverse the order of words in sentence while keeping words intact.\"\"\"\n    if not sentence:\n        return \"\"\n    return sentence[::-1]\n"
+  },
+  "tests": {
+    "test_textutils.py": "from textutils import reverse_words\n\ndef test_empty():\n    # Passes before fix\n    assert reverse_words(\"\") == \"\"\n\ndef test_single_word():\n    # Should not reverse letters inside the word!\n    assert reverse_words(\"hello\") == \"hello\"\n\ndef test_two_words():\n    assert reverse_words(\"hello world\") == \"world hello\"\n\ndef test_three_words():\n    assert reverse_words(\"quick brown fox\") == \"fox brown quick\"\n"
+  },
+  "reference_fix": {
+    "textutils.py": "def reverse_words(sentence: str) -> str:\n    \"\"\"Reverse the order of words in sentence while keeping words intact.\"\"\"\n    if not sentence:\n        return \"\"\n    return \" \".join(sentence.split()[::-1])\n"
+  }
+}

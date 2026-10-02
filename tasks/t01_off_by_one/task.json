@@ -1,0 +1,15 @@
+{
+  "task_id": "t01_off_by_one",
+  "difficulty": "easy",
+  "bug_type": "off_by_one",
+  "description": "sum_range(a, b) should return the sum of all integers from a to b inclusive, but it currently excludes b.",
+  "repo_files": {
+    "mathutils.py": "def sum_range(a: int, b: int) -> int:\n    \"\"\"Return the sum of integers from a to b inclusive.\"\"\"\n    if a > b:\n        return 0\n    return sum(range(a, b))\n"
+  },
+  "tests": {
+    "test_mathutils.py": "from mathutils import sum_range\n\ndef test_invalid_range():\n    # Baseline test that passes before fix\n    assert sum_range(5, 2) == 0\n\ndef test_single_element():\n    assert sum_range(4, 4) == 4\n\ndef test_basic_range():\n    assert sum_range(1, 3) == 6\n\ndef test_larger_range():\n    assert sum_range(1, 10) == 55\n"
+  },
+  "reference_fix": {
+    "mathutils.py": "def sum_range(a: int, b: int) -> int:\n    \"\"\"Return the sum of integers from a to b inclusive.\"\"\"\n    if a > b:\n        return 0\n    return sum(range(a, b + 1))\n"
+  }
+}

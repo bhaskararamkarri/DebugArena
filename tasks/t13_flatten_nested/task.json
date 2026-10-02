@@ -1,0 +1,15 @@
+{
+  "task_id": "t13_flatten_nested",
+  "difficulty": "medium",
+  "bug_type": "recursion_edge_case",
+  "description": "flatten(lst) only unpacks 1 level of nesting and fails on deeply nested lists.",
+  "repo_files": {
+    "lists.py": "def flatten(lst: list) -> list:\n    \"\"\"Recursively flatten arbitrarily nested lists into a single 1D list.\"\"\"\n    # Bug: only flattens one level\n    res = []\n    for item in lst:\n        if isinstance(item, list):\n            res.extend(item)\n        else:\n            res.append(item)\n    return res\n"
+  },
+  "tests": {
+    "test_lists.py": "from lists import flatten\n\ndef test_already_flat():\n    # Passes before fix\n    assert flatten([1, 2, 3]) == [1, 2, 3]\n\ndef test_single_level():\n    # Passes before fix\n    assert flatten([[1, 2], [3, 4]]) == [1, 2, 3, 4]\n\ndef test_multi_level():\n    assert flatten([1, [2, [3, [4]], 5]]) == [1, 2, 3, 4, 5]\n\ndef test_empty_sublists():\n    assert flatten([[], [1, []], [[], 2]]) == [1, 2]\n"
+  },
+  "reference_fix": {
+    "lists.py": "def flatten(lst: list) -> list:\n    \"\"\"Recursively flatten arbitrarily nested lists into a single 1D list.\"\"\"\n    res = []\n    for item in lst:\n        if isinstance(item, list):\n            res.extend(flatten(item))\n        else:\n            res.append(item)\n    return res\n"
+  }
+}

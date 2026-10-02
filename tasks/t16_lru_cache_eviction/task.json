@@ -1,0 +1,15 @@
+{
+  "task_id": "t16_lru_cache_eviction",
+  "difficulty": "medium",
+  "bug_type": "cache_eviction_logic",
+  "description": "LRUCache get(key) retrieves value but does not move key to the most-recently-used position.",
+  "repo_files": {
+    "cache.py": "from collections import OrderedDict\n\nclass LRUCache:\n    def __init__(self, capacity: int):\n        self.capacity = capacity\n        self.store = OrderedDict()\n\n    def get(self, key: str) -> int:\n        if key not in self.store:\n            return -1\n        # Bug: missed moving accessed key to end\n        return self.store[key]\n\n    def put(self, key: str, value: int) -> None:\n        if key in self.store:\n            self.store.move_to_end(key)\n        self.store[key] = value\n        if len(self.store) > self.capacity:\n            self.store.popitem(last=False)\n"
+  },
+  "tests": {
+    "test_cache.py": "from cache import LRUCache\n\ndef test_missing_key():\n    # Passes before fix\n    c = LRUCache(2)\n    assert c.get('missing') == -1\n\ndef test_basic_put_get():\n    # Passes before fix\n    c = LRUCache(2)\n    c.put('a', 1)\n    assert c.get('a') == 1\n\ndef test_eviction_order():\n    c = LRUCache(2)\n    c.put('a', 1)\n    c.put('b', 2)\n    # Access 'a', making 'b' the least recently used\n    assert c.get('a') == 1\n    # Put 'c', should evict 'b'\n    c.put('c', 3)\n    assert c.get('b') == -1\n    assert c.get('a') == 1\n    assert c.get('c') == 3\n"
+  },
+  "reference_fix": {
+    "cache.py": "from collections import OrderedDict\n\nclass LRUCache:\n    def __init__(self, capacity: int):\n        self.capacity = capacity\n        self.store = OrderedDict()\n\n    def get(self, key: str) -> int:\n        if key not in self.store:\n            return -1\n        self.store.move_to_end(key)\n        return self.store[key]\n\n    def put(self, key: str, value: int) -> None:\n        if key in self.store:\n            self.store.move_to_end(key)\n        self.store[key] = value\n        if len(self.store) > self.capacity:\n            self.store.popitem(last=False)\n"
+  }
+}

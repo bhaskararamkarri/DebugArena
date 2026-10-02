@@ -1,0 +1,55 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environment
+venv/
+env/
+ENV/
+.venv/
+
+# Environment Variables & Secrets
+.env
+*.local
+
+# Testing & Cache
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Logs & Temporary files
+*.log
+tmp/
+scratch/
+
+# Runs (keep sample and benchmark evaluation runs)
+runs/*
+!runs/sample/
+!runs/sample/**
+!runs/baseline_mock_solver/
+!runs/baseline_mock_solver/**
+!runs/2026-10-02_nemotron_nano/
+!runs/2026-10-02_nemotron_nano/**
+!runs/2026-10-02_nemotron_super/
+!runs/2026-10-02_nemotron_super/**
+
+# Streamlit
+.streamlit/cache/

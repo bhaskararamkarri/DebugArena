@@ -1,0 +1,15 @@
+{
+  "task_id": "t10_wrong_slicing",
+  "difficulty": "medium",
+  "bug_type": "wrong_string_slicing",
+  "description": "extract_domain(email) extracts the domain between @ and .com/etc, but slicing misses the first character after @.",
+  "repo_files": {
+    "emailutils.py": "def extract_domain(email: str) -> str:\n    \"\"\"Extract domain name from email (e.g. user@domain.com -> domain.com).\"\"\"\n    if \"@\" not in email:\n        return \"\"\n    idx = email.index(\"@\")\n    # Bug: idx + 2 skips the first char of domain\n    return email[idx + 2 :]\n"
+  },
+  "tests": {
+    "test_emailutils.py": "from emailutils import extract_domain\n\ndef test_no_at_symbol():\n    # Passes before fix\n    assert extract_domain(\"invalid-email\") == \"\"\n\ndef test_standard_email():\n    assert extract_domain(\"alice@example.com\") == \"example.com\"\n\ndef test_short_domain():\n    assert extract_domain(\"bob@ai.org\") == \"ai.org\"\n\ndef test_subdomain():\n    assert extract_domain(\"test@sub.domain.co\") == \"sub.domain.co\"\n"
+  },
+  "reference_fix": {
+    "emailutils.py": "def extract_domain(email: str) -> str:\n    \"\"\"Extract domain name from email (e.g. user@domain.com -> domain.com).\"\"\"\n    if \"@\" not in email:\n        return \"\"\n    idx = email.index(\"@\")\n    return email[idx + 1 :]\n"
+  }
+}

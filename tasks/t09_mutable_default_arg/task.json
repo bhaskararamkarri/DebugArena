@@ -1,0 +1,15 @@
+{
+  "task_id": "t09_mutable_default_arg",
+  "difficulty": "medium",
+  "bug_type": "mutable_default_argument",
+  "description": "add_item(item, basket=[]) uses a mutable default argument, retaining items across independent calls.",
+  "repo_files": {
+    "cart.py": "def add_item(item: str, basket: list[str] = []) -> list[str]:\n    \"\"\"Appends item to basket and returns the basket.\"\"\"\n    basket.append(item)\n    return basket\n"
+  },
+  "tests": {
+    "test_cart.py": "from cart import add_item\n\ndef test_with_explicit_basket():\n    # Passes before fix\n    my_basket = [\"apple\"]\n    assert add_item(\"banana\", my_basket) == [\"apple\", \"banana\"]\n\ndef test_first_call_default():\n    assert add_item(\"orange\") == [\"orange\"]\n\ndef test_second_call_default_isolation():\n    # Default list should not retain previously added items\n    assert add_item(\"grape\") == [\"grape\"]\n\ndef test_third_call_default_isolation():\n    assert add_item(\"melon\") == [\"melon\"]\n"
+  },
+  "reference_fix": {
+    "cart.py": "from typing import Optional\n\ndef add_item(item: str, basket: Optional[list[str]] = None) -> list[str]:\n    \"\"\"Appends item to basket and returns the basket.\"\"\"\n    if basket is None:\n        basket = []\n    basket.append(item)\n    return basket\n"
+  }
+}

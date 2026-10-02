@@ -1,0 +1,15 @@
+{
+  "task_id": "t12_dict_key_handling",
+  "difficulty": "medium",
+  "bug_type": "missing_dict_key",
+  "description": "get_user_role(users_dict, user_id, default='guest') raises KeyError if user_id is missing or profile has no 'role'.",
+  "repo_files": {
+    "roles.py": "def get_user_role(users_dict: dict, user_id: str, default: str = 'guest') -> str:\n    \"\"\"Returns user's role or default if user/role is not found.\"\"\"\n    # Bug: direct indexing causes KeyError\n    return users_dict[user_id]['role']\n"
+  },
+  "tests": {
+    "test_roles.py": "from roles import get_user_role\n\ndef test_existing_user():\n    # Passes before fix\n    data = {'u1': {'role': 'admin'}}\n    assert get_user_role(data, 'u1') == 'admin'\n\ndef test_missing_user():\n    data = {'u1': {'role': 'admin'}}\n    assert get_user_role(data, 'u2') == 'guest'\n\ndef test_missing_role_key():\n    data = {'u1': {'name': 'Alice'}}\n    assert get_user_role(data, 'u1') == 'guest'\n\ndef test_custom_default():\n    assert get_user_role({}, 'unknown', default='anonymous') == 'anonymous'\n"
+  },
+  "reference_fix": {
+    "roles.py": "def get_user_role(users_dict: dict, user_id: str, default: str = 'guest') -> str:\n    \"\"\"Returns user's role or default if user/role is not found.\"\"\"\n    user = users_dict.get(user_id)\n    if isinstance(user, dict):\n        return user.get('role', default)\n    return default\n"
+  }
+}

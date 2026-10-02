@@ -1,0 +1,15 @@
+{
+  "task_id": "t20_retry_decorator",
+  "difficulty": "hard",
+  "bug_type": "decorator_state_counter",
+  "description": "retry(max_attempts=3) decorator catches exceptions and retries, but does not decrement or track remaining attempts, retrying infinitely or failing immediately.",
+  "repo_files": {
+    "retrier.py": "from functools import wraps\n\ndef retry(max_attempts: int = 3):\n    \"\"\"Decorator that retries a function up to max_attempts times on Exception.\"\"\"\n    def decorator(func):\n        @wraps(func)\n        def wrapper(*args, **kwargs):\n            # Bug: only tries once and raises\n            try:\n                return func(*args, **kwargs)\n            except Exception as e:\n                raise e\n        return wrapper\n    return decorator\n"
+  },
+  "tests": {
+    "test_retrier.py": "import pytest\nfrom retrier import retry\n\ndef test_immediate_success():\n    # Passes before fix\n    @retry(max_attempts=3)\n    def succ():\n        return 'ok'\n    assert succ() == 'ok'\n\ndef test_retry_eventual_success():\n    calls = 0\n    @retry(max_attempts=3)\n    def flaky():\n        nonlocal calls\n        calls += 1\n        if calls < 3:\n            raise ConnectionError('Temporary error')\n        return 'recovered'\n    assert flaky() == 'recovered'\n    assert calls == 3\n\ndef test_exhausted_retries_raises():\n    calls = 0\n    @retry(max_attempts=2)\n    def always_fail():\n        nonlocal calls\n        calls += 1\n        raise ValueError('Fatal')\n    with pytest.raises(ValueError):\n        always_fail()\n    assert calls == 2\n"
+  },
+  "reference_fix": {
+    "retrier.py": "from functools import wraps\n\ndef retry(max_attempts: int = 3):\n    \"\"\"Decorator that retries a function up to max_attempts times on Exception.\"\"\"\n    def decorator(func):\n        @wraps(func)\n        def wrapper(*args, **kwargs):\n            last_err = None\n            for _ in range(max_attempts):\n                try:\n                    return func(*args, **kwargs)\n                except Exception as e:\n                    last_err = e\n            if last_err is not None:\n                raise last_err\n        return wrapper\n    return decorator\n"
+  }
+}

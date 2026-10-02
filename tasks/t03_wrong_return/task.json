@@ -1,0 +1,15 @@
+{
+  "task_id": "t03_wrong_return",
+  "difficulty": "easy",
+  "bug_type": "wrong_return_value",
+  "description": "factorial(n) returns 0 for n == 0 instead of 1.",
+  "repo_files": {
+    "factorials.py": "def factorial(n: int) -> int:\n    \"\"\"Return n factorial.\"\"\"\n    if n < 0:\n        raise ValueError('Negative values not allowed')\n    if n == 0:\n        return 0\n    result = 1\n    for i in range(1, n + 1):\n        result *= i\n    return result\n"
+  },
+  "tests": {
+    "test_factorials.py": "import pytest\nfrom factorials import factorial\n\ndef test_positive():\n    # Passes before fix\n    assert factorial(3) == 6\n    assert factorial(5) == 120\n\ndef test_zero():\n    assert factorial(0) == 1\n\ndef test_one():\n    assert factorial(1) == 1\n\ndef test_negative_raises():\n    with pytest.raises(ValueError):\n        factorial(-1)\n"
+  },
+  "reference_fix": {
+    "factorials.py": "def factorial(n: int) -> int:\n    \"\"\"Return n factorial.\"\"\"\n    if n < 0:\n        raise ValueError('Negative values not allowed')\n    if n == 0:\n        return 1\n    result = 1\n    for i in range(1, n + 1):\n        result *= i\n    return result\n"
+  }
+}

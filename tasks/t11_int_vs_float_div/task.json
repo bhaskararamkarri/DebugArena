@@ -1,0 +1,15 @@
+{
+  "task_id": "t11_int_vs_float_div",
+  "difficulty": "medium",
+  "bug_type": "integer_vs_float_division",
+  "description": "calculate_aspect_ratio(width, height) uses integer division // causing truncation instead of true floating point ratio.",
+  "repo_files": {
+    "dimensions.py": "def calculate_aspect_ratio(width: int, height: int) -> float:\n    \"\"\"Return aspect ratio (width / height) rounded to 2 decimal places.\"\"\"\n    if height <= 0 or width <= 0:\n        raise ValueError('Dimensions must be positive')\n    # Bug: integer division\n    return float(width // height)\n"
+  },
+  "tests": {
+    "test_dimensions.py": "import pytest\nfrom dimensions import calculate_aspect_ratio\n\ndef test_invalid_dimension():\n    # Passes before fix\n    with pytest.raises(ValueError):\n        calculate_aspect_ratio(0, 100)\n\ndef test_integer_ratio():\n    # Passes before fix (4 // 2 == 2.0)\n    assert calculate_aspect_ratio(400, 200) == 2.0\n\ndef test_sixteen_nine():\n    assert calculate_aspect_ratio(1920, 1080) == 1.78\n\ndef test_fractional_less_than_one():\n    assert calculate_aspect_ratio(1080, 1920) == 0.56\n"
+  },
+  "reference_fix": {
+    "dimensions.py": "def calculate_aspect_ratio(width: int, height: int) -> float:\n    \"\"\"Return aspect ratio (width / height) rounded to 2 decimal places.\"\"\"\n    if height <= 0 or width <= 0:\n        raise ValueError('Dimensions must be positive')\n    return round(width / height, 2)\n"
+  }
+}

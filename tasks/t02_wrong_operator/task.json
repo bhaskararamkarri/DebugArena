@@ -1,0 +1,15 @@
+{
+  "task_id": "t02_wrong_operator",
+  "difficulty": "easy",
+  "bug_type": "wrong_operator",
+  "description": "filter_passing_scores(scores, threshold) should return all scores that are greater than or equal to threshold, but it strictly filters out scores equal to threshold.",
+  "repo_files": {
+    "grader.py": "def filter_passing_scores(scores: list[int], threshold: int = 50) -> list[int]:\n    \"\"\"Filter scores >= threshold.\"\"\"\n    return [s for s in scores if s > threshold]\n"
+  },
+  "tests": {
+    "test_grader.py": "from grader import filter_passing_scores\n\ndef test_strictly_above():\n    # Passes before fix\n    assert filter_passing_scores([60, 70, 80], 50) == [60, 70, 80]\n\ndef test_boundary_score():\n    assert filter_passing_scores([50], 50) == [50]\n\ndef test_mixed_scores():\n    assert filter_passing_scores([49, 50, 51], 50) == [50, 51]\n\ndef test_empty_scores():\n    assert filter_passing_scores([], 50) == []\n"
+  },
+  "reference_fix": {
+    "grader.py": "def filter_passing_scores(scores: list[int], threshold: int = 50) -> list[int]:\n    \"\"\"Filter scores >= threshold.\"\"\"\n    return [s for s in scores if s >= threshold]\n"
+  }
+}

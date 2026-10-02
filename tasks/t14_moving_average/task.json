@@ -1,0 +1,15 @@
+{
+  "task_id": "t14_moving_average",
+  "difficulty": "medium",
+  "bug_type": "index_misalignment",
+  "description": "moving_average(series, window) computes averages with index offset i instead of sliding window range.",
+  "repo_files": {
+    "timeseries.py": "def moving_average(series: list[float], window: int) -> list[float]:\n    \"\"\"Compute simple moving average with window size.\"\"\"\n    if window <= 0 or len(series) < window:\n        return []\n    result = []\n    # Bug: window sum slice misses elements\n    for i in range(len(series) - window + 1):\n        w_sum = sum(series[i : i + window - 1])\n        result.append(round(w_sum / window, 2))\n    return result\n"
+  },
+  "tests": {
+    "test_timeseries.py": "from timeseries import moving_average\n\ndef test_short_series():\n    # Passes before fix\n    assert moving_average([1.0, 2.0], 3) == []\n\ndef test_window_size_one():\n    # Window of 1 should equal series\n    assert moving_average([1.0, 2.0, 3.0], 1) == [1.0, 2.0, 3.0]\n\ndef test_window_two():\n    assert moving_average([1.0, 3.0, 5.0, 7.0], 2) == [2.0, 4.0, 6.0]\n\ndef test_window_three():\n    assert moving_average([10.0, 20.0, 30.0, 40.0], 3) == [20.0, 30.0]\n"
+  },
+  "reference_fix": {
+    "timeseries.py": "def moving_average(series: list[float], window: int) -> list[float]:\n    \"\"\"Compute simple moving average with window size.\"\"\"\n    if window <= 0 or len(series) < window:\n        return []\n    result = []\n    for i in range(len(series) - window + 1):\n        w_sum = sum(series[i : i + window])\n        result.append(round(w_sum / window, 2))\n    return result\n"
+  }
+}

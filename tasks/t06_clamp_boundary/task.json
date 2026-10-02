@@ -1,0 +1,15 @@
+{
+  "task_id": "t06_clamp_boundary",
+  "difficulty": "easy",
+  "bug_type": "logic_swap",
+  "description": "clamp(val, low, high) swapped the min and max boundary logic.",
+  "repo_files": {
+    "mathclamp.py": "def clamp(val: float, low: float, high: float) -> float:\n    \"\"\"Restricts val to be within [low, high].\"\"\"\n    # Inverted min/max logic bug\n    return min(low, max(high, val))\n"
+  },
+  "tests": {
+    "test_mathclamp.py": "from mathclamp import clamp\n\ndef test_equal_boundaries():\n    # Passes before fix\n    assert clamp(5.0, 5.0, 5.0) == 5.0\n\ndef test_within_range():\n    assert clamp(5.0, 0.0, 10.0) == 5.0\n\ndef test_below_low():\n    assert clamp(-2.0, 0.0, 10.0) == 0.0\n\ndef test_above_high():\n    assert clamp(15.0, 0.0, 10.0) == 10.0\n"
+  },
+  "reference_fix": {
+    "mathclamp.py": "def clamp(val: float, low: float, high: float) -> float:\n    \"\"\"Restricts val to be within [low, high].\"\"\"\n    return max(low, min(high, val))\n"
+  }
+}

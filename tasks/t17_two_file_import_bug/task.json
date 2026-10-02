@@ -1,0 +1,16 @@
+{
+  "task_id": "t17_two_file_import_bug",
+  "difficulty": "hard",
+  "bug_type": "multi_file_interface_mismatch",
+  "description": "Multi-file task: `data_loader.py` parses record rows, but `pipeline.py` calls it with incompatible key names causing a KeyError.",
+  "repo_files": {
+    "data_loader.py": "def load_records(raw_rows: list[str]) -> list[dict]:\n    \"\"\"Parses csv formatted string rows into list of dictionaries.\"\"\"\n    records = []\n    for row in raw_rows:\n        parts = row.strip().split(',')\n        if len(parts) >= 2:\n            records.append({'user_id': parts[0].strip(), 'score': float(parts[1].strip())})\n    return records\n",
+    "pipeline.py": "from data_loader import load_records\n\ndef compute_top_user(raw_rows: list[str]) -> str:\n    \"\"\"Finds user with the highest score from raw rows.\"\"\"\n    records = load_records(raw_rows)\n    if not records:\n        return ''\n    # Bug: pipeline expects 'id' instead of 'user_id'\n    best = max(records, key=lambda r: r['score'])\n    return best['id']\n"
+  },
+  "tests": {
+    "test_pipeline.py": "from pipeline import compute_top_user\nfrom data_loader import load_records\n\ndef test_empty_rows():\n    # Passes before fix\n    assert compute_top_user([]) == ''\n\ndef test_data_loader_structure():\n    # Loader works standalone\n    res = load_records(['alice,90.5'])\n    assert res == [{'user_id': 'alice', 'score': 90.5}]\n\ndef test_top_user_single():\n    rows = ['alice, 88.0']\n    assert compute_top_user(rows) == 'alice'\n\ndef test_top_user_multiple():\n    rows = ['alice, 75.0', 'bob, 94.5', 'charlie, 82.0']\n    assert compute_top_user(rows) == 'bob'\n"
+  },
+  "reference_fix": {
+    "pipeline.py": "from data_loader import load_records\n\ndef compute_top_user(raw_rows: list[str]) -> str:\n    \"\"\"Finds user with the highest score from raw rows.\"\"\"\n    records = load_records(raw_rows)\n    if not records:\n        return ''\n    best = max(records, key=lambda r: r['score'])\n    return best['user_id']\n"
+  }
+}

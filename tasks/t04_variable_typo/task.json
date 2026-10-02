@@ -1,0 +1,15 @@
+{
+  "task_id": "t04_variable_typo",
+  "difficulty": "easy",
+  "bug_type": "variable_typo",
+  "description": "calculate_variance(nums) contains a NameError typo referencing `sum_diffs` as `sum_diff`.",
+  "repo_files": {
+    "stats.py": "def calculate_variance(nums: list[float]) -> float:\n    \"\"\"Calculate population variance of numbers.\"\"\"\n    if not nums:\n        return 0.0\n    mean = sum(nums) / len(nums)\n    sum_diffs = sum((x - mean) ** 2 for x in nums)\n    return sum_diff / len(nums)\n"
+  },
+  "tests": {
+    "test_stats.py": "from stats import calculate_variance\n\ndef test_empty():\n    # Passes before fix\n    assert calculate_variance([]) == 0.0\n\ndef test_single_val():\n    assert calculate_variance([5.0]) == 0.0\n\ndef test_uniform():\n    assert calculate_variance([2.0, 4.0, 4.0, 4.0, 5.0, 5.0, 7.0, 9.0]) == 4.0\n\ndef test_identical():\n    assert calculate_variance([3.0, 3.0, 3.0]) == 0.0\n"
+  },
+  "reference_fix": {
+    "stats.py": "def calculate_variance(nums: list[float]) -> float:\n    \"\"\"Calculate population variance of numbers.\"\"\"\n    if not nums:\n        return 0.0\n    mean = sum(nums) / len(nums)\n    sum_diffs = sum((x - mean) ** 2 for x in nums)\n    return sum_diffs / len(nums)\n"
+  }
+}

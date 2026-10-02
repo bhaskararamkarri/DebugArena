@@ -1,0 +1,15 @@
+{
+  "task_id": "t07_discount_calc",
+  "difficulty": "easy",
+  "bug_type": "calculation_bug",
+  "description": "apply_discount(price, discount_pct) treats discount_pct as a whole number deduction rather than a percentage reduction.",
+  "repo_files": {
+    "pricing.py": "def apply_discount(price: float, discount_pct: float) -> float:\n    \"\"\"Applies percentage discount (0 to 100) to price.\"\"\"\n    if discount_pct < 0 or discount_pct > 100:\n        raise ValueError('Invalid discount percentage')\n    # Bug: subtracts discount_pct directly instead of percentage\n    return round(price - discount_pct, 2)\n"
+  },
+  "tests": {
+    "test_pricing.py": "import pytest\nfrom pricing import apply_discount\n\ndef test_invalid_pct():\n    # Passes before fix\n    with pytest.raises(ValueError):\n        apply_discount(100.0, 105.0)\n\ndef test_zero_discount():\n    assert apply_discount(100.0, 0.0) == 100.0\n\ndef test_fifty_percent():\n    assert apply_discount(200.0, 50.0) == 100.0\n\ndef test_twenty_percent():\n    assert apply_discount(50.0, 20.0) == 40.0\n"
+  },
+  "reference_fix": {
+    "pricing.py": "def apply_discount(price: float, discount_pct: float) -> float:\n    \"\"\"Applies percentage discount (0 to 100) to price.\"\"\"\n    if discount_pct < 0 or discount_pct > 100:\n        raise ValueError('Invalid discount percentage')\n    return round(price * (1.0 - discount_pct / 100.0), 2)\n"
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "task_id": "t15_matrix_transpose",
+  "difficulty": "medium",
+  "bug_type": "index_bounds_error",
+  "description": "transpose(matrix) works for square matrices but crashes or produces wrong dimension for non-square rectangular matrices.",
+  "repo_files": {
+    "matrix.py": "def transpose(matrix: list[list[int]]) -> list[list[int]]:\n    \"\"\"Transpose a 2D matrix.\"\"\"\n    if not matrix or not matrix[0]:\n        return []\n    rows = len(matrix)\n    # Bug assumes square matrix dimensions rows x rows\n    return [[matrix[r][c] for r in range(rows)] for c in range(rows)]\n"
+  },
+  "tests": {
+    "test_matrix.py": "from matrix import transpose\n\ndef test_empty():\n    # Passes before fix\n    assert transpose([]) == []\n\ndef test_square_matrix():\n    # Passes before fix\n    sq = [[1, 2], [3, 4]]\n    assert transpose(sq) == [[1, 3], [2, 4]]\n\ndef test_rectangular_2x3():\n    rect = [[1, 2, 3], [4, 5, 6]]\n    assert transpose(rect) == [[1, 4], [2, 5], [3, 6]]\n\ndef test_single_row():\n    assert transpose([[10, 20, 30]]) == [[10], [20], [30]]\n"
+  },
+  "reference_fix": {
+    "matrix.py": "def transpose(matrix: list[list[int]]) -> list[list[int]]:\n    \"\"\"Transpose a 2D matrix.\"\"\"\n    if not matrix or not matrix[0]:\n        return []\n    rows = len(matrix)\n    cols = len(matrix[0])\n    return [[matrix[r][c] for r in range(rows)] for c in range(cols)]\n"
+  }
+}

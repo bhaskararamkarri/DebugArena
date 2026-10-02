@@ -1,0 +1,15 @@
+{
+  "task_id": "t08_empty_list_edge_case",
+  "difficulty": "medium",
+  "bug_type": "missing_edge_case",
+  "description": "calculate_mean(values, default=0.0) crashes with ZeroDivisionError when passed an empty list.",
+  "repo_files": {
+    "aggregates.py": "def calculate_mean(values: list[float], default: float = 0.0) -> float:\n    \"\"\"Return the arithmetic mean of values, or default if empty.\"\"\"\n    return sum(values) / len(values)\n"
+  },
+  "tests": {
+    "test_aggregates.py": "from aggregates import calculate_mean\n\ndef test_single():\n    # Passes before fix\n    assert calculate_mean([10.0]) == 10.0\n\ndef test_multiple():\n    assert calculate_mean([1.0, 2.0, 3.0]) == 2.0\n\ndef test_empty_default():\n    assert calculate_mean([]) == 0.0\n\ndef test_empty_custom_default():\n    assert calculate_mean([], default=-1.0) == -1.0\n"
+  },
+  "reference_fix": {
+    "aggregates.py": "def calculate_mean(values: list[float], default: float = 0.0) -> float:\n    \"\"\"Return the arithmetic mean of values, or default if empty.\"\"\"\n    if not values:\n        return default\n    return sum(values) / len(values)\n"
+  }
+}

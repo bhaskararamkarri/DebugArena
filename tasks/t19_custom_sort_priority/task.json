@@ -1,0 +1,15 @@
+{
+  "task_id": "t19_custom_sort_priority",
+  "difficulty": "hard",
+  "bug_type": "custom_sort_key",
+  "description": "sort_tasks(tasks) should sort items by priority (high > medium > low) then deadline ascending, but inverted priority values cause low priority to be sorted first.",
+  "repo_files": {
+    "taskmgr.py": "def sort_tasks(tasks: list[dict]) -> list[dict]:\n    \"\"\"Sort tasks by priority descending (high > medium > low) then deadline ascending.\"\"\"\n    # Bug: inverted rank puts low priority first\n    priority_order = {'high': 3, 'medium': 2, 'low': 1}\n    return sorted(tasks, key=lambda t: (priority_order.get(t['priority'], 99), t['deadline']))\n"
+  },
+  "tests": {
+    "test_taskmgr.py": "from taskmgr import sort_tasks\n\ndef test_empty():\n    # Passes before fix\n    assert sort_tasks([]) == []\n\ndef test_same_priority_deadline_order():\n    # Passes before fix (same priority)\n    t = [\n        {'id': 1, 'priority': 'high', 'deadline': 5},\n        {'id': 2, 'priority': 'high', 'deadline': 2},\n    ]\n    res = sort_tasks(t)\n    assert [x['id'] for x in res] == [2, 1]\n\ndef test_multi_priority():\n    t = [\n        {'id': 1, 'priority': 'low', 'deadline': 1},\n        {'id': 2, 'priority': 'high', 'deadline': 10},\n        {'id': 3, 'priority': 'medium', 'deadline': 5},\n    ]\n    res = sort_tasks(t)\n    # high should come first, then medium, then low\n    assert [x['id'] for x in res] == [2, 3, 1]\n\ndef test_tie_breaking():\n    t = [\n        {'id': 1, 'priority': 'medium', 'deadline': 8},\n        {'id': 2, 'priority': 'high', 'deadline': 3},\n        {'id': 3, 'priority': 'high', 'deadline': 1},\n    ]\n    res = sort_tasks(t)\n    assert [x['id'] for x in res] == [3, 2, 1]\n"
+  },
+  "reference_fix": {
+    "taskmgr.py": "def sort_tasks(tasks: list[dict]) -> list[dict]:\n    \"\"\"Sort tasks by priority descending (high > medium > low) then deadline ascending.\"\"\"\n    priority_order = {'high': 1, 'medium': 2, 'low': 3}\n    return sorted(tasks, key=lambda t: (priority_order.get(t['priority'], 99), t['deadline']))\n"
+  }
+}
