@@ -50,3 +50,7 @@ reward:
 dataset:
   min_pass_rate: 1.0
   export_dir: "dataset"
+
+observability:
+  langsmith_enabled: false
+  project: "agentgym"

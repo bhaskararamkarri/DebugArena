@@ -16,6 +16,7 @@ from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TimeEl
 from agentgym.agent import Agent, MockAgent
 from agentgym.env import BugFixEnv
 from agentgym.judge import CodeJudge
+from agentgym.tracer import EpisodeTracer
 
 console = Console()
 
@@ -29,6 +30,7 @@ class EpisodeRunner:
         runs_dir: str = "runs",
         config_path: str = "config.yaml",
         enable_judge: bool = True,
+        enable_tracing: bool = False,
     ):
         self.tasks_dir = tasks_dir
         self.runs_dir = Path(runs_dir)
@@ -36,6 +38,7 @@ class EpisodeRunner:
         self.enable_judge = enable_judge
         self.file_lock = threading.Lock()
         self.judge = CodeJudge(config_path=config_path) if enable_judge else None
+        self.tracer = EpisodeTracer(enabled=enable_tracing)
 
     def run_episode(
         self,
@@ -69,6 +72,14 @@ class EpisodeRunner:
         trajectory_file = self.runs_dir / run_id / "trajectories.jsonl"
         trajectory_file.parent.mkdir(parents=True, exist_ok=True)
 
+        task_desc = env.current_task.get("description", "") if env.current_task else ""
+        root_trace = self.tracer.start_episode(
+            run_id=run_id,
+            model_name=model_name,
+            task_id=task_id,
+            task_description=task_desc,
+        )
+
         step_records: List[Dict[str, Any]] = []
         done = False
         step_idx = 0
@@ -78,10 +89,20 @@ class EpisodeRunner:
             step_idx += 1
             # Agent decides action
             action, latency_ms, messages_snapshot = agent.act(obs)
+            self.tracer.log_llm_call(root_trace, step_idx, messages_snapshot, action, latency_ms)
 
             # Step in environment
             next_obs, step_reward, done, info = env.step(action)
             final_info = info
+            self.tracer.log_env_step(
+                root_trace,
+                step_idx,
+                action,
+                next_obs.get("last_output", ""),
+                step_reward,
+                info["pass_rate"],
+                info.get("regression", False),
+            )
 
             # Judge score on final step
             judge_score = None
@@ -124,6 +145,13 @@ class EpisodeRunner:
 
         cumulative_return = final_info.get("cumulative_return", 0.0)
         success = (final_info.get("pass_rate", 0.0) >= 1.0)
+        self.tracer.end_episode(
+            root_trace,
+            success=success,
+            total_return=cumulative_return,
+            steps=step_idx,
+            final_pass_rate=final_info.get("pass_rate", 0.0),
+        )
         env.close()
 
         summary = {

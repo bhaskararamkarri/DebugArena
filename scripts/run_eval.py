@@ -70,6 +70,11 @@ def parse_args():
         action="store_true",
         help="Disable Nemotron judge code quality scoring",
     )
+    parser.add_argument(
+        "--trace",
+        action="store_true",
+        help="Enable LangSmith tracing for episodes",
+    )
     return parser.parse_args()
 
 
@@ -95,6 +100,17 @@ def resolve_model_name(model_arg: str, config_path: str = "config.yaml") -> str:
 def main():
     args = parse_args()
     model_name = resolve_model_name(args.model)
+
+    # Check config for default tracing if not specified on CLI
+    import yaml
+    trace_enabled = args.trace
+    if not trace_enabled and Path("config.yaml").exists():
+        try:
+            with open("config.yaml", "r", encoding="utf-8") as f:
+                cfg = yaml.safe_load(f) or {}
+                trace_enabled = cfg.get("observability", {}).get("langsmith_enabled", False)
+        except Exception:
+            pass
 
     now_str = datetime.datetime.now().strftime("%Y-%m-%d_%H%M%S")
     clean_model_tag = model_name.split("/")[-1].replace("-", "_")
@@ -122,6 +138,7 @@ def main():
         runs_dir="runs",
         config_path="config.yaml",
         enable_judge=not args.no_judge,
+        enable_tracing=trace_enabled,
     )
 
     console.print(f"\n[bold green]AgentGym Evaluation Run: {run_id}[/bold green]")
