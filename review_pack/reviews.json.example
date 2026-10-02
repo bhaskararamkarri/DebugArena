@@ -1,0 +1,62 @@
+[
+  {
+    "task_id": "t01_off_by_one",
+    "episode_id": "ep_0001",
+    "human_score": 5,
+    "human_comment": "Clean root-cause fix with no regressions."
+  },
+  {
+    "task_id": "t02_wrong_operator",
+    "episode_id": "ep_0002",
+    "human_score": 5,
+    "human_comment": "Clean root-cause fix with no regressions."
+  },
+  {
+    "task_id": "t03_wrong_return",
+    "episode_id": "ep_0003",
+    "human_score": 5,
+    "human_comment": "Clean root-cause fix with no regressions."
+  },
+  {
+    "task_id": "t04_variable_typo",
+    "episode_id": "ep_0004",
+    "human_score": 5,
+    "human_comment": "Clean root-cause fix with no regressions."
+  },
+  {
+    "task_id": "t05_string_reverse_words",
+    "episode_id": "ep_0005",
+    "human_score": 5,
+    "human_comment": "Clean root-cause fix with no regressions."
+  },
+  {
+    "task_id": "t06_clamp_boundary",
+    "episode_id": "ep_0006",
+    "human_score": 5,
+    "human_comment": "Clean root-cause fix with no regressions."
+  },
+  {
+    "task_id": "t07_discount_calc",
+    "episode_id": "ep_0007",
+    "human_score": 5,
+    "human_comment": "Clean root-cause fix with no regressions."
+  },
+  {
+    "task_id": "t08_empty_list_edge_case",
+    "episode_id": "ep_0008",
+    "human_score": 5,
+    "human_comment": "Clean root-cause fix with no regressions."
+  },
+  {
+    "task_id": "t09_mutable_default_arg",
+    "episode_id": "ep_0009",
+    "human_score": 5,
+    "human_comment": "Clean root-cause fix with no regressions."
+  },
+  {
+    "task_id": "t10_wrong_slicing",
+    "episode_id": "ep_0010",
+    "human_score": 5,
+    "human_comment": "Clean root-cause fix with no regressions."
+  }
+]

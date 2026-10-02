@@ -44,3 +44,8 @@ Each line in `agentgym_sft.jsonl` represents one solved episode with 100% test p
 ## Limitations
 - Repositories are targeted to small modules (1–3 files, <60 lines) focusing on logic, boundary conditions, state management, and edge cases.
 - Currently restricted to Python 3.11+.
+
+## Human-Verified SFT Subset (`agentgym_sft_human_verified.jsonl`)
+- **Status:** Optional partner integration (Tendem / Toloka expert review), not yet run pending reviewer submission.
+- **Workflow:** Solved episodes are bundled using `python scripts/make_review_pack.py` into `review_pack/review_pack.md` containing problem descriptions, original code, unified fix diffs, and 5 review questions (Correctness, Idiomatic Style, Side Effects, Score 1-5, and Rationale).
+- **Ingestion:** Filled reviews in `review_pack/reviews.json` are processed via `python scripts/import_review.py` (threshold: score $\ge 4$) to emit `dataset/agentgym_sft_human_verified.jsonl` with `human_score` and `human_comment` metadata.
