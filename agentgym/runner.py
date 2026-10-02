@@ -154,12 +154,43 @@ class EpisodeRunner:
         run_folder = self.runs_dir / run_id
         run_folder.mkdir(parents=True, exist_ok=True)
 
+        # Check existing completed episodes for resumability
+        completed_task_ids = set()
+        trajectory_file = run_folder / "trajectories.jsonl"
+        if trajectory_file.exists():
+            with open(trajectory_file, "r", encoding="utf-8") as f:
+                for line in f:
+                    if line.strip():
+                        try:
+                            rec = json.loads(line)
+                            if rec.get("done"):
+                                completed_task_ids.add(rec.get("task_id"))
+                        except Exception:
+                            pass
+
+        summary_file = run_folder / "summary.json"
+        if summary_file.exists():
+            try:
+                with open(summary_file, "r", encoding="utf-8") as f:
+                    old_sum = json.load(f)
+                    results = [ep for ep in old_sum.get("episodes", []) if ep.get("task_id") in completed_task_ids]
+            except Exception:
+                pass
+
         tasks_to_run = []
         for i, tid in enumerate(task_ids):
-            ep_id = f"ep_{i+1:04d}"
-            tasks_to_run.append((tid, ep_id))
+            if tid not in completed_task_ids:
+                ep_id = f"ep_{i+1:04d}"
+                tasks_to_run.append((tid, ep_id))
+
+        if completed_task_ids:
+            console.print(f"[yellow]Resuming run '{run_id}': skipping {len(completed_task_ids)} already completed tasks, {len(tasks_to_run)} remaining.[/yellow]")
 
         console.print(f"[bold cyan]Starting batch run:[/bold cyan] {run_id} | Model: {model_name} | Tasks: {len(tasks_to_run)} | Workers: {workers}")
+
+        if not tasks_to_run:
+            console.print("[green]All requested tasks already completed in this run![/green]")
+            return results
 
         with Progress(
             SpinnerColumn(),

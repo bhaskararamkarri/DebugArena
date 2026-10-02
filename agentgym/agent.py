@@ -14,26 +14,24 @@ from openai import OpenAI
 
 load_dotenv()
 
-SYSTEM_PROMPT = """You are an autonomous AI coding agent fixing a bug in a Python repository.
-You interact with the environment by issuing JSON actions.
+SYSTEM_PROMPT = """You are an autonomous AI coding agent fixing a bug in a small Python repository.
+You interact with the environment ONLY by outputting a single JSON action object.
 
-On every turn, analyze the bug description, repository files, and recent execution output.
-Then, respond with EXACTLY ONE JSON object matching one of the following schemas:
+CRITICAL INSTRUCTIONS:
+- You must output NOTHING except a single valid JSON object.
+- DO NOT write explanations, prose, greetings, or thoughts.
+- DO NOT use markdown headers or conversational commentary.
+- Your entire output must be valid JSON matching one of the three schemas below.
 
-1. Edit an entire file:
+Supported JSON action schemas:
+1. Edit a file:
 {"type": "edit", "path": "filename.py", "content": "<complete new file content>"}
 
-2. Run a command in the isolated sandbox:
-{"type": "run", "cmd": "python -c 'import filename; ...'"}
+2. Run a command in sandbox:
+{"type": "run", "cmd": "python -c '...'"}
 
-3. Submit your final fix:
+3. Submit solution:
 {"type": "submit"}
-
-RULES:
-- Do not wrap your response in conversational text. Respond ONLY with valid JSON.
-- Code blocks like ```json ... ``` are allowed but raw JSON is preferred.
-- Only edit files that exist in the repository. Provide the complete file content on edit.
-- Hidden test files are executed automatically to evaluate your fix.
 """
 
 
@@ -42,17 +40,30 @@ class Agent:
 
     def __init__(
         self,
-        model_name: str = "nvidia/llama-3.1-nemotron-nano-4b-instruct",
-        provider: str = "nebius",
+        model_name: Optional[str] = None,
+        provider: Optional[str] = None,
         config_path: str = "config.yaml",
         temperature: float = 0.2,
         max_tokens: int = 1500,
     ):
-        self.model_name = model_name
-        self.provider = provider
+        self.config = self._load_config(config_path)
         self.temperature = temperature
         self.max_tokens = max_tokens
-        self.config = self._load_config(config_path)
+
+        models_cfg = self.config.get("models", {})
+        default_model = models_cfg.get("nemotron_nano", {}).get("name", "nvidia/nemotron-3-nano-30b-a3b")
+        self.model_name = model_name or default_model
+
+        if provider:
+            self.provider = provider
+        else:
+            found_prov = None
+            for m_key, m_info in models_cfg.items():
+                if m_info.get("name") == self.model_name:
+                    found_prov = m_info.get("provider")
+                    break
+            self.provider = found_prov or self.config.get("default_provider", "openrouter")
+
         self.client = self._init_client()
         self.conversation_history: List[Dict[str, str]] = []
 
@@ -65,16 +76,16 @@ class Agent:
     def _init_client(self) -> OpenAI:
         providers = self.config.get("providers", {})
         prov_cfg = providers.get(self.provider, {})
-        base_url = prov_cfg.get("base_url", "https://api.studio.nebius.ai/v1")
-        key_env = prov_cfg.get("api_key_env", "NEBIUS_API_KEY")
-        api_key = os.getenv(key_env, "")
+        base_url = prov_cfg.get("base_url", "https://openrouter.ai/api/v1")
+        key_env = prov_cfg.get("api_key_env", "")
+        api_key = os.getenv(key_env, "") if key_env else ""
 
-        # If designated provider has no key, check alternatives in order: openrouter, nebius, nvidia
+        # If designated provider has no key, check alternatives in order
         if not api_key and self.provider != "mock":
             for candidate_prov in ["openrouter", "nebius", "nvidia"]:
                 cand_cfg = providers.get(candidate_prov, {})
                 cand_key_env = cand_cfg.get("api_key_env", "")
-                cand_key = os.getenv(cand_key_env, "")
+                cand_key = os.getenv(cand_key_env, "") if cand_key_env else ""
                 if cand_key:
                     base_url = cand_cfg.get("base_url")
                     api_key = cand_key
@@ -104,21 +115,41 @@ class Agent:
             text = text[start : end + 1]
         return text
 
-    def _validate_action(self, action: Dict[str, Any]) -> Tuple[bool, str]:
+    def _normalize_and_validate_action(self, action: Dict[str, Any]) -> Tuple[bool, str, Dict[str, Any]]:
         if not isinstance(action, dict):
-            return False, "Response is not a JSON object."
-        act_type = action.get("type")
+            return False, "Response is not a JSON object.", action
+
+        normalized = dict(action)
+
+        # Normalize action type
+        act_type = normalized.get("type") or normalized.get("action")
+        if isinstance(act_type, str):
+            act_type = act_type.lower().strip()
+        normalized["type"] = act_type
+
         if act_type not in ["edit", "run", "submit"]:
-            return False, f"Action 'type' must be 'edit', 'run', or 'submit', got '{act_type}'."
+            return False, f"Action 'type' must be 'edit', 'run', or 'submit', got '{act_type}'.", action
+
         if act_type == "edit":
-            if "path" not in action or not isinstance(action["path"], str):
-                return False, "'edit' action requires a string 'path'."
-            if "content" not in action or not isinstance(action["content"], str):
-                return False, "'edit' action requires a string 'content'."
+            # Normalize path
+            path = normalized.get("path") or normalized.get("file") or normalized.get("filename")
+            normalized["path"] = path
+            # Normalize content
+            content = normalized.get("content") or normalized.get("code") or normalized.get("new_content")
+            normalized["content"] = content
+
+            if not path or not isinstance(path, str):
+                return False, "'edit' action requires a valid string 'path'.", action
+            if content is None or not isinstance(content, str):
+                return False, "'edit' action requires string 'content'.", action
+
         if act_type == "run":
-            if "cmd" not in action or not isinstance(action["cmd"], str):
-                return False, "'run' action requires a string 'cmd'."
-        return True, ""
+            cmd = normalized.get("cmd") or normalized.get("command")
+            normalized["cmd"] = cmd
+            if not cmd or not isinstance(cmd, str):
+                return False, "'run' action requires a valid string 'cmd'.", action
+
+        return True, "", normalized
 
     def act(self, observation: Dict[str, Any]) -> Tuple[Dict[str, Any], int, List[Dict[str, str]]]:
         """Sends observation to model, parses JSON action with 1 retry on invalid format.
@@ -146,30 +177,32 @@ class Agent:
         valid = False
         action = {}
         try:
-            action = json.loads(clean_text)
-            valid, err = self._validate_action(action)
+            raw_action = json.loads(clean_text)
+            valid, err, action = self._normalize_and_validate_action(raw_action)
         except Exception as e:
             err = str(e)
 
         if not valid:
             # Retry once with error feedback as required by Section 7.6
             retry_msg = (
-                f"Your last reply was not valid JSON ({err}). "
-                f"Please reply with ONLY a single valid JSON action object."
+                f"ERROR: Your previous response was not valid JSON ({err}). "
+                f"You must respond with ONLY a single valid JSON object: "
+                f'{{"type": "edit", "path": "<filename>", "content": "<new code>"}} or '
+                f'{{"type": "run", "cmd": "<command>"}} or {{"type": "submit"}}. '
+                f"Do not include any conversational sentences or explanations."
             )
             self.conversation_history.append({"role": "assistant", "content": reply})
             self.conversation_history.append({"role": "user", "content": retry_msg})
 
-            t_retry_0 = time.time()
             reply2, lat2 = self._call_model()
             latency_ms += lat2
             clean_text2 = self._clean_json_str(reply2)
             try:
-                action = json.loads(clean_text2)
-                valid2, _ = self._validate_action(action)
+                raw_action2 = json.loads(clean_text2)
+                valid2, _, action2 = self._normalize_and_validate_action(raw_action2)
                 if valid2:
                     self.conversation_history.append({"role": "assistant", "content": reply2})
-                    return action, latency_ms, list(self.conversation_history)
+                    return action2, latency_ms, list(self.conversation_history)
             except Exception:
                 pass
 
@@ -183,24 +216,33 @@ class Agent:
 
     def _call_model(self) -> Tuple[str, int]:
         start = time.time()
-        try:
-            resp = self.client.chat.completions.create(
-                model=self.model_name,
-                messages=self.conversation_history,
-                temperature=self.temperature,
-                max_tokens=self.max_tokens,
-            )
-            latency_ms = int((time.time() - start) * 1000)
-            choice = resp.choices[0]
-            msg = choice.message
-            content = msg.content or ""
-            if not content and hasattr(msg, "reasoning") and msg.reasoning:
-                content = str(msg.reasoning)
-            return content, latency_ms
-        except Exception as e:
-            latency_ms = int((time.time() - start) * 1000)
-            # Return raw string indicating error so parse triggers fallback
-            return f'{{"error": "{str(e)}"}}', latency_ms
+        max_attempts = 4
+        last_error = ""
+
+        for attempt in range(max_attempts):
+            try:
+                resp = self.client.chat.completions.create(
+                    model=self.model_name,
+                    messages=self.conversation_history,
+                    temperature=self.temperature,
+                    max_tokens=self.max_tokens,
+                )
+                latency_ms = int((time.time() - start) * 1000)
+                choice = resp.choices[0]
+                msg = choice.message
+                content = msg.content or ""
+                if not content and hasattr(msg, "reasoning") and msg.reasoning:
+                    content = str(msg.reasoning)
+                return content, latency_ms
+            except Exception as e:
+                last_error = str(e)
+                # Check for rate limit or transient error
+                if attempt < max_attempts - 1:
+                    sleep_time = (2 ** attempt) * 1.5
+                    time.sleep(sleep_time)
+
+        latency_ms = int((time.time() - start) * 1000)
+        return f'{{"error": "{last_error}"}}', latency_ms
 
 
 class MockAgent(Agent):

@@ -73,11 +73,21 @@ def parse_args():
     return parser.parse_args()
 
 
-def resolve_model_name(model_arg: str) -> str:
+def resolve_model_name(model_arg: str, config_path: str = "config.yaml") -> str:
+    import yaml
+    if Path(config_path).exists():
+        try:
+            with open(config_path, "r", encoding="utf-8") as f:
+                cfg = yaml.safe_load(f) or {}
+                models_cfg = cfg.get("models", {})
+                if model_arg in models_cfg:
+                    return models_cfg[model_arg].get("name", model_arg)
+        except Exception:
+            pass
     aliases = {
-        "nemotron_nano": "nvidia/llama-3.1-nemotron-nano-4b-instruct",
-        "nemotron_super": "nvidia/llama-3.1-nemotron-70b-instruct",
-        "nemotron_mini": "nvidia/nemotron-mini-4b-instruct",
+        "nemotron_nano": "nvidia/nemotron-3-nano-30b-a3b",
+        "nemotron_super": "nvidia/nemotron-3-super-120b-a12b",
+        "nemotron_judge": "nvidia/nemotron-3-ultra-550b-a55b",
     }
     return aliases.get(model_arg, model_arg)
 
