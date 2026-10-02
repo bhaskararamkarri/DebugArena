@@ -67,19 +67,22 @@ class Agent:
         prov_cfg = providers.get(self.provider, {})
         base_url = prov_cfg.get("base_url", "https://api.studio.nebius.ai/v1")
         key_env = prov_cfg.get("api_key_env", "NEBIUS_API_KEY")
-        api_key = os.getenv(key_env, "dummy_key")
+        api_key = os.getenv(key_env, "")
 
-        # Check fallback if key is missing or dummy
-        if (not api_key or api_key == "dummy_key") and self.provider != "mock":
-            for fb_name in ["nvidia", "openrouter"]:
-                fb_cfg = providers.get(fb_name, {})
-                fb_key_env = fb_cfg.get("api_key_env", "")
-                candidate = os.getenv(fb_key_env, "")
-                if candidate:
-                    base_url = fb_cfg.get("base_url")
-                    api_key = candidate
-                    self.provider = fb_name
+        # If designated provider has no key, check alternatives in order: openrouter, nebius, nvidia
+        if not api_key and self.provider != "mock":
+            for candidate_prov in ["openrouter", "nebius", "nvidia"]:
+                cand_cfg = providers.get(candidate_prov, {})
+                cand_key_env = cand_cfg.get("api_key_env", "")
+                cand_key = os.getenv(cand_key_env, "")
+                if cand_key:
+                    base_url = cand_cfg.get("base_url")
+                    api_key = cand_key
+                    self.provider = candidate_prov
                     break
+
+        if not api_key:
+            api_key = "dummy_key"
 
         return OpenAI(base_url=base_url, api_key=api_key)
 
@@ -188,7 +191,12 @@ class Agent:
                 max_tokens=self.max_tokens,
             )
             latency_ms = int((time.time() - start) * 1000)
-            return resp.choices[0].message.content or "", latency_ms
+            choice = resp.choices[0]
+            msg = choice.message
+            content = msg.content or ""
+            if not content and hasattr(msg, "reasoning") and msg.reasoning:
+                content = str(msg.reasoning)
+            return content, latency_ms
         except Exception as e:
             latency_ms = int((time.time() - start) * 1000)
             # Return raw string indicating error so parse triggers fallback

@@ -32,3 +32,27 @@ def test_local_sandbox_hidden_tests_isolation():
     assert "test_module.py" not in post_files
     assert "results.xml" not in post_files
     sb.cleanup()
+
+
+def test_hidden_tests_unreadable_during_agent_run_command():
+    """Proves an agent cannot inspect or read hidden tests via run commands."""
+    from agentgym.env import BugFixEnv
+
+    env = BugFixEnv(tasks_dir="tasks", max_steps=5, sandbox_mode="local")
+    obs = env.reset(task_id="t01_off_by_one")
+
+    # 1. Agent attempts to list files looking for test files
+    obs, reward, done, info = env.step({
+        "type": "run",
+        "cmd": f'"{sys.executable}" -c "import os; print([f for f in os.listdir(\'.\') if \'test\' in f])"',
+    })
+    assert "[]" in obs["last_output"]
+
+    # 2. Agent attempts to directly cat / open the hidden test file
+    obs, reward, done, info = env.step({
+        "type": "run",
+        "cmd": f'"{sys.executable}" -c "open(\'test_mathutils.py\').read()"',
+    })
+    assert "FileNotFoundError" in obs["last_output"]
+
+    env.close()

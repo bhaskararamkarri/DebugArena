@@ -1,4 +1,4 @@
-default_provider: "nebius"
+default_provider: "openrouter"
 
 providers:
   nebius:
@@ -16,21 +16,21 @@ providers:
 
 models:
   nemotron_nano:
-    name: "nvidia/llama-3.1-nemotron-nano-4b-instruct"
-    provider: "nebius"
-    fallback_provider: "nvidia"
+    name: "nvidia/nemotron-3-nano-30b-a3b"
+    provider: "openrouter"
+    fallback_provider: "nebius"
     temperature: 0.2
-    max_tokens: 1500
+    max_tokens: 2000
   nemotron_super:
-    name: "nvidia/llama-3.1-nemotron-70b-instruct"
-    provider: "nebius"
-    fallback_provider: "nvidia"
+    name: "nvidia/nemotron-3-super-120b-a12b"
+    provider: "openrouter"
+    fallback_provider: "nebius"
     temperature: 0.2
     max_tokens: 2000
   nemotron_judge:
-    name: "nvidia/llama-3.1-nemotron-70b-instruct"
-    provider: "nebius"
-    fallback_provider: "nvidia"
+    name: "nvidia/nemotron-3-ultra-550b-a55b"
+    provider: "openrouter"
+    fallback_provider: "nebius"
     temperature: 0.0
     max_tokens: 500
 
@@ -40,7 +40,7 @@ environment:
   mem_limit: "256m"
   cpu_limit: 0.5
   pids_limit: 128
-  sandbox_mode: "auto" # "docker", "local", or "auto" (docker if daemon available, otherwise local isolation)
+  sandbox_mode: "auto" # "docker", "local", or "auto"
   output_max_chars: 4000
 
 reward:
