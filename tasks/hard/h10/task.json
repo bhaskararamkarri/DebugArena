@@ -1,0 +1,19 @@
+{
+  "task_id": "h10",
+  "suite": "hard",
+  "difficulty": "hard",
+  "bug_type": "config_precedence",
+  "description": "Application startup settings ignore command-line flags when environment variables are set, and wipe out sibling configuration keys when overriding nested settings.",
+  "spec_notes": "ConfigMerger.merge combines configurations with precedence DEFAULT < FILE < ENV < CLI. Nested dictionaries must be recursively merged without discarding sibling keys.",
+  "repo_files": {
+    "source_layer.py": "from enum import IntEnum\n\nclass Layer(IntEnum):\n    DEFAULT = 1\n    FILE = 2\n    ENV = 3\n    CLI = 4\n",
+    "validator.py": "# Misleading comment:\ndef validate_keys(cfg: dict) -> bool:\n    \"\"\"Assumes shallow single-level mapping without nested dictionaries.\"\"\"\n    return isinstance(cfg, dict)\n",
+    "config_merger.py": "from source_layer import Layer\n\nclass ConfigMerger:\n    def merge(self, default_cfg: dict, file_cfg: dict, env_cfg: dict, cli_cfg: dict) -> dict:\n        result = {}\n        result.update(default_cfg)\n        result.update(file_cfg)\n        result.update(cli_cfg)\n        result.update(env_cfg)\n        return result\n"
+  },
+  "tests": {
+    "test_config.py": "from config_merger import ConfigMerger\n\ndef test_default_only():\n    cm = ConfigMerger()\n    assert cm.merge({\"a\": 1}, {}, {}, {}) == {\"a\": 1}\n\ndef test_file_overrides_default():\n    cm = ConfigMerger()\n    assert cm.merge({\"a\": 1}, {\"a\": 2}, {}, {}) == {\"a\": 2}\n\ndef test_cli_overrides_env():\n    cm = ConfigMerger()\n    assert cm.merge({}, {}, {\"port\": 8000}, {\"port\": 9000}) == {\"port\": 9000}\n\ndef test_nested_dict_sibling_retention():\n    cm = ConfigMerger()\n    default_cfg = {\"db\": {\"host\": \"localhost\", \"port\": 5432}}\n    env_cfg = {\"db\": {\"host\": \"remotehost\"}}\n    res = cm.merge(default_cfg, {}, env_cfg, {})\n    assert res == {\"db\": {\"host\": \"remotehost\", \"port\": 5432}}\n\ndef test_full_four_layer_precedence():\n    cm = ConfigMerger()\n    d = {\"timeout\": 10, \"nested\": {\"k1\": \"d1\", \"k2\": \"d2\"}}\n    f = {\"timeout\": 20, \"nested\": {\"k1\": \"f1\"}}\n    e = {\"timeout\": 30, \"nested\": {\"k3\": \"e3\"}}\n    c = {\"timeout\": 40}\n    res = cm.merge(d, f, e, c)\n    assert res[\"timeout\"] == 40\n    assert res[\"nested\"] == {\"k1\": \"f1\", \"k2\": \"d2\", \"k3\": \"e3\"}\n"
+  },
+  "reference_fix": {
+    "config_merger.py": "from source_layer import Layer\n\nclass ConfigMerger:\n    def deep_merge(self, base: dict, override: dict) -> dict:\n        out = dict(base)\n        for k, v in override.items():\n            if k in out and isinstance(out[k], dict) and isinstance(v, dict):\n                out[k] = self.deep_merge(out[k], v)\n            else:\n                out[k] = v\n        return out\n\n    def merge(self, default_cfg: dict, file_cfg: dict, env_cfg: dict, cli_cfg: dict) -> dict:\n        layers = [default_cfg, file_cfg, env_cfg, cli_cfg]\n        result = {}\n        for layer in layers:\n            if isinstance(layer, dict):\n                result = self.deep_merge(result, layer)\n        return result\n"
+  }
+}

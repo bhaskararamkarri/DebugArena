@@ -1,0 +1,19 @@
+{
+  "task_id": "h07",
+  "suite": "hard",
+  "difficulty": "hard",
+  "bug_type": "text_wrapping",
+  "description": "Formatted document printing hangs or crashes on unusually long identifiers that exceed column limits, and leaves ragged whitespace at line margins.",
+  "spec_notes": "LineWrapper.wrap wraps words into lines without exceeding width. Long words exceeding width must be split across multiple chunks.",
+  "repo_files": {
+    "rules.py": "def is_whitespace(char: str) -> bool:\n    return char.isspace()\n",
+    "token_stream.py": "def extract_words(text: str) -> list[str]:\n    return text.split()\n",
+    "wrapper.py": "from token_stream import extract_words\n\nclass LineWrapper:\n    def wrap(self, text: str, width: int) -> list[str]:\n        if not text.strip() or width <= 0:\n            return []\n        words = extract_words(text)\n        lines = []\n        cur_line = []\n        cur_len = 0\n        for w in words:\n            if cur_line and (cur_len + 1 + len(w) > width):\n                lines.append(\" \".join(cur_line))\n                cur_line = [w]\n                cur_len = len(w)\n            else:\n                cur_line.append(w)\n                cur_len += len(w) + (1 if len(cur_line) > 1 else 0)\n        if cur_line:\n            lines.append(\" \".join(cur_line))\n        return lines\n"
+  },
+  "tests": {
+    "test_wrapper.py": "from wrapper import LineWrapper\n\ndef test_empty_text():\n    w = LineWrapper()\n    assert w.wrap(\"\", 10) == []\n\ndef test_short_words_fits_single_line():\n    w = LineWrapper()\n    assert w.wrap(\"hi there\", 10) == [\"hi there\"]\n\ndef test_exact_line_wrap():\n    w = LineWrapper()\n    assert w.wrap(\"alpha beta gamma\", 10) == [\"alpha beta\", \"gamma\"]\n\ndef test_long_word_hard_break():\n    w = LineWrapper()\n    assert w.wrap(\"supercalifragilistic\", 5) == [\"super\", \"calif\", \"ragil\", \"istic\"]\n\ndef test_mixed_sentence_with_long_word():\n    w = LineWrapper()\n    assert w.wrap(\"a 1234567890 b\", 5) == [\"a\", \"12345\", \"67890\", \"b\"]\n"
+  },
+  "reference_fix": {
+    "wrapper.py": "from token_stream import extract_words\n\nclass LineWrapper:\n    def wrap(self, text: str, width: int) -> list[str]:\n        if not text.strip() or width <= 0:\n            return []\n        words = extract_words(text)\n        split_words = []\n        for w in words:\n            if len(w) > width:\n                for i in range(0, len(w), width):\n                    split_words.append(w[i:i + width])\n            else:\n                split_words.append(w)\n\n        lines = []\n        cur_line = []\n        cur_len = 0\n        for w in split_words:\n            added = len(w) if not cur_line else len(w) + 1\n            if cur_line and cur_len + added > width:\n                lines.append(\" \".join(cur_line))\n                cur_line = [w]\n                cur_len = len(w)\n            else:\n                cur_line.append(w)\n                cur_len += added\n        if cur_line:\n            lines.append(\" \".join(cur_line))\n        return lines\n"
+  }
+}

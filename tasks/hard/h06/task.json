@@ -1,0 +1,19 @@
+{
+  "task_id": "h06",
+  "suite": "hard",
+  "difficulty": "hard",
+  "bug_type": "ledger_rounding",
+  "description": "Financial allocations among stakeholders frequently lose or gain pennies due to independent rounding, causing the sum of distributed shares to not equal the original ledger amount.",
+  "spec_notes": "distribute divides an integer total_cents among beneficiaries by weight using the largest remainder method, guaranteeing sum(allocated) == total_cents exactly.",
+  "repo_files": {
+    "account.py": "from dataclasses import dataclass\n\n@dataclass(frozen=True)\nclass Beneficiary:\n    name: str\n    weight: int\n",
+    "rounding.py": "# Misleading comment:\ndef standard_round(value: float) -> int:\n    \"\"\"Standard banker's rounding method.\"\"\"\n    return int(round(value))\n",
+    "distributor.py": "from account import Beneficiary\nfrom rounding import standard_round\n\nclass LedgerDistributor:\n    def distribute(self, total_cents: int, beneficiaries: list[Beneficiary]) -> dict[str, int]:\n        if not beneficiaries or total_cents <= 0:\n            return {b.name: 0 for b in beneficiaries}\n        total_weight = sum(b.weight for b in beneficiaries)\n        if total_weight == 0:\n            return {b.name: 0 for b in beneficiaries}\n\n        res = {}\n        for b in beneficiaries:\n            exact = (total_cents * b.weight) / total_weight\n            res[b.name] = standard_round(exact)\n        return res\n"
+  },
+  "tests": {
+    "test_ledger.py": "from account import Beneficiary\nfrom distributor import LedgerDistributor\n\ndef test_zero_total():\n    dist = LedgerDistributor()\n    assert dist.distribute(0, [Beneficiary(\"A\", 1)]) == {\"A\": 0}\n\ndef test_exact_even_split():\n    dist = LedgerDistributor()\n    assert dist.distribute(100, [Beneficiary(\"A\", 1), Beneficiary(\"B\", 1)]) == {\"A\": 50, \"B\": 50}\n\ndef test_sum_conservation_three_way():\n    dist = LedgerDistributor()\n    b = [Beneficiary(\"A\", 1), Beneficiary(\"B\", 1), Beneficiary(\"C\", 1)]\n    res = dist.distribute(100, b)\n    assert sum(res.values()) == 100\n\ndef test_largest_remainder_order():\n    dist = LedgerDistributor()\n    b = [Beneficiary(\"A\", 70), Beneficiary(\"B\", 20), Beneficiary(\"C\", 10)]\n    res = dist.distribute(105, b)\n    assert sum(res.values()) == 105\n    assert res[\"A\"] == 74 and res[\"B\"] == 21 and res[\"C\"] == 10\n\ndef test_many_beneficiaries_sum():\n    dist = LedgerDistributor()\n    b = [Beneficiary(f\"B{i}\", 1) for i in range(7)]\n    res = dist.distribute(100, b)\n    assert sum(res.values()) == 100\n"
+  },
+  "reference_fix": {
+    "distributor.py": "import math\nfrom account import Beneficiary\n\nclass LedgerDistributor:\n    def distribute(self, total_cents: int, beneficiaries: list[Beneficiary]) -> dict[str, int]:\n        if not beneficiaries or total_cents <= 0:\n            return {b.name: 0 for b in beneficiaries}\n        total_weight = sum(b.weight for b in beneficiaries)\n        if total_weight == 0:\n            return {b.name: 0 for b in beneficiaries}\n\n        allocated = {}\n        remainders = []\n        current_sum = 0\n\n        for b in beneficiaries:\n            exact = (total_cents * b.weight) / total_weight\n            base = math.floor(exact)\n            rem = exact - base\n            allocated[b.name] = base\n            current_sum += base\n            remainders.append((rem, b.name))\n\n        leftover = total_cents - current_sum\n        remainders.sort(key=lambda x: (-x[0], x[1]))\n        for i in range(leftover):\n            allocated[remainders[i][1]] += 1\n\n        return allocated\n"
+  }
+}

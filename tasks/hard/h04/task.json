@@ -1,0 +1,19 @@
+{
+  "task_id": "h04",
+  "suite": "hard",
+  "difficulty": "hard",
+  "bug_type": "csv_parser_quoting",
+  "description": "Exported tabular text is corrupted: records containing commas inside quotation marks or escaped double quotes lose trailing columns or fail to preserve internal quotes.",
+  "spec_notes": "parse splits lines into field tokens. Fields wrapped in double quotes can contain commas. Escaped quotes are represented as paired quotes '\"\"' which collapse into a single '\"'.",
+  "repo_files": {
+    "models.py": "from dataclasses import dataclass\n\n@dataclass(frozen=True)\nclass CSVDocument:\n    total_lines: int\n    rows: list[list[str]]\n",
+    "lexer.py": "# Misleading helper:\ndef sanitize_chars(raw: str) -> str:\n    \"\"\"Strip non-ascii formatting characters.\"\"\"\n    return raw\n",
+    "parser.py": "from models import CSVDocument\nfrom lexer import sanitize_chars\n\nclass StrictCSVReader:\n    def parse(self, content: str) -> list[list[str]]:\n        if not content.strip():\n            return []\n        lines = content.splitlines()\n        rows = []\n        for line in lines:\n            fields = []\n            cur = []\n            in_quote = False\n            i = 0\n            while i < len(line):\n                ch = line[i]\n                if ch == '\"':\n                    in_quote = not in_quote\n                elif ch == ',' and not in_quote:\n                    fields.append(\"\".join(cur))\n                    cur = []\n                else:\n                    cur.append(ch)\n                i += 1\n            fields.append(\"\".join(cur))\n            rows.append(fields)\n        return rows\n"
+  },
+  "tests": {
+    "test_csv.py": "from parser import StrictCSVReader\n\ndef test_empty_content():\n    reader = StrictCSVReader()\n    assert reader.parse(\"\") == []\n\ndef test_unquoted_simple_row():\n    reader = StrictCSVReader()\n    assert reader.parse(\"a,b,c\") == [[\"a\", \"b\", \"c\"]]\n\ndef test_commas_inside_quotes():\n    reader = StrictCSVReader()\n    assert reader.parse('a,\"b,c\",d') == [[\"a\", \"b,c\", \"d\"]]\n\ndef test_escaped_double_quotes():\n    reader = StrictCSVReader()\n    assert reader.parse('a,\"b\"\"c\",d') == [[\"a\", 'b\"c', \"d\"]]\n\ndef test_multiple_lines_mixed():\n    reader = StrictCSVReader()\n    res = reader.parse('1,2\\n\"3,4\",5')\n    assert res == [[\"1\", \"2\"], [\"3,4\", \"5\"]]\n"
+  },
+  "reference_fix": {
+    "parser.py": "from models import CSVDocument\nfrom lexer import sanitize_chars\n\nclass StrictCSVReader:\n    def parse(self, content: str) -> list[list[str]]:\n        if not content.strip():\n            return []\n        lines = content.splitlines()\n        rows = []\n        for line in lines:\n            fields = []\n            cur = []\n            in_quote = False\n            i = 0\n            while i < len(line):\n                ch = line[i]\n                if ch == '\"':\n                    if in_quote and i + 1 < len(line) and line[i + 1] == '\"':\n                        cur.append('\"')\n                        i += 1\n                    else:\n                        in_quote = not in_quote\n                elif ch == ',' and not in_quote:\n                    fields.append(\"\".join(cur))\n                    cur = []\n                else:\n                    cur.append(ch)\n                i += 1\n            fields.append(\"\".join(cur))\n            rows.append(fields)\n        return rows\n"
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "task_id": "h08",
+  "suite": "hard",
+  "difficulty": "hard",
+  "bug_type": "datetime_business_days",
+  "description": "Delivery date calculations produce weekend delivery dates when requests originate on Sundays, and miscount deadlines when adjusting backwards before bank holidays.",
+  "spec_notes": "add_business_days adds n business days (Monday-Friday excluding holidays). If start date is a weekend/holiday, roll forward to the next business day first. Negative n moves backwards.",
+  "repo_files": {
+    "date_util.py": "from datetime import date\n\ndef is_weekend(d: date) -> bool:\n    return d.weekday() >= 5\n",
+    "holidays.py": "from datetime import date\n\nclass HolidayRegistry:\n    def __init__(self, holidays: set[date]):\n        self.holidays = holidays\n\n    def is_holiday(self, d: date) -> bool:\n        return d in self.holidays\n",
+    "business_calendar.py": "from datetime import date, timedelta\nfrom date_util import is_weekend\nfrom holidays import HolidayRegistry\n\nclass BusinessCalendar:\n    def __init__(self, holiday_registry: HolidayRegistry):\n        self.registry = holiday_registry\n\n    def is_business_day(self, d: date) -> bool:\n        return not is_weekend(d) and not self.registry.is_holiday(d)\n\n    def add_business_days(self, start: date, n: int) -> date:\n        cur = start\n        step = 1 if n >= 0 else -1\n        remaining = abs(n)\n        while remaining > 0:\n            cur += timedelta(days=step)\n            if step > 0:\n                if self.is_business_day(cur):\n                    remaining -= 1\n            else:\n                if not self.registry.is_holiday(cur):\n                    remaining -= 1\n        return cur\n"
+  },
+  "tests": {
+    "test_calendar.py": "from datetime import date\nfrom holidays import HolidayRegistry\nfrom business_calendar import BusinessCalendar\n\ndef test_weekday_add_zero():\n    cal = BusinessCalendar(HolidayRegistry(set()))\n    d = date(2026, 10, 5)  # Monday\n    assert cal.add_business_days(d, 0) == d\n\ndef test_weekday_add_one():\n    cal = BusinessCalendar(HolidayRegistry(set()))\n    d = date(2026, 10, 5)  # Monday\n    assert cal.add_business_days(d, 1) == date(2026, 10, 6)\n\ndef test_weekend_roll_forward():\n    cal = BusinessCalendar(HolidayRegistry(set()))\n    d = date(2026, 10, 4)  # Sunday\n    assert cal.add_business_days(d, 0) == date(2026, 10, 5)\n\ndef test_cross_weekend():\n    cal = BusinessCalendar(HolidayRegistry(set()))\n    d = date(2026, 10, 9)  # Friday\n    assert cal.add_business_days(d, 1) == date(2026, 10, 12)\n\ndef test_negative_business_days():\n    cal = BusinessCalendar(HolidayRegistry(set()))\n    d = date(2026, 10, 12)  # Monday\n    assert cal.add_business_days(d, -1) == date(2026, 10, 9)\n"
+  },
+  "reference_fix": {
+    "business_calendar.py": "from datetime import date, timedelta\nfrom date_util import is_weekend\nfrom holidays import HolidayRegistry\n\nclass BusinessCalendar:\n    def __init__(self, holiday_registry: HolidayRegistry):\n        self.registry = holiday_registry\n\n    def is_business_day(self, d: date) -> bool:\n        return not is_weekend(d) and not self.registry.is_holiday(d)\n\n    def add_business_days(self, start: date, n: int) -> date:\n        cur = start\n        while not self.is_business_day(cur):\n            cur += timedelta(days=1)\n        step = 1 if n >= 0 else -1\n        remaining = abs(n)\n        while remaining > 0:\n            cur += timedelta(days=step)\n            if self.is_business_day(cur):\n                remaining -= 1\n        return cur\n"
+  }
+}

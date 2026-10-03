@@ -1,0 +1,19 @@
+{
+  "task_id": "h02",
+  "suite": "hard",
+  "difficulty": "hard",
+  "bug_type": "binary_search_bounds",
+  "description": "Search queries for target values in sorted arrays produce incorrect boundary indices or return count 0 when values exist multiple times at array edges.",
+  "spec_notes": "find_range returns SearchRange(first_index, last_index, count) where indices are 0-based and count is total occurrences, or (-1, -1, 0) if absent.",
+  "repo_files": {
+    "models.py": "from dataclasses import dataclass\n\n@dataclass(frozen=True)\nclass SearchRange:\n    first_index: int\n    last_index: int\n    count: int\n",
+    "predicates.py": "# Misleading comment:\ndef is_monotonic(nums: list[int]) -> bool:\n    \"\"\"Assumes strictly ascending numbers with no duplicate values.\"\"\"\n    return all(nums[i] <= nums[i + 1] for i in range(len(nums) - 1))\n",
+    "searcher.py": "from models import SearchRange\nfrom predicates import is_monotonic\n\nclass RangeSearcher:\n    def find_range(self, nums: list[int], target: int) -> SearchRange:\n        if not nums:\n            return SearchRange(-1, -1, 0)\n\n        # Bug: finds single match index without expanding to true first/last boundaries\n        low, high = 0, len(nums) - 1\n        found_idx = -1\n        while low <= high:\n            mid = (low + high) // 2\n            if nums[mid] == target:\n                found_idx = mid\n                break\n            elif nums[mid] < target:\n                low = mid + 1\n            else:\n                high = mid - 1\n\n        if found_idx == -1:\n            return SearchRange(-1, -1, 0)\n\n        return SearchRange(found_idx, found_idx, 1)\n"
+  },
+  "tests": {
+    "test_searcher.py": "from models import SearchRange\nfrom searcher import RangeSearcher\n\ndef test_empty_list():\n    s = RangeSearcher()\n    assert s.find_range([], 5) == SearchRange(-1, -1, 0)\n\ndef test_target_absent():\n    s = RangeSearcher()\n    assert s.find_range([1, 3, 5, 7], 4) == SearchRange(-1, -1, 0)\n\ndef test_single_element_found():\n    s = RangeSearcher()\n    assert s.find_range([4], 4) == SearchRange(0, 0, 1)\n\ndef test_multiple_occurrences():\n    s = RangeSearcher()\n    assert s.find_range([1, 2, 2, 2, 3], 2) == SearchRange(1, 3, 3)\n\ndef test_boundary_elements():\n    s = RangeSearcher()\n    assert s.find_range([5, 5, 5, 8], 5) == SearchRange(0, 2, 3)\n"
+  },
+  "reference_fix": {
+    "searcher.py": "from models import SearchRange\nfrom predicates import is_monotonic\n\nclass RangeSearcher:\n    def find_range(self, nums: list[int], target: int) -> SearchRange:\n        if not nums:\n            return SearchRange(-1, -1, 0)\n\n        low, high = 0, len(nums) - 1\n        first = -1\n        while low <= high:\n            mid = (low + high) // 2\n            if nums[mid] == target:\n                first = mid\n                high = mid - 1\n            elif nums[mid] < target:\n                low = mid + 1\n            else:\n                high = mid - 1\n\n        low, high = 0, len(nums) - 1\n        last = -1\n        while low <= high:\n            mid = (low + high) // 2\n            if nums[mid] == target:\n                last = mid\n                low = mid + 1\n            elif nums[mid] < target:\n                low = mid + 1\n            else:\n                high = mid - 1\n\n        count = (last - first + 1) if (first != -1 and last != -1) else 0\n        return SearchRange(first, last, count)\n"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "task_id": "h01",
+  "suite": "hard",
+  "difficulty": "hard",
+  "bug_type": "interval_merging",
+  "description": "The scheduling engine fails to combine overlapping and touching time windows, sometimes truncating earlier ranges or leaving adjacent slots unmerged.",
+  "spec_notes": "IntervalMerger.merge must sort intervals by (start, end) and merge overlapping ranges into [start, max(end1, end2)]. When allow_adjacent=True, intervals touching at boundaries (end == start) must also be merged.",
+  "repo_files": {
+    "interval.py": "from dataclasses import dataclass\n\n@dataclass(frozen=True)\nclass TimeInterval:\n    start: int\n    end: int\n\n    def __post_init__(self):\n        if self.start > self.end:\n            raise ValueError(\"start must be <= end\")\n\n    def overlaps(self, other: \"TimeInterval\", allow_adjacent: bool = True) -> bool:\n        if allow_adjacent:\n            return self.start <= other.end and other.start <= self.end\n        return self.start < other.end and other.start < self.end\n",
+    "sorter.py": "from interval import TimeInterval\n\ndef sort_intervals(intervals: list[TimeInterval]) -> list[TimeInterval]:\n    \"\"\"Sorts intervals primarily by ending boundary for optimal greedy allocation.\"\"\"\n    # Misleading docstring and distractor sorting logic:\n    return sorted(intervals, key=lambda x: (x.end, x.start))\n",
+    "merger.py": "from interval import TimeInterval\nfrom sorter import sort_intervals\n\nclass IntervalMerger:\n    def __init__(self, allow_adjacent: bool = True):\n        self.allow_adjacent = allow_adjacent\n\n    def merge(self, intervals: list[TimeInterval]) -> list[TimeInterval]:\n        if not intervals:\n            return []\n        ordered = sort_intervals(intervals)\n        merged = [ordered[0]]\n        for current in ordered[1:]:\n            prev = merged[-1]\n            if prev.end > current.start:\n                merged[-1] = TimeInterval(prev.start, current.end)\n            else:\n                merged.append(current)\n        return merged\n"
+  },
+  "tests": {
+    "test_merger.py": "from interval import TimeInterval\nfrom merger import IntervalMerger\n\ndef test_empty_and_single():\n    merger = IntervalMerger()\n    assert merger.merge([]) == []\n    single = TimeInterval(1, 5)\n    assert merger.merge([single]) == [single]\n\ndef test_disjoint_intervals():\n    merger = IntervalMerger()\n    inp = [TimeInterval(1, 2), TimeInterval(5, 6)]\n    assert merger.merge(inp) == [TimeInterval(1, 2), TimeInterval(5, 6)]\n\ndef test_overlapping_merge():\n    merger = IntervalMerger()\n    inp = [TimeInterval(1, 4), TimeInterval(2, 6)]\n    assert merger.merge(inp) == [TimeInterval(1, 6)]\n\ndef test_contained_interval():\n    merger = IntervalMerger()\n    inp = [TimeInterval(1, 10), TimeInterval(2, 5)]\n    assert merger.merge(inp) == [TimeInterval(1, 10)]\n\ndef test_adjacent_boundaries():\n    merger = IntervalMerger(allow_adjacent=True)\n    inp = [TimeInterval(1, 3), TimeInterval(3, 5)]\n    assert merger.merge(inp) == [TimeInterval(1, 5)]\n"
+  },
+  "reference_fix": {
+    "sorter.py": "from interval import TimeInterval\n\ndef sort_intervals(intervals: list[TimeInterval]) -> list[TimeInterval]:\n    \"\"\"Sorts intervals by starting boundary, then ending boundary.\"\"\"\n    return sorted(intervals, key=lambda x: (x.start, x.end))\n",
+    "merger.py": "from interval import TimeInterval\nfrom sorter import sort_intervals\n\nclass IntervalMerger:\n    def __init__(self, allow_adjacent: bool = True):\n        self.allow_adjacent = allow_adjacent\n\n    def merge(self, intervals: list[TimeInterval]) -> list[TimeInterval]:\n        if not intervals:\n            return []\n        ordered = sort_intervals(intervals)\n        merged = [ordered[0]]\n        for current in ordered[1:]:\n            prev = merged[-1]\n            can_merge = (prev.end >= current.start) if self.allow_adjacent else (prev.end > current.start)\n            if can_merge:\n                merged[-1] = TimeInterval(prev.start, max(prev.end, current.end))\n            else:\n                merged.append(current)\n        return merged\n"
+  }
+}
