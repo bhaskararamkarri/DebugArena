@@ -11,5 +11,6 @@
   },
   "reference_fix": {
     "retrier.py": "from functools import wraps\n\ndef retry(max_attempts: int = 3):\n    \"\"\"Decorator that retries a function up to max_attempts times on Exception.\"\"\"\n    def decorator(func):\n        @wraps(func)\n        def wrapper(*args, **kwargs):\n            last_err = None\n            for _ in range(max_attempts):\n                try:\n                    return func(*args, **kwargs)\n                except Exception as e:\n                    last_err = e\n            if last_err is not None:\n                raise last_err\n        return wrapper\n    return decorator\n"
-  }
+  },
+  "suite": "core"
 }

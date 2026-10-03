@@ -11,5 +11,6 @@
   },
   "reference_fix": {
     "grader.py": "def filter_passing_scores(scores: list[int], threshold: int = 50) -> list[int]:\n    \"\"\"Filter scores >= threshold.\"\"\"\n    return [s for s in scores if s >= threshold]\n"
-  }
+  },
+  "suite": "core"
 }

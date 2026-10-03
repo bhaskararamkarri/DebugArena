@@ -11,5 +11,6 @@
   },
   "reference_fix": {
     "matrix.py": "def transpose(matrix: list[list[int]]) -> list[list[int]]:\n    \"\"\"Transpose a 2D matrix.\"\"\"\n    if not matrix or not matrix[0]:\n        return []\n    rows = len(matrix)\n    cols = len(matrix[0])\n    return [[matrix[r][c] for r in range(rows)] for c in range(cols)]\n"
-  }
+  },
+  "suite": "core"
 }

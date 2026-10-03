@@ -93,14 +93,37 @@ def verify_task(task_path: Path, repeat: int = 3) -> dict:
 
 
 def main():
+    import argparse
+    parser = argparse.ArgumentParser(description="Verify benchmark tasks.")
+    parser.add_argument(
+        "--suite",
+        type=str,
+        default="all",
+        choices=["core", "hard", "all"],
+        help="Suite to verify: 'core', 'hard', or 'all' (default: all)",
+    )
+    args = parser.parse_args()
+
     tasks_dir = Path("tasks")
-    task_files = sorted(list(tasks_dir.glob("*/task.json")))
+    all_task_files = sorted(list(tasks_dir.rglob("task.json")))
+
+    task_files = []
+    for tf in all_task_files:
+        try:
+            with open(tf, "r", encoding="utf-8") as f:
+                d = json.load(f)
+                tid = d.get("task_id", tf.parent.name)
+                tsuite = d.get("suite", "core" if tid.startswith("t") else "hard")
+                if args.suite == "all" or tsuite == args.suite:
+                    task_files.append(tf)
+        except Exception:
+            pass
 
     if not task_files:
-        console.print("[red]No task.json files found in tasks/![/red]")
+        console.print(f"[red]No task.json files found matching suite '{args.suite}' in tasks/![/red]")
         sys.exit(1)
 
-    console.print(f"[bold cyan]Verifying {len(task_files)} benchmark tasks (3x flakiness checks in parallel)...[/bold cyan]")
+    console.print(f"[bold cyan]Verifying {len(task_files)} benchmark tasks in suite '{args.suite}' (3x flakiness checks in parallel)...[/bold cyan]")
 
     results = []
     with ThreadPoolExecutor(max_workers=8) as executor:

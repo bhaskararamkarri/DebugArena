@@ -11,5 +11,6 @@
   },
   "reference_fix": {
     "lists.py": "def flatten(lst: list) -> list:\n    \"\"\"Recursively flatten arbitrarily nested lists into a single 1D list.\"\"\"\n    res = []\n    for item in lst:\n        if isinstance(item, list):\n            res.extend(flatten(item))\n        else:\n            res.append(item)\n    return res\n"
-  }
+  },
+  "suite": "core"
 }

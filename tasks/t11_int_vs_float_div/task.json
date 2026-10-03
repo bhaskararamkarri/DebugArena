@@ -11,5 +11,6 @@
   },
   "reference_fix": {
     "dimensions.py": "def calculate_aspect_ratio(width: int, height: int) -> float:\n    \"\"\"Return aspect ratio (width / height) rounded to 2 decimal places.\"\"\"\n    if height <= 0 or width <= 0:\n        raise ValueError('Dimensions must be positive')\n    return round(width / height, 2)\n"
-  }
+  },
+  "suite": "core"
 }

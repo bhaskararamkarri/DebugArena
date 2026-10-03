@@ -30,6 +30,13 @@ def parse_args():
         help="Model ID or alias (e.g., nemotron_nano, nemotron_super)",
     )
     parser.add_argument(
+        "--suite",
+        type=str,
+        default="core",
+        choices=["core", "hard", "all"],
+        help="Benchmark suite to evaluate: 'core', 'hard', or 'all' (default: core)",
+    )
+    parser.add_argument(
         "--tasks",
         type=str,
         default="all",
@@ -123,11 +130,10 @@ def main():
 
     # Determine tasks to evaluate
     env_probe = BugFixEnv()
-    all_available_tasks = env_probe.list_task_ids()
-
     if args.tasks.strip().lower() == "all":
-        task_ids = all_available_tasks
+        task_ids = env_probe.list_task_ids(suite=args.suite)
     else:
+        all_available_tasks = env_probe.list_task_ids(suite="all")
         requested = [t.strip() for t in args.tasks.split(",") if t.strip()]
         task_ids = [t for t in requested if t in all_available_tasks]
         missing = [t for t in requested if t not in all_available_tasks]

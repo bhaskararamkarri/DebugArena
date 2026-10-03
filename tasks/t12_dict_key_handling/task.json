@@ -11,5 +11,6 @@
   },
   "reference_fix": {
     "roles.py": "def get_user_role(users_dict: dict, user_id: str, default: str = 'guest') -> str:\n    \"\"\"Returns user's role or default if user/role is not found.\"\"\"\n    user = users_dict.get(user_id)\n    if isinstance(user, dict):\n        return user.get('role', default)\n    return default\n"
-  }
+  },
+  "suite": "core"
 }

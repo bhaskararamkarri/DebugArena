@@ -11,5 +11,6 @@
   },
   "reference_fix": {
     "factorials.py": "def factorial(n: int) -> int:\n    \"\"\"Return n factorial.\"\"\"\n    if n < 0:\n        raise ValueError('Negative values not allowed')\n    if n == 0:\n        return 1\n    result = 1\n    for i in range(1, n + 1):\n        result *= i\n    return result\n"
-  }
+  },
+  "suite": "core"
 }

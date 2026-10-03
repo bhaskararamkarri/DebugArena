@@ -11,5 +11,6 @@
   },
   "reference_fix": {
     "stats.py": "def calculate_variance(nums: list[float]) -> float:\n    \"\"\"Calculate population variance of numbers.\"\"\"\n    if not nums:\n        return 0.0\n    mean = sum(nums) / len(nums)\n    sum_diffs = sum((x - mean) ** 2 for x in nums)\n    return sum_diffs / len(nums)\n"
-  }
+  },
+  "suite": "core"
 }

@@ -11,5 +11,6 @@
   },
   "reference_fix": {
     "taskmgr.py": "def sort_tasks(tasks: list[dict]) -> list[dict]:\n    \"\"\"Sort tasks by priority descending (high > medium > low) then deadline ascending.\"\"\"\n    priority_order = {'high': 1, 'medium': 2, 'low': 3}\n    return sorted(tasks, key=lambda t: (priority_order.get(t['priority'], 99), t['deadline']))\n"
-  }
+  },
+  "suite": "core"
 }

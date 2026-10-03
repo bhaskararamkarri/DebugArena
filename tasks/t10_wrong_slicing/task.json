@@ -11,5 +11,6 @@
   },
   "reference_fix": {
     "emailutils.py": "def extract_domain(email: str) -> str:\n    \"\"\"Extract domain name from email (e.g. user@domain.com -> domain.com).\"\"\"\n    if \"@\" not in email:\n        return \"\"\n    idx = email.index(\"@\")\n    return email[idx + 1 :]\n"
-  }
+  },
+  "suite": "core"
 }

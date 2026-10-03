@@ -11,5 +11,6 @@
   },
   "reference_fix": {
     "aggregates.py": "def calculate_mean(values: list[float], default: float = 0.0) -> float:\n    \"\"\"Return the arithmetic mean of values, or default if empty.\"\"\"\n    if not values:\n        return default\n    return sum(values) / len(values)\n"
-  }
+  },
+  "suite": "core"
 }

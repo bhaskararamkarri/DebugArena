@@ -11,5 +11,6 @@
   },
   "reference_fix": {
     "cart.py": "from typing import Optional\n\ndef add_item(item: str, basket: Optional[list[str]] = None) -> list[str]:\n    \"\"\"Appends item to basket and returns the basket.\"\"\"\n    if basket is None:\n        basket = []\n    basket.append(item)\n    return basket\n"
-  }
+  },
+  "suite": "core"
 }

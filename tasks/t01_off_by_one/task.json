@@ -11,5 +11,6 @@
   },
   "reference_fix": {
     "mathutils.py": "def sum_range(a: int, b: int) -> int:\n    \"\"\"Return the sum of integers from a to b inclusive.\"\"\"\n    if a > b:\n        return 0\n    return sum(range(a, b + 1))\n"
-  }
+  },
+  "suite": "core"
 }

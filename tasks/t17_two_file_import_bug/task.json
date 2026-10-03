@@ -12,5 +12,6 @@
   },
   "reference_fix": {
     "pipeline.py": "from data_loader import load_records\n\ndef compute_top_user(raw_rows: list[str]) -> str:\n    \"\"\"Finds user with the highest score from raw rows.\"\"\"\n    records = load_records(raw_rows)\n    if not records:\n        return ''\n    best = max(records, key=lambda r: r['score'])\n    return best['user_id']\n"
-  }
+  },
+  "suite": "core"
 }

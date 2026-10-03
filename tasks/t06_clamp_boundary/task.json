@@ -11,5 +11,6 @@
   },
   "reference_fix": {
     "mathclamp.py": "def clamp(val: float, low: float, high: float) -> float:\n    \"\"\"Restricts val to be within [low, high].\"\"\"\n    return max(low, min(high, val))\n"
-  }
+  },
+  "suite": "core"
 }

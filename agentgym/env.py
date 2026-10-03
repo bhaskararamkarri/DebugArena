@@ -60,13 +60,17 @@ class BugFixEnv:
 
     def load_task(self, task_id: str) -> Dict[str, Any]:
         """Loads a task JSON file by task_id."""
-        # Try tasks/<id>/task.json first
         target_path = self.tasks_dir / task_id / "task.json"
         if not target_path.exists():
-            # Try tasks/<id>.json
-            target_path = self.tasks_dir / f"{task_id}.json"
-
+            target_path = self.tasks_dir / "hard" / task_id / "task.json"
         if not target_path.exists():
+            target_path = self.tasks_dir / f"{task_id}.json"
+        if not target_path.exists():
+            for p in self.tasks_dir.rglob("task.json"):
+                if p.parent.name == task_id:
+                    target_path = p
+                    break
+        if not target_path or not target_path.exists():
             raise FileNotFoundError(f"Task '{task_id}' not found in {self.tasks_dir}")
 
         with open(target_path, "r", encoding="utf-8") as f:
@@ -74,18 +78,23 @@ class BugFixEnv:
 
         return task_data
 
-    def list_task_ids(self) -> list[str]:
-        """Returns sorted list of all available task IDs."""
+    def list_task_ids(self, suite: Optional[str] = None) -> list[str]:
+        """Returns sorted list of all available task IDs, optionally filtered by suite ('core', 'hard', 'all')."""
         task_ids = []
         if not self.tasks_dir.exists():
             return []
 
-        for p in self.tasks_dir.iterdir():
-            if p.is_dir() and (p / "task.json").exists():
-                task_ids.append(p.name)
-            elif p.is_file() and p.suffix == ".json":
-                task_ids.append(p.stem)
-        return sorted(task_ids)
+        for p in self.tasks_dir.rglob("task.json"):
+            try:
+                with open(p, "r", encoding="utf-8") as f:
+                    d = json.load(f)
+                    tid = d.get("task_id", p.parent.name)
+                    task_suite = d.get("suite", "core" if tid.startswith("t") else "hard")
+                    if suite is None or suite == "all" or task_suite == suite:
+                        task_ids.append(tid)
+            except Exception:
+                pass
+        return sorted(list(set(task_ids)))
 
     def reset(self, task_id: Optional[str] = None) -> Dict[str, Any]:
         """Resets the environment for a new episode.
