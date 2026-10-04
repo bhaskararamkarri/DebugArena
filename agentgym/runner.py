@@ -13,7 +13,7 @@ from typing import Any, Dict, List, Optional
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TimeElapsedColumn
 
-from agentgym.agent import Agent, MockAgent
+from agentgym.agent import Agent, MockAgent, get_prompt_hash
 from agentgym.env import BugFixEnv
 from agentgym.judge import CodeJudge
 from agentgym.tracer import EpisodeTracer
@@ -316,6 +316,9 @@ class EpisodeRunner:
             "protocol": "v2",
             "sandbox_type": sandbox_type,
             "docker_image_digest": docker_image_digest,
+            "prompt_hash": get_prompt_hash(),
+            "temperature": 0.2,
+            "max_steps": max_steps,
             "total_tasks": total,
             "solved_tasks": solved,
             "success_rate": round(solved / total, 4) if total else 0.0,

@@ -1,4 +1,4 @@
-default_provider: "openrouter"
+default_provider: "nebius"
 
 providers:
   nebius:
@@ -16,21 +16,21 @@ providers:
 
 models:
   nemotron_nano:
-    name: "nvidia/nemotron-3-nano-30b-a3b"
-    provider: "openrouter"
-    fallback_provider: "nebius"
+    name: "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B"
+    provider: "nebius"
+    fallback_provider: "openrouter"
     temperature: 0.2
     max_tokens: 2000
   nemotron_super:
     name: "nvidia/nemotron-3-super-120b-a12b"
-    provider: "openrouter"
-    fallback_provider: "nebius"
+    provider: "nebius"
+    fallback_provider: "openrouter"
     temperature: 0.2
     max_tokens: 2000
   nemotron_judge:
-    name: "nvidia/nemotron-3-ultra-550b-a55b"
-    provider: "openrouter"
-    fallback_provider: "nebius"
+    name: "nvidia/Nemotron-3-Ultra-550b-a55b"
+    provider: "nebius"
+    fallback_provider: "openrouter"
     temperature: 0.0
     max_tokens: 500
 

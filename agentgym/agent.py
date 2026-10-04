@@ -27,6 +27,7 @@ INTERACTION PROTOCOL:
 - You must interact with the environment ONLY by outputting a single JSON action object.
 - DO NOT output conversational commentary, explanations, or thought prefixes.
 - Reply with EXACTLY ONE JSON action object per turn.
+- You have a limited number of steps (shown as steps_left in each observation); call submit before they run out.
 - When you believe the bug is fixed and all tests will pass, call the "submit" action.
 
 SUPPORTED JSON ACTION SCHEMAS:
@@ -39,6 +40,11 @@ SUPPORTED JSON ACTION SCHEMAS:
 3. Submit solution when fixed:
 {"type": "submit"}
 """
+
+
+def get_prompt_hash() -> str:
+    import hashlib
+    return hashlib.sha256(SYSTEM_PROMPT.strip().encode("utf-8")).hexdigest()[:16]
 
 
 def validate_action_schema(action: Any) -> Tuple[bool, str, Dict[str, Any]]:
