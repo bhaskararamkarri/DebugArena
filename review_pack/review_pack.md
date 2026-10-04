@@ -1,4 +1,4 @@
-# AgentGym Expert Review Pack (Tendem / Toloka)
+# DebugArena Expert Review Pack (Tendem / Toloka)
 
 This review package contains AI-generated coding agent bug fixes for human expert quality assessment.
 Please review each episode and score it based on correctness, idiomacy, and side effects.

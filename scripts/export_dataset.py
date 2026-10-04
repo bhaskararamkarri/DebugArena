@@ -1,4 +1,4 @@
-"""Dataset exporter: converts AgentGym trajectories into SFT and DPO training-ready JSONL."""
+"""Dataset exporter: converts DebugArena trajectories into SFT and DPO training-ready JSONL."""
 
 from __future__ import annotations
 
@@ -22,7 +22,7 @@ console = Console()
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="Export AgentGym trajectories to SFT or DPO format.")
+    parser = argparse.ArgumentParser(description="Export DebugArena trajectories to SFT or DPO format.")
     parser.add_argument(
         "--run",
         type=str,

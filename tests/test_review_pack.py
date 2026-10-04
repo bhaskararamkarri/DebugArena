@@ -29,7 +29,7 @@ def test_make_review_pack_and_import(tmp_path):
     md_file = out_dir / "review_pack.md"
     assert md_file.exists()
     content = md_file.read_text(encoding="utf-8")
-    assert "# AgentGym Expert Review Pack" in content
+    assert "# DebugArena Expert Review Pack" in content
 
     example_json = out_dir / "reviews.json.example"
     assert example_json.exists()

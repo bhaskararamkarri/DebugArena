@@ -1,14 +1,15 @@
-# AgentGym — MVP Document
+# DebugArena — MVP Document
 
-**An open RL environment where coding agents get better.**
-Nebius × NVIDIA Global AI Hackathon · Track: Coding & Agentic Engineering
+**DebugArena — an arena where coding agents compete on real bugs, scored by hidden tests in a Docker sandbox, and every attempt becomes training data.**
+*Formerly named AgentGym; the Python package keeps the name `agentgym` for compatibility.*
+Nebius × NVIDIA Global AI Hackathon · Track: Agent Gym & Coding Environments
 Author: Bhaskar · Document date: 2 Oct 2026 · Build window: 10 days
 
 ---
 
 ## 1. One-line pitch
 
-AgentGym gives an AI agent a broken Python repo, lets it edit and run code inside an isolated Docker sandbox, scores it automatically with hidden pytest tests, and saves every step as a training-ready dataset, so the environment doesn't just test agents, it produces the data to improve them.
+DebugArena gives an AI agent a broken Python repo, lets it edit and run code inside an isolated Docker sandbox, scores it automatically with hidden pytest tests, and saves every step as a training-ready dataset, so the environment doesn't just test agents, it produces the data to improve them.
 
 ## 2. Problem and opportunity
 

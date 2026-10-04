@@ -1,7 +1,7 @@
-# AgentGym Project Status & Progress Report
+# DebugArena Project Status & Progress Report
 
-**Date:** 2026-10-03  
-**Project:** AgentGym — Multi-Turn Python Bug-Fix RL Environment (Nebius × NVIDIA Hackathon)  
+**Date:** 2026-10-04  
+**Project:** DebugArena (formerly AgentGym) — Multi-Turn Python Bug-Fix RL Environment (Nebius × NVIDIA Hackathon)  
 **Track:** Agent Gym & Coding Environments  
 
 ---

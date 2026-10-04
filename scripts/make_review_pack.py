@@ -58,7 +58,7 @@ def make_review_pack(output_dir: str = "review_pack", max_episodes: int = 10):
     selected_tids = sorted(episodes_by_task.keys())[:max_episodes]
 
     md_lines = [
-        "# AgentGym Expert Review Pack (Tendem / Toloka)",
+        "# DebugArena Expert Review Pack (Tendem / Toloka)",
         "",
         "This review package contains AI-generated coding agent bug fixes for human expert quality assessment.",
         "Please review each episode and score it based on correctness, idiomacy, and side effects.",

@@ -3,9 +3,9 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "agentgym"
+name = "debugarena"
 version = "0.1.0"
-description = "An open RL environment where coding agents get better"
+description = "DebugArena — an arena where coding agents compete on real bugs, scored by hidden tests in a Docker sandbox, and every attempt becomes training data"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [

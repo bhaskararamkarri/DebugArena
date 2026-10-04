@@ -1,4 +1,4 @@
-"""Unit tests for AgentGym v2 robust action parser."""
+"""Unit tests for DebugArena v2 robust action parser."""
 
 import pytest
 from agentgym.agent import extract_action_json, validate_action_schema

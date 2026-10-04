@@ -1,4 +1,4 @@
-"""Streamlit Interactive Dashboard for AgentGym.
+"""Streamlit Interactive Dashboard for DebugArena (formerly AgentGym).
 
 Features:
 1. Leaderboard: Model comparison by success rate, steps, returns, and judge quality.
@@ -17,8 +17,8 @@ import pandas as pd
 import streamlit as st
 
 st.set_page_config(
-    page_title="AgentGym | Evaluation Leaderboard & Replay",
-    page_icon="🏋️",
+    page_title="DebugArena | Evaluation Leaderboard & Replay",
+    page_icon="⚔️",
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -130,8 +130,8 @@ runs_data = load_all_runs()
 tasks_meta = load_tasks_metadata()
 
 # Sidebar Navigation & Suite Selector
-st.sidebar.title("🏋️ AgentGym")
-st.sidebar.caption("Nebius × NVIDIA AI Hackathon")
+st.sidebar.title("⚔️ DebugArena")
+st.sidebar.caption("Nebius × NVIDIA AI Hackathon · Agent Gym Track")
 st.sidebar.markdown("---")
 
 page = st.sidebar.radio(

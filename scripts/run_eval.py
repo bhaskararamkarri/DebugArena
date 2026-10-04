@@ -1,4 +1,4 @@
-"""Evaluation runner script for AgentGym."""
+"""Evaluation runner script for DebugArena."""
 
 from __future__ import annotations
 
@@ -22,7 +22,7 @@ console = Console()
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="Run AgentGym evaluations across models and tasks.")
+    parser = argparse.ArgumentParser(description="Run DebugArena evaluations across models and tasks.")
     parser.add_argument(
         "--model",
         type=str,
@@ -156,7 +156,7 @@ def main():
         enable_tracing=trace_enabled,
     )
 
-    console.print(f"\n[bold green]AgentGym Evaluation Run: {run_id}[/bold green]")
+    console.print(f"\n[bold green]DebugArena Evaluation Run: {run_id}[/bold green]")
     console.print(f"Model: [cyan]{model_name}[/cyan] | Sandbox: [yellow]{args.sandbox}[/yellow] | Tasks: [magenta]{len(task_ids)}[/magenta]\n")
 
     results = runner.run_batch(

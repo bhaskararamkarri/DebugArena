@@ -1,4 +1,4 @@
-"""Generates the 20 benchmark tasks for AgentGym."""
+"""Generates the 20 benchmark tasks for DebugArena."""
 
 import json
 from pathlib import Path

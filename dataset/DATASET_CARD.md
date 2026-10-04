@@ -1,7 +1,7 @@
-# AgentGym Dataset Card
+# DebugArena Dataset Card
 
 ## Dataset Summary
-The **AgentGym Dataset** consists of multi-turn interaction trajectories of AI coding agents attempting real-world Python bug fixes inside isolated execution sandboxes.
+The **DebugArena Dataset** (exported from the `agentgym` environment) consists of multi-turn interaction trajectories of AI coding agents attempting real-world Python bug fixes inside isolated execution sandboxes.
 The environment records full observation-action cycles, terminal outputs, pytest test evaluations, RL reward deltas, and code quality evaluations.
 
 The dataset is exported in two core formats:

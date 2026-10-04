@@ -7,9 +7,9 @@ from agentgym.sandbox import Sandbox, LocalSandbox, DockerSandbox
 
 def test_local_sandbox_command_execution():
     sb = LocalSandbox(timeout=5)
-    res = sb.run_command(f'"{sys.executable}" -c "print(\'AgentGym Sandbox OK\')"')
+    res = sb.run_command(f'"{sys.executable}" -c "print(\'DebugArena Sandbox OK\')"')
     assert res.exit_code == 0
-    assert "AgentGym Sandbox OK" in res.stdout
+    assert "DebugArena Sandbox OK" in res.stdout
     assert not res.timed_out
     sb.cleanup()
 

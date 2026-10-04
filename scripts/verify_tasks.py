@@ -1,4 +1,4 @@
-"""Verification script for AgentGym tasks.
+"""Verification script for DebugArena benchmark tasks.
 
 Verifies:
 1. Before fix: passes at least 1 test (for regression testing) and fails at least 1 test.
@@ -141,7 +141,7 @@ def main():
 
     results.sort(key=lambda x: x["task_id"])
 
-    table = Table(title="AgentGym 20-Task Benchmark Verification (3x Repetitions)")
+    table = Table(title="DebugArena Benchmark Task Verification (3x Repetitions)")
     table.add_column("Task ID", style="cyan")
     table.add_column("Difficulty", style="magenta")
     table.add_column("Tests", justify="right")
