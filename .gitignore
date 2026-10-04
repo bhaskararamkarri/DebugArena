@@ -40,9 +40,10 @@ htmlcov/
 tmp/
 scratch/
 
-# Runs (keep sample and benchmark evaluation runs)
-runs/*
-!runs/sample/
+# Runs (ignore temporary smoke test runs)
+runs/smoke*
+runs/trace*
+runs/test*
 !runs/sample/**
 !runs/baseline_*/
 !runs/baseline_*/**
