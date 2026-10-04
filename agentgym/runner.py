@@ -88,7 +88,13 @@ class EpisodeRunner:
         while not done:
             step_idx += 1
             # Agent decides action
-            action, latency_ms, messages_snapshot = agent.act(obs)
+            act_res = agent.act(obs)
+            if len(act_res) == 4:
+                action, latency_ms, messages_snapshot, extraction_needed = act_res
+            else:
+                action, latency_ms, messages_snapshot = act_res[:3]
+                extraction_needed = False
+
             self.tracer.log_llm_call(root_trace, step_idx, messages_snapshot, action, latency_ms)
 
             # Step in environment
@@ -136,6 +142,7 @@ class EpisodeRunner:
                 "timestamp": timestamp,
                 "sandbox_type": sandbox_type,
                 "docker_image_digest": docker_image_digest,
+                "extraction_needed": extraction_needed,
             }
 
             step_records.append(record)
@@ -160,6 +167,9 @@ class EpisodeRunner:
         docker_image_digest = env.sandbox.get_image_digest() if env.sandbox else None
         env.close()
 
+        any_extraction = any(r.get("extraction_needed", False) for r in step_records)
+        invalid_json_count = sum(1 for r in step_records if r.get("action", {}).get("type") == "run" and "echo 'Invalid JSON action'" in r.get("action", {}).get("cmd", ""))
+
         summary = {
             "episode_id": episode_id,
             "task_id": task_id,
@@ -172,6 +182,8 @@ class EpisodeRunner:
             "regression_occurred": final_info.get("regression", False),
             "sandbox_type": sandbox_type,
             "docker_image_digest": docker_image_digest,
+            "extraction_needed": any_extraction,
+            "invalid_json_count": invalid_json_count,
         }
         return summary
 
@@ -294,6 +306,10 @@ class EpisodeRunner:
         sandbox_type = first_ep.get("sandbox_type", "docker" if sandbox_mode != "local" else "local")
         docker_image_digest = first_ep.get("docker_image_digest")
 
+        extraction_count = sum(1 for r in results if r.get("extraction_needed", False))
+        extraction_rate = round(extraction_count / total, 4) if total else 0.0
+        total_invalid_json = sum(r.get("invalid_json_count", 0) for r in results)
+
         summary_data = {
             "run_id": run_id,
             "model": model_name,
@@ -306,6 +322,8 @@ class EpisodeRunner:
             "avg_steps": round(avg_steps, 2),
             "avg_return": round(avg_return, 4),
             "avg_judge_score": round(avg_judge, 2) if avg_judge is not None else None,
+            "extraction_needed_rate": extraction_rate,
+            "invalid_json_events": total_invalid_json,
             "episodes": sorted(results, key=lambda x: x.get("task_id", "")),
         }
 
