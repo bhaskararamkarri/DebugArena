@@ -144,28 +144,56 @@ streamlit run dashboard/app.py
 
 ### 4. Export Training Datasets (SFT & DPO)
 ```bash
-python scripts/export_dataset.py --format sft --split
-python scripts/export_dataset.py --format dpo --split
+# Export Protocol v2 verified SFT dataset (49 episodes)
+python scripts/export_dataset.py --protocol v2 --format sft --split
+
+# Export Protocol v2 cross-model DPO dataset (9 preference pairs)
+python scripts/export_dataset.py --protocol v2 --format dpo --dpo-mode cross-model --split
 ```
 
 ---
 
-## 6. Empirical Results: Protocol v1 vs Protocol v2
+## 6. Empirical Results: Protocol v2 (Main) vs Protocol v1 (Legacy)
 
-### Empirical Findings:
-- In **Protocol v1** (executed on local host with rigid JSON parsing), Nemotron Super (120B) was heavily penalized when emitting conversational chain-of-thought analysis alongside code, triggering invalid JSON fallback loops on Hard-10.
-- In **Protocol v2** (mandatory Docker sandbox with robust JSON parsing, think tag stripping, and factual system prompts), action extraction handles conversational formatting cleanly, while true bug-solving capability is rigorously measured.
+### Primary Results: Protocol v2 (Docker Sandbox, Lenient Parser, json_object Mode)
 
-| Model / Baseline | Suite | Protocol | Sandbox | Solved | Success Rate (%) | 95% Wilson CI | Avg Steps | Avg Return |
+All primary benchmark evaluations are conducted inside isolated Docker containers using Protocol v2.
+
+| Model / Baseline | Suite | Protocol | Sandbox | Solved | Success Rate (%) | 95% Wilson CI | Avg Steps | Avg Return | Avg Judge Score |
+|---|---|---|---|---|---|---|---|---|---|
+| `nvidia/nemotron-3-super-120b-a12b` | Core-20 | v2 | Docker | 19 / 20 | **95.0%** | `[76.4%, 99.1%]` | 1.10 | +0.762 | 3.95 |
+| `nvidia/nemotron-3-super-120b-a12b` | Hard-10 | v2 | Docker | 9 / 10 | **90.0%** | `[59.6%, 98.2%]` | 2.20 | +0.337 | 3.70 |
+| `nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B` | Core-20 | v2 | Docker | 18 / 20 | **90.0%** | `[69.9%, 97.2%]` | 1.45 | +0.729 | 3.80 |
+| `nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B` | Hard-10 | v2 | Docker | 3 / 10 | **30.0%** | `[10.8%, 60.3%]` | 3.40 | +0.006 | 2.50 |
+| `baseline_reference` (Upper Bound) | Core-20 | v2 | Docker | 20 / 20 | **100.0%** | `[83.9%, 100.0%]` | 1.00 | +0.540 | 4.00 |
+| `baseline_reference` (Upper Bound) | Hard-10 | v2 | Docker | 10 / 10 | **100.0%** | `[72.2%, 100.0%]` | 1.10 | +0.370 | 3.90 |
+| `baseline_noop` (Lower Bound) | Core-20 | v2 | Docker | 0 / 20 | **0.0%** | `[0.0%, 16.1%]` | 1.00 | -0.010 | 0.00 |
+| `baseline_noop` (Lower Bound) | Hard-10 | v2 | Docker | 0 / 10 | **0.0%** | `[0.0%, 27.8%]` | 1.00 | -0.010 | 0.00 |
+
+### Legacy Results: Protocol v1 (Local Sandbox, Strict Regex Parser)
+
+Shown separately for reproducibility and harness comparison.
+
+| Model | Suite | Protocol | Sandbox | Solved | Success Rate (%) | 95% Wilson CI | Avg Steps | Avg Return |
 |---|---|---|---|---|---|---|---|---|
 | `nvidia/nemotron-3-nano-30b-a3b` | Core-20 | v1 | Local | 18 / 20 | **90.0%** | `[69.9%, 97.2%]` | 1.45 | +0.67 |
 | `nvidia/nemotron-3-nano-30b-a3b` | Hard-10 | v1 | Local | 9 / 10 | **90.0%** | `[59.6%, 98.2%]` | 1.30 | +0.35 |
 | `nvidia/nemotron-3-super-120b-a12b` | Core-20 | v1 | Local | 19 / 20 | **95.0%** | `[76.4%, 99.1%]` | 1.15 | +0.76 |
 | `nvidia/nemotron-3-super-120b-a12b` | Hard-10 | v1 | Local | 6 / 10 | **60.0%** | `[31.3%, 83.2%]` | 4.90 | -0.05 |
-| `baseline_reference` (Upper Bound) | Core-20 | v2 | Docker | 20 / 20 | **100.0%** | `[83.9%, 100.0%]` | 1.00 | +0.54 |
-| `baseline_reference` (Upper Bound) | Hard-10 | v2 | Docker | 10 / 10 | **100.0%** | `[72.2%, 100.0%]` | 1.10 | +0.37 |
-| `baseline_noop` (Lower Bound) | Core-20 | v2 | Docker | 0 / 20 | **0.0%** | `[0.0%, 16.1%]` | 1.00 | -0.01 |
-| `baseline_noop` (Lower Bound) | Hard-10 | v2 | Docker | 0 / 10 | **0.0%** | `[0.0%, 27.8%]` | 1.00 | -0.01 |
+
+### Analysis & Harness Sensitivity:
+- **Evaluation Scale & Uncertainty:** Single rollout per model per suite ($N=20$ for Core, $N=10$ for Hard). Because task sample sizes are moderate, Wilson 95% confidence intervals are wide.
+- **Model Ordering Shift on Hard-10:** In v1 (local sandbox, strict parser), Nano solved 90% while Super solved 60% due to parser rejections of Super's multi-line reasoning. In v2 (Docker sandbox, lenient JSON parser, `json_object` format), Super solved 90% while Nano solved 30%.
+- **Nano Behavioral Diagnostics on Hard-10 (v2):** In v2, Nano did not suffer parsing errors (0 invalid JSON events), but engaged in multi-step exploratory edits (avg 3.4 steps vs 1.3 in v1) and submitted prematurely on 5 tasks (pass rate 60–80%), introduced 1 regression, and hit the step limit on 1 task.
+- **Takeaway:** Benchmark rankings are sensitive to harness configuration (prompt structure, parser leniency, steps-left reminders, container environment) and should be viewed as environment-specific measurements rather than definitive model capability rankings.
+
+---
+
+## 7. Dataset Exports & Provenance
+
+- **`debugarena_sft.jsonl` (Primary SFT):** 49 unique verified episodes from Protocol v2 in Docker (40 train / 9 val). Excludes baselines, smoke runs, and mock solvers.
+- **`debugarena_dpo_cross_model.jsonl` (DPO Preferences):** 9 preference pairs comparing successful Super-120B solutions against failed Nano-30B attempts on identical tasks under Protocol v2 in Docker (8 train / 1 val).
+- **`debugarena_sft_v1_local.jsonl` (Protocol v1 Archive):** 48 verified episodes from legacy Protocol v1 in LocalSandbox.
 
 ---
 

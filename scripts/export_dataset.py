@@ -44,6 +44,13 @@ def parse_args():
         help="Export format: 'sft' (chat trajectories) or 'dpo' (chosen vs rejected pairs)",
     )
     parser.add_argument(
+        "--dpo-mode",
+        type=str,
+        choices=["same-model", "cross-model", "all"],
+        default="same-model",
+        help="DPO pairing strategy: 'same-model' (same task & model), 'cross-model' (same task & different models), or 'all'",
+    )
+    parser.add_argument(
         "--min-pass-rate",
         type=float,
         default=1.0,
@@ -86,15 +93,15 @@ def load_episodes(run_target: str, protocol: str = "v2") -> Dict[str, List[Dict[
     else:
         trajectory_files = [runs_dir / run_target / "trajectories.jsonl"]
 
-    # Filter out smoke/test runs
+    # Filter out smoke/test runs and baseline/mock runs
     filtered_files = []
     for p in trajectory_files:
         if not p.exists():
             continue
         run_name = p.parent.name.lower()
-        if "smoke" in run_name or "test" in run_name:
+        if "smoke" in run_name or "test" in run_name or "baseline" in run_name or "mock" in run_name:
             continue
-        # Check summary for protocol
+        # Check summary for protocol and model
         sum_p = p.parent / "summary.json"
         if sum_p.exists() and protocol != "all":
             try:
@@ -103,24 +110,29 @@ def load_episodes(run_target: str, protocol: str = "v2") -> Dict[str, List[Dict[
                     p_ver = sdata.get("protocol", "v1")
                     if p_ver != protocol:
                         continue
+                    m_name = sdata.get("model", "")
+                    if "baseline" in m_name.lower() or "mock" in m_name.lower():
+                        continue
             except Exception:
                 pass
         filtered_files.append(p)
 
     episodes: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
     for tf in filtered_files:
-        with open(tf, "r", encoding="utf-8") as f:
-            for line in f:
+        with open(tf, "r", encoding="utf-8") as tf_file:
+            for line in tf_file:
                 line = line.strip()
                 if not line:
                     continue
                 try:
                     record = json.loads(line)
+                    m = record.get("model", "").lower()
+                    if "baseline" in m or "mock" in m:
+                        continue
                     key = f"{record.get('run_id')}_{record.get('episode_id')}"
                     episodes[key].append(record)
                 except Exception:
                     continue
-    return episodes
     return episodes
 
 
@@ -201,10 +213,13 @@ def export_sft(
     return dataset
 
 
-def export_dpo(episodes: Dict[str, List[Dict[str, Any]]]) -> List[Dict[str, Any]]:
+def export_dpo(
+    episodes: Dict[str, List[Dict[str, Any]]],
+    dpo_mode: str = "same-model",
+) -> List[Dict[str, Any]]:
     """Exports DPO pairs (prompt, chosen, rejected) for tasks with contrasting outcomes."""
     # Group episodes by task_id
-    by_task: Dict[str, List[Tuple[float, float, List[Dict[str, Any]]]]] = defaultdict(list)
+    by_task: Dict[str, List[Tuple[float, float, str, List[Dict[str, Any]]]]] = defaultdict(list)
 
     for ep_key, steps in episodes.items():
         steps.sort(key=lambda x: x["step"])
@@ -212,27 +227,34 @@ def export_dpo(episodes: Dict[str, List[Dict[str, Any]]]) -> List[Dict[str, Any]
         pass_rate = final_step.get("pass_rate", 0.0)
         tot_return = sum(s.get("reward", 0.0) for s in steps)
         task_id = final_step.get("task_id", "")
+        model = final_step.get("model", "")
         if task_id:
-            by_task[task_id].append((pass_rate, tot_return, steps))
+            by_task[task_id].append((pass_rate, tot_return, model, steps))
 
     dpo_items = []
     seen_pairs = set()
 
     for task_id, candidate_list in by_task.items():
-        # Look for chosen (pass_rate == 1.0) and rejected (pass_rate < 1.0 or significantly lower return)
         successful = [c for c in candidate_list if c[0] >= 1.0]
         unsuccessful = [c for c in candidate_list if c[0] < 1.0]
 
         if successful and unsuccessful:
             for succ in successful:
                 for unsucc in unsuccessful:
-                    chosen_msgs = build_messages(succ[2])
-                    rejected_msgs = build_messages(unsucc[2])
+                    succ_model = succ[2]
+                    unsucc_model = unsucc[2]
+
+                    if dpo_mode == "same-model" and succ_model != unsucc_model:
+                        continue
+                    if dpo_mode == "cross-model" and succ_model == unsucc_model:
+                        continue
+
+                    chosen_msgs = build_messages(succ[3])
+                    rejected_msgs = build_messages(unsucc[3])
 
                     if not validate_messages(chosen_msgs) or not validate_messages(rejected_msgs):
                         continue
 
-                    # Extract the shared initial prompt
                     prompt = chosen_msgs[0]["content"] if chosen_msgs else ""
 
                     dpo_item = {
@@ -244,6 +266,8 @@ def export_dpo(episodes: Dict[str, List[Dict[str, Any]]]) -> List[Dict[str, Any]
                         "rejected_return": round(unsucc[1], 4),
                         "chosen_pass_rate": succ[0],
                         "rejected_pass_rate": unsucc[0],
+                        "chosen_model": succ_model,
+                        "rejected_model": unsucc_model,
                     }
 
                     pair_key = (
@@ -277,10 +301,11 @@ def main():
     if args.format == "sft":
         dataset = export_sft(episodes, args.min_pass_rate)
     else:
-        dataset = export_dpo(episodes)
+        dataset = export_dpo(episodes, dpo_mode=args.dpo_mode)
 
     if not dataset:
-        console.print(f"[yellow]No items matched the export criteria for format '{args.format}'.[/yellow]")
+        console.print(f"[yellow]No items matched the export criteria for format '{args.format}' (dpo_mode={args.dpo_mode}). Creating empty file at {output_path}.[/yellow]")
+        write_jsonl([], output_path)
         return
 
     write_jsonl(dataset, output_path)
