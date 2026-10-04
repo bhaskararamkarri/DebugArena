@@ -2,6 +2,9 @@
 requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
 [project]
 name = "debugarena"
 version = "0.1.0"
