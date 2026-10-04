@@ -182,22 +182,21 @@ Shown separately for reproducibility and harness comparison.
 | `nvidia/nemotron-3-super-120b-a12b` | Hard-10 | v1 | Local | 6 / 10 | **60.0%** | `[31.3%, 83.2%]` | 4.90 | -0.05 |
 
 ### Analysis & Harness Sensitivity:
-- **Evaluation Scale & Uncertainty:** Single rollout per model per suite ($N=20$ for Core, $N=10$ for Hard). Because task sample sizes are moderate, Wilson 95% confidence intervals are wide.
-- **Model Ordering Shift on Hard-10:** In v1 (local sandbox, strict parser), Nano solved 90% while Super solved 60% due to parser rejections of Super's multi-line reasoning. In v2 (Docker sandbox, lenient JSON parser, `json_object` format), Super solved 90% while Nano solved 30%.
-- **Nano Behavioral Diagnostics on Hard-10 (v2):** In v2, Nano did not suffer parsing errors (0 invalid JSON events), but engaged in multi-step exploratory edits (avg 3.4 steps vs 1.3 in v1) and submitted prematurely on 5 tasks (pass rate 60–80%), introduced 1 regression, and hit the step limit on 1 task.
-- **Takeaway:** Benchmark rankings are sensitive to harness configuration (prompt structure, parser leniency, steps-left reminders, container environment) and should be viewed as environment-specific measurements rather than definitive model capability rankings.
+- **Model Comparison & Uncertainty:** With single rollouts per model per suite on small suites (20 core, 10 hard tasks), confidence intervals are wide. Because the model ordering on Hard-10 differed between protocols (Nano led in v1, Super led in v2), the Super-vs-Nano gap on Hard-10 is suggestive, not conclusive.
+- **Nano Behavioral Diagnostics on Hard-10 (v2):** In v2, Nano submitted partial fixes without being able to verify all edge cases (5 tasks at 60–80% pass rate), hit the 10-step limit on 1 task (h04), and introduced 1 regression (h05). Because the sandbox, parser, response_format, max_tokens, steps_left header, and prompt wording all changed between v1 and v2, the cause of the change cannot be attributed to a single factor.
+- **Harness Sensitivity:** Rankings are sensitive to the harness and environment configuration and should not be read as definitive capability differences.
 
 ---
 
 ## 7. Dataset Exports & Provenance
 
-- **`debugarena_sft.jsonl` (Primary SFT):** 49 unique verified episodes from Protocol v2 in Docker (40 train / 9 val). Excludes baselines, smoke runs, and mock solvers.
-- **`debugarena_dpo_cross_model.jsonl` (DPO Preferences):** 9 preference pairs comparing successful Super-120B solutions against failed Nano-30B attempts on identical tasks under Protocol v2 in Docker (8 train / 1 val).
-- **`debugarena_sft_v1_local.jsonl` (Protocol v1 Archive):** 48 verified episodes from legacy Protocol v1 in LocalSandbox.
+- **`debugarena_sft.jsonl` (Primary SFT):** 49 unique verified episodes from Protocol v2 in Docker, split strictly by task (39 train across 24 tasks / 10 val across 5 tasks). Excludes baselines, smoke runs, and mock solvers.
+- **`debugarena_dpo_cross_model.jsonl` (Cross-Model DPO Preferences):** 9 preference pairs (chosen from Super-120B, rejected from Nano-30B on identical tasks under Protocol v2 in Docker; 0 same-model pairs), partitioned by task (8 train / 1 val).
+- **`debugarena_sft_v1_local.jsonl` (Protocol v1 Archive):** 48 unique verified episodes from legacy Protocol v1 in LocalSandbox kept separate.
 
 ---
 
-## 7. Limitations
+## 8. Limitations
 
 1. **Benchmark Suite Size:** With $N=30$ total tasks ($N=20$ core, $N=10$ hard), binomial confidence intervals are broad.
 2. **Single Evaluation Runs:** Results represent single-run rollouts per configuration.
@@ -206,7 +205,7 @@ Shown separately for reproducibility and harness comparison.
 
 ---
 
-## 8. Products & Technologies Used
+## 9. Products & Technologies Used
 
 - **[Nebius Token Factory](https://nebius.ai):** High-throughput, low-latency LLM API inference compute powering agent rollouts.
 - **[NVIDIA Nemotron Models](https://build.nvidia.com):** State-of-the-art open reasoning and coding models (`nvidia/nemotron-3-super-120b-a12b`, `nvidia/nemotron-3-nano-30b-a3b`, `nvidia/nemotron-3-ultra-550b-a55b`).
@@ -215,6 +214,6 @@ Shown separately for reproducibility and harness comparison.
 
 ---
 
-## 9. License
+## 10. License
 
 Distributed under the MIT License. See [LICENSE](LICENSE) for details.

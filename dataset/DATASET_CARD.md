@@ -32,10 +32,11 @@ Each row represents an episode where a real model achieved a 100% test pass rate
 }
 ```
 
-### Primary SFT Splits (Protocol v2 in Docker):
-- `debugarena_sft.jsonl`: Complete deduplicated set of **49** solved real-model trajectories.
-- `debugarena_sft_train.jsonl`: **40** trajectories (80% train split).
-- `debugarena_sft_val.jsonl`: **9** trajectories (20% validation split).
+### Primary SFT Splits (Protocol v2 in Docker — Task-Disjoint):
+- `debugarena_sft.jsonl`: Complete deduplicated set of **49** solved real-model trajectories across 29 unique tasks.
+- `debugarena_sft_train.jsonl`: **39** trajectories across 24 unique tasks (task-level train split).
+- `debugarena_sft_val.jsonl`: **10** trajectories across 5 unique tasks (task-level validation split).
+*No task appears in both the train and validation splits.*
 
 ---
 
@@ -69,20 +70,22 @@ Each row pairs a successful solution (`chosen`) against a failed attempt (`rejec
 ### DPO Pairing Strategy & Splits:
 - `debugarena_dpo.jsonl`: **0** pairs (strictly same-task and same-model; in v2 each model is evaluated once per task, so a single model does not produce both a success and failure for the same task in the v2 run).
 - `debugarena_dpo_cross_model.jsonl`: **9** cross-model preference pairs (same task, comparing successful Super-120B vs failed Nano-30B under Protocol v2 in Docker).
-  - `debugarena_dpo_cross_model_train.jsonl`: **8** pairs (train split).
-  - `debugarena_dpo_cross_model_val.jsonl`: **1** pair (validation split).
+  - `debugarena_dpo_cross_model_train.jsonl`: **8** pairs across 8 distinct tasks.
+  - `debugarena_dpo_cross_model_val.jsonl`: **1** pair across 1 distinct task (*tiny split due to small total pool of 9 contrasting tasks; preserved strictly task-disjoint*).
 
 ---
 
 ## 3. Protocol v1 Local Sandbox Datasets
 Legacy Protocol v1 episodes executed in `LocalSandbox` with the v1 parser are exported separately:
-- `debugarena_sft_v1_local.jsonl`: **48** solved trajectories from Protocol v1 in local sandbox.
+- `debugarena_sft_v1_local.jsonl`: **48** unique solved trajectories from Protocol v1 in local sandbox.
+  - *Provenance Note on 48 vs 52 Solved Episodes:* While raw runs produced 52 solved episodes (Nano: 27, Super: 25), Nano and Super generated identical single-step solutions on 4 tasks (`t06_clamp_boundary`, `t08_empty_list_edge_case`, `t09_mutable_default_arg`, `t13_flatten_nested`). SHA-256 fingerprint deduplication collapsed these duplicate trajectories, leaving 48 unique training traces.
 - `debugarena_dpo_v1_local.jsonl`: **0** pairs (same-model).
 - Legacy files are archived in `dataset/v1_archive/`.
 
 ---
 
 ## 4. Data Processing & Validation
+- **Task-Disjoint Partitioning:** All train/val splits are grouped strictly by `task_id` (zero task leakage between train and val).
 - **Deduplication:** SHA-256 fingerprinting on message history eliminates identical trajectories across repeated evaluations.
 - **Validation:** Strict verification ensuring non-empty role/content structures and valid assistant JSON actions.
 - **Reproducibility:** Train/val splits are generated using fixed seed (`seed=42`).

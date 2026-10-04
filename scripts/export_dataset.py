@@ -312,12 +312,16 @@ def main():
     console.print(f"[bold green]Exported {len(dataset)} unique verified items to:[/bold green] [cyan]{output_path}[/cyan]")
 
     if args.split and len(dataset) >= 5:
+        # Task-level partitioning so no task_id appears in both train and val
+        tasks = sorted(list({item["task_id"] for item in dataset}))
         random.seed(args.seed)
-        shuffled = list(dataset)
-        random.shuffle(shuffled)
-        val_size = max(1, int(len(shuffled) * args.val_ratio))
-        val_items = shuffled[:val_size]
-        train_items = shuffled[val_size:]
+        random.shuffle(tasks)
+        val_task_count = max(1, int(len(tasks) * args.val_ratio))
+        val_tasks = set(tasks[:val_task_count])
+        train_tasks = set(tasks[val_task_count:])
+
+        val_items = [item for item in dataset if item["task_id"] in val_tasks]
+        train_items = [item for item in dataset if item["task_id"] in train_tasks]
 
         stem = output_path.stem
         train_path = output_path.parent / f"{stem}_train.jsonl"
@@ -326,8 +330,8 @@ def main():
         write_jsonl(train_items, train_path)
         write_jsonl(val_items, val_path)
 
-        console.print(f"  |-- Train split ({len(train_items)} items): [yellow]{train_path}[/yellow]")
-        console.print(f"  |-- Val split ({len(val_items)} items): [yellow]{val_path}[/yellow]")
+        console.print(f"  |-- Task-level Train split ({len(train_items)} items across {len(train_tasks)} tasks): [yellow]{train_path}[/yellow]")
+        console.print(f"  |-- Task-level Val split ({len(val_items)} items across {len(val_tasks)} tasks): [yellow]{val_path}[/yellow]")
 
 
 if __name__ == "__main__":

@@ -35,7 +35,7 @@ DebugArena provides an open, lightweight Gymnasium-style environment tailored fo
    $$\text{step\_reward} = (\text{pass\_rate}_t - \text{pass\_rate}_{t-1}) - 0.01 - 0.20 \times \mathbb{I}(\text{regression})$$
    Agents earn positive reward for passing new tests, pay a 0.01 step penalty to incentivize minimal edits, and suffer a sharp 0.20 penalty for introducing regressions.
 3. **Agent Loop & Schema Normalization:** Powered by NVIDIA Nemotron via Nebius Token Factory with robust JSON action extraction (handling think tags, markdown fences, and balanced JSON objects) and factual environment prompts.
-4. **Trajectory & Dataset Engine:** Successful trajectories are deduplicated and exported into multi-turn SFT datasets (with 80/20 train/val splits) and DPO preference datasets pairing solved versus rejected attempts.
+4. **Trajectory & Dataset Engine:** Verified trajectories are deduplicated and exported into a 49-episode SFT dataset (partitioned by task into train/val splits) and 9 cross-model DPO preference pairs (chosen from Super-120B, rejected from Nano-30B; 0 same-model pairs), with Protocol v1 local sandbox data kept strictly separate.
 5. **Interactive Dashboard & Replay:** Streamlit interface features a benchmark leaderboard, error mode analysis, and step-by-step episode replay.
 
 ### Challenges Overcome
