@@ -17,7 +17,9 @@
       "steps": 2,
       "return": 0.38,
       "judge_score": 4,
-      "regression_occurred": false
+      "regression_occurred": false,
+      "protocol": "v1",
+      "sandbox_type": "local"
     },
     {
       "episode_id": "ep_0002",
@@ -28,7 +30,9 @@
       "steps": 1,
       "return": 0.39,
       "judge_score": 4,
-      "regression_occurred": false
+      "regression_occurred": false,
+      "protocol": "v1",
+      "sandbox_type": "local"
     },
     {
       "episode_id": "ep_0003",
@@ -39,7 +43,9 @@
       "steps": 1,
       "return": 0.59,
       "judge_score": 4,
-      "regression_occurred": false
+      "regression_occurred": false,
+      "protocol": "v1",
+      "sandbox_type": "local"
     },
     {
       "episode_id": "ep_0004",
@@ -50,7 +56,9 @@
       "steps": 1,
       "return": 0.19,
       "judge_score": 4,
-      "regression_occurred": false
+      "regression_occurred": false,
+      "protocol": "v1",
+      "sandbox_type": "local"
     },
     {
       "episode_id": "ep_0005",
@@ -61,7 +69,9 @@
       "steps": 1,
       "return": 0.19,
       "judge_score": 4,
-      "regression_occurred": false
+      "regression_occurred": false,
+      "protocol": "v1",
+      "sandbox_type": "local"
     },
     {
       "episode_id": "ep_0006",
@@ -72,7 +82,9 @@
       "steps": 1,
       "return": 0.39,
       "judge_score": 4,
-      "regression_occurred": false
+      "regression_occurred": false,
+      "protocol": "v1",
+      "sandbox_type": "local"
     },
     {
       "episode_id": "ep_0007",
@@ -83,7 +95,9 @@
       "steps": 2,
       "return": 0.38,
       "judge_score": 4,
-      "regression_occurred": false
+      "regression_occurred": false,
+      "protocol": "v1",
+      "sandbox_type": "local"
     },
     {
       "episode_id": "ep_0008",
@@ -94,7 +108,9 @@
       "steps": 2,
       "return": 0.18,
       "judge_score": 2,
-      "regression_occurred": false
+      "regression_occurred": false,
+      "protocol": "v1",
+      "sandbox_type": "local"
     },
     {
       "episode_id": "ep_0009",
@@ -105,7 +121,9 @@
       "steps": 1,
       "return": 0.19,
       "judge_score": 4,
-      "regression_occurred": false
+      "regression_occurred": false,
+      "protocol": "v1",
+      "sandbox_type": "local"
     },
     {
       "episode_id": "ep_0010",
@@ -116,7 +134,11 @@
       "steps": 1,
       "return": 0.59,
       "judge_score": 4,
-      "regression_occurred": false
+      "regression_occurred": false,
+      "protocol": "v1",
+      "sandbox_type": "local"
     }
-  ]
+  ],
+  "protocol": "v1",
+  "sandbox_type": "local"
 }

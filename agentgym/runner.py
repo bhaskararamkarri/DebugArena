@@ -116,6 +116,8 @@ class EpisodeRunner:
                 judge_score = judge_eval.get("score")
 
             timestamp = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+            sandbox_type = env.sandbox.sandbox_type if env.sandbox else "unknown"
+            docker_image_digest = env.sandbox.get_image_digest() if env.sandbox else None
 
             record = {
                 "run_id": run_id,
@@ -132,6 +134,8 @@ class EpisodeRunner:
                 "judge_score": judge_score,
                 "latency_ms": latency_ms,
                 "timestamp": timestamp,
+                "sandbox_type": sandbox_type,
+                "docker_image_digest": docker_image_digest,
             }
 
             step_records.append(record)
@@ -152,6 +156,8 @@ class EpisodeRunner:
             steps=step_idx,
             final_pass_rate=final_info.get("pass_rate", 0.0),
         )
+        sandbox_type = env.sandbox.sandbox_type if env.sandbox else "unknown"
+        docker_image_digest = env.sandbox.get_image_digest() if env.sandbox else None
         env.close()
 
         summary = {
@@ -164,6 +170,8 @@ class EpisodeRunner:
             "return": cumulative_return,
             "judge_score": judge_score,
             "regression_occurred": final_info.get("regression", False),
+            "sandbox_type": sandbox_type,
+            "docker_image_digest": docker_image_digest,
         }
         return summary
 
@@ -282,9 +290,16 @@ class EpisodeRunner:
         scores = [r.get("judge_score") for r in results if r.get("judge_score") is not None]
         avg_judge = (sum(scores) / len(scores)) if scores else None
 
+        first_ep = results[0] if results else {}
+        sandbox_type = first_ep.get("sandbox_type", "docker" if sandbox_mode != "local" else "local")
+        docker_image_digest = first_ep.get("docker_image_digest")
+
         summary_data = {
             "run_id": run_id,
             "model": model_name,
+            "protocol": "v2",
+            "sandbox_type": sandbox_type,
+            "docker_image_digest": docker_image_digest,
             "total_tasks": total,
             "solved_tasks": solved,
             "success_rate": round(solved / total, 4) if total else 0.0,

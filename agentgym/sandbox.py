@@ -54,6 +54,13 @@ class BaseSandbox:
         self.timeout = timeout
         self.max_output_chars = max_output_chars
 
+    @property
+    def sandbox_type(self) -> str:
+        raise NotImplementedError
+
+    def get_image_digest(self) -> Optional[str]:
+        return None
+
     def write_files(self, files: Dict[str, str]) -> None:
         raise NotImplementedError
 
@@ -81,6 +88,13 @@ class LocalSandbox(BaseSandbox):
     def __init__(self, timeout: int = 10, max_output_chars: int = 4000):
         super().__init__(timeout=timeout, max_output_chars=max_output_chars)
         self.temp_dir = Path(tempfile.mkdtemp(prefix="agentgym_local_"))
+
+    @property
+    def sandbox_type(self) -> str:
+        return "local"
+
+    def get_image_digest(self) -> Optional[str]:
+        return None
 
     def write_files(self, files: Dict[str, str]) -> None:
         for rel_path, content in files.items():
@@ -231,36 +245,45 @@ class DockerSandbox(BaseSandbox):
         self.mem_limit = mem_limit
         self.cpu_limit = cpu_limit
         self.pids_limit = pids_limit
-        self.host_dir = Path(tempfile.mkdtemp(prefix="agentgym_docker_"))
+        self.workspace_dir = Path(tempfile.mkdtemp(prefix="agentgym_docker_ws_"))
+        self.tests_dir = Path(tempfile.mkdtemp(prefix="agentgym_docker_tests_"))
 
         import docker
 
         self.client = docker.from_env()
         self._ensure_image()
 
+    @property
+    def sandbox_type(self) -> str:
+        return "docker"
+
+    def get_image_digest(self) -> str:
+        try:
+            img = self.client.images.get(self.IMAGE_NAME)
+            return img.id
+        except Exception:
+            return "unknown"
+
     def _ensure_image(self) -> None:
         """Verify image exists or create a slim container with pytest."""
         try:
             self.client.images.get(self.IMAGE_NAME)
         except Exception:
-            # Build inline slim image
+            import io
             dockerfile = "FROM python:3.11-slim\nRUN pip install --no-cache-dir pytest\nWORKDIR /workspace\n"
-            dockerfile_path = self.host_dir / "Dockerfile"
-            dockerfile_path.write_text(dockerfile)
-            self.client.images.build(path=str(self.host_dir), tag=self.IMAGE_NAME, rm=True)
-            dockerfile_path.unlink(missing_ok=True)
+            self.client.images.build(fileobj=io.BytesIO(dockerfile.encode("utf-8")), tag=self.IMAGE_NAME, rm=True)
 
     def write_files(self, files: Dict[str, str]) -> None:
         for rel_path, content in files.items():
-            p = self.host_dir / rel_path
+            p = self.workspace_dir / rel_path
             p.parent.mkdir(parents=True, exist_ok=True)
             p.write_text(content, encoding="utf-8")
 
     def get_files(self) -> Dict[str, str]:
         files: Dict[str, str] = {}
-        for p in self.host_dir.rglob("*"):
+        for p in self.workspace_dir.rglob("*"):
             if p.is_file() and not p.name.startswith("test_") and p.name != "results.xml" and ".pytest_cache" not in str(p):
-                rel = str(p.relative_to(self.host_dir)).replace("\\", "/")
+                rel = str(p.relative_to(self.workspace_dir)).replace("\\", "/")
                 files[rel] = p.read_text(encoding="utf-8", errors="replace")
         return files
 
@@ -269,12 +292,12 @@ class DockerSandbox(BaseSandbox):
         start_time = time.time()
         timed_out = False
 
-        volumes = {str(self.host_dir.resolve()): {"bind": "/workspace", "mode": "rw"}}
+        volumes = {str(self.workspace_dir.resolve()): {"bind": "/workspace", "mode": "rw"}}
 
         try:
             container = self.client.containers.run(
                 self.IMAGE_NAME,
-                command=f"/bin/sh -c '{cmd}'",
+                command=["/bin/sh", "-c", cmd],
                 volumes=volumes,
                 working_dir="/workspace",
                 network_disabled=True,
@@ -312,29 +335,70 @@ class DockerSandbox(BaseSandbox):
         return SandboxResult(stdout=stdout, stderr=stderr, exit_code=exit_code, duration_seconds=duration, timed_out=timed_out)
 
     def run_tests(self, test_files: Dict[str, str], timeout: Optional[int] = None) -> TestRunResult:
-        written_test_paths: list[Path] = []
+        # Write hidden tests into separate tests_dir
         for rel_path, content in test_files.items():
-            p = self.host_dir / rel_path
+            p = self.tests_dir / rel_path
             p.parent.mkdir(parents=True, exist_ok=True)
             p.write_text(content, encoding="utf-8")
-            written_test_paths.append(p)
 
-        xml_path = self.host_dir / "results.xml"
+        xml_path = self.workspace_dir / "results.xml"
         if xml_path.exists():
             xml_path.unlink()
 
-        res = self.run_command("pytest --junitxml=results.xml -q -rA", timeout=timeout)
+        volumes = {
+            str(self.workspace_dir.resolve()): {"bind": "/workspace", "mode": "rw"},
+            str(self.tests_dir.resolve()): {"bind": "/tests_hidden", "mode": "ro"},
+        }
+
+        t_limit = timeout or self.timeout
+        start_time = time.time()
+        timed_out = False
+        logs = ""
+
+        try:
+            container = self.client.containers.run(
+                self.IMAGE_NAME,
+                command="pytest /tests_hidden -p no:cacheprovider --junitxml=/workspace/results.xml -q -rA",
+                volumes=volumes,
+                environment={"PYTHONPATH": "/workspace"},
+                working_dir="/workspace",
+                network_disabled=True,
+                mem_limit=self.mem_limit,
+                nano_cpus=int(self.cpu_limit * 1e9),
+                pids_limit=self.pids_limit,
+                detach=True,
+                remove=False,
+            )
+
+            try:
+                res = container.wait(timeout=t_limit)
+                logs = container.logs(stdout=True, stderr=True).decode("utf-8", errors="replace")
+            except Exception:
+                timed_out = True
+                try:
+                    container.kill()
+                except Exception:
+                    pass
+                logs = "Test execution timed out in Docker container."
+            finally:
+                container.remove(force=True)
+
+        except Exception as e:
+            logs = f"Docker test execution error: {str(e)}"
+
+        duration = time.time() - start_time
 
         # Parse XML
         local_helper = LocalSandbox()
-        passed, failed, total = local_helper._parse_junit_xml(xml_path, res.stdout)
+        passed, failed, total = local_helper._parse_junit_xml(xml_path, logs)
         local_helper.cleanup()
 
-        for p in written_test_paths:
-            if p.exists():
-                p.unlink()
+        # Clean up hidden test files and results XML
+        for p in self.tests_dir.rglob("*"):
+            if p.is_file():
+                p.unlink(missing_ok=True)
         if xml_path.exists():
-            xml_path.unlink()
+            xml_path.unlink(missing_ok=True)
 
         pass_rate = (len(passed) / total) if total > 0 else 0.0
 
@@ -343,19 +407,21 @@ class DockerSandbox(BaseSandbox):
             failed_tests=failed,
             total_tests=total,
             pass_rate=pass_rate,
-            stdout=res.stdout,
-            stderr=res.stderr,
-            timed_out=res.timed_out,
-            duration_seconds=res.duration_seconds,
+            stdout=logs,
+            stderr="",
+            timed_out=timed_out,
+            duration_seconds=duration,
         )
 
     def cleanup(self) -> None:
-        if self.host_dir.exists():
-            shutil.rmtree(self.host_dir, ignore_errors=True)
+        if self.workspace_dir.exists():
+            shutil.rmtree(self.workspace_dir, ignore_errors=True)
+        if self.tests_dir.exists():
+            shutil.rmtree(self.tests_dir, ignore_errors=True)
 
 
 class Sandbox:
-    """Factory creating either DockerSandbox or LocalSandbox based on system availability."""
+    """Factory creating DockerSandbox (default/mandatory) or LocalSandbox based on explicit configuration."""
 
     @staticmethod
     def is_docker_available() -> bool:
@@ -370,30 +436,27 @@ class Sandbox:
 
     @staticmethod
     def create(
-        mode: str = "auto",
+        mode: str = "docker",
         timeout: int = 10,
         max_output_chars: int = 4000,
         mem_limit: str = "256m",
         cpu_limit: float = 0.5,
         pids_limit: int = 128,
     ) -> BaseSandbox:
-        if mode == "docker":
-            return DockerSandbox(
-                timeout=timeout,
-                max_output_chars=max_output_chars,
-                mem_limit=mem_limit,
-                cpu_limit=cpu_limit,
-                pids_limit=pids_limit,
+        if mode == "local":
+            return LocalSandbox(timeout=timeout, max_output_chars=max_output_chars)
+
+        # Docker is mandatory for mode="docker" and mode="auto"
+        if not Sandbox.is_docker_available():
+            raise RuntimeError(
+                "Docker daemon is unavailable. Docker is mandatory for model evaluation in AgentGym. "
+                "Please ensure the Docker daemon is installed and running."
             )
-        elif mode == "local":
-            return LocalSandbox(timeout=timeout, max_output_chars=max_output_chars)
-        else:  # auto
-            if Sandbox.is_docker_available():
-                return DockerSandbox(
-                    timeout=timeout,
-                    max_output_chars=max_output_chars,
-                    mem_limit=mem_limit,
-                    cpu_limit=cpu_limit,
-                    pids_limit=pids_limit,
-                )
-            return LocalSandbox(timeout=timeout, max_output_chars=max_output_chars)
+
+        return DockerSandbox(
+            timeout=timeout,
+            max_output_chars=max_output_chars,
+            mem_limit=mem_limit,
+            cpu_limit=cpu_limit,
+            pids_limit=pids_limit,
+        )

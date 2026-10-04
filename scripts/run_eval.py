@@ -57,9 +57,9 @@ def parse_args():
     parser.add_argument(
         "--sandbox",
         type=str,
-        default="auto",
-        choices=["auto", "docker", "local"],
-        help="Sandbox execution mode",
+        default="docker",
+        choices=["docker", "local"],
+        help="Sandbox execution mode (default: docker). 'local' is restricted to offline baselines.",
     )
     parser.add_argument(
         "--max-steps",
@@ -112,6 +112,10 @@ def resolve_model_name(model_arg: str, config_path: str = "config.yaml") -> str:
 def main():
     args = parse_args()
     model_name = resolve_model_name(args.model)
+
+    if args.sandbox == "local" and not (args.mock_solver or args.noop_solver):
+        console.print("[bold red]Error: LocalSandbox is restricted to offline baselines (--mock-solver or --noop-solver). Model evaluations must use Docker (--sandbox docker).[/bold red]")
+        sys.exit(1)
 
     # Check config for default tracing if not specified on CLI
     import yaml

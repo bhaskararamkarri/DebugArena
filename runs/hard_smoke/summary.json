@@ -17,7 +17,11 @@
       "steps": 5,
       "return": 0.35,
       "judge_score": 4,
-      "regression_occurred": false
+      "regression_occurred": false,
+      "protocol": "v1",
+      "sandbox_type": "local"
     }
-  ]
+  ],
+  "protocol": "v1",
+  "sandbox_type": "local"
 }

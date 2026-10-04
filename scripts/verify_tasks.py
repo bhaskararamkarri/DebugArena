@@ -27,7 +27,7 @@ from agentgym.sandbox import Sandbox
 console = Console()
 
 
-def verify_task(task_path: Path, repeat: int = 3) -> dict:
+def verify_task(task_path: Path, repeat: int = 3, sandbox_mode: str = "docker") -> dict:
     with open(task_path, "r", encoding="utf-8") as f:
         task = json.load(f)
 
@@ -40,7 +40,7 @@ def verify_task(task_path: Path, repeat: int = 3) -> dict:
     before_passes = []
     before_fails = []
     for _ in range(repeat):
-        sb = Sandbox.create(mode="local")
+        sb = Sandbox.create(mode=sandbox_mode)
         sb.write_files(repo_files)
         res = sb.run_tests(tests)
         sb.cleanup()
@@ -60,7 +60,7 @@ def verify_task(task_path: Path, repeat: int = 3) -> dict:
     after_passes = []
     after_fails = []
     for _ in range(repeat):
-        sb = Sandbox.create(mode="local")
+        sb = Sandbox.create(mode=sandbox_mode)
         merged = dict(repo_files)
         merged.update(ref_fix)
         sb.write_files(merged)
@@ -102,6 +102,13 @@ def main():
         choices=["core", "hard", "all"],
         help="Suite to verify: 'core', 'hard', or 'all' (default: all)",
     )
+    parser.add_argument(
+        "--sandbox",
+        type=str,
+        default="docker",
+        choices=["docker", "local"],
+        help="Sandbox mode to use for verification (default: docker)",
+    )
     args = parser.parse_args()
 
     tasks_dir = Path("tasks")
@@ -123,11 +130,11 @@ def main():
         console.print(f"[red]No task.json files found matching suite '{args.suite}' in tasks/![/red]")
         sys.exit(1)
 
-    console.print(f"[bold cyan]Verifying {len(task_files)} benchmark tasks in suite '{args.suite}' (3x flakiness checks in parallel)...[/bold cyan]")
+    console.print(f"[bold cyan]Verifying {len(task_files)} benchmark tasks in suite '{args.suite}' (sandbox: {args.sandbox}, 3x flakiness checks in parallel)...[/bold cyan]")
 
     results = []
     with ThreadPoolExecutor(max_workers=8) as executor:
-        futures = {executor.submit(verify_task, tf, 3): tf for tf in task_files}
+        futures = {executor.submit(verify_task, tf, 3, args.sandbox): tf for tf in task_files}
         for fut in as_completed(futures):
             res = fut.result()
             results.append(res)
