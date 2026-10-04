@@ -1,0 +1,122 @@
+{
+  "run_id": "hard_super_v1",
+  "model": "nvidia/nemotron-3-super-120b-a12b",
+  "total_tasks": 10,
+  "solved_tasks": 6,
+  "success_rate": 0.6,
+  "avg_steps": 4.9,
+  "avg_return": -0.049,
+  "avg_judge_score": 3.1,
+  "episodes": [
+    {
+      "episode_id": "ep_0001",
+      "task_id": "h01",
+      "model": "nvidia/nemotron-3-super-120b-a12b",
+      "success": true,
+      "final_pass_rate": 1.0,
+      "steps": 2,
+      "return": 0.38,
+      "judge_score": 4,
+      "regression_occurred": false
+    },
+    {
+      "episode_id": "ep_0002",
+      "task_id": "h02",
+      "model": "nvidia/nemotron-3-super-120b-a12b",
+      "success": true,
+      "final_pass_rate": 1.0,
+      "steps": 1,
+      "return": 0.39,
+      "judge_score": 4,
+      "regression_occurred": false
+    },
+    {
+      "episode_id": "ep_0003",
+      "task_id": "h03",
+      "model": "nvidia/nemotron-3-super-120b-a12b",
+      "success": true,
+      "final_pass_rate": 1.0,
+      "steps": 1,
+      "return": 0.59,
+      "judge_score": 4,
+      "regression_occurred": false
+    },
+    {
+      "episode_id": "ep_0004",
+      "task_id": "h04",
+      "model": "nvidia/nemotron-3-super-120b-a12b",
+      "success": true,
+      "final_pass_rate": 1.0,
+      "steps": 2,
+      "return": 0.18,
+      "judge_score": 4,
+      "regression_occurred": false
+    },
+    {
+      "episode_id": "ep_0005",
+      "task_id": "h05",
+      "model": "nvidia/nemotron-3-super-120b-a12b",
+      "success": true,
+      "final_pass_rate": 1.0,
+      "steps": 1,
+      "return": 0.19,
+      "judge_score": 4,
+      "regression_occurred": false
+    },
+    {
+      "episode_id": "ep_0006",
+      "task_id": "h06",
+      "model": "nvidia/nemotron-3-super-120b-a12b",
+      "success": false,
+      "final_pass_rate": 0.0,
+      "steps": 10,
+      "return": -2.7,
+      "judge_score": 1,
+      "regression_occurred": true
+    },
+    {
+      "episode_id": "ep_0007",
+      "task_id": "h07",
+      "model": "nvidia/nemotron-3-super-120b-a12b",
+      "success": false,
+      "final_pass_rate": 0.6,
+      "steps": 10,
+      "return": -0.1,
+      "judge_score": 2,
+      "regression_occurred": false
+    },
+    {
+      "episode_id": "ep_0008",
+      "task_id": "h08",
+      "model": "nvidia/nemotron-3-super-120b-a12b",
+      "success": false,
+      "final_pass_rate": 0.8,
+      "steps": 10,
+      "return": 0.1,
+      "judge_score": 2,
+      "regression_occurred": false
+    },
+    {
+      "episode_id": "ep_0009",
+      "task_id": "h09",
+      "model": "nvidia/nemotron-3-super-120b-a12b",
+      "success": false,
+      "final_pass_rate": 0.8,
+      "steps": 10,
+      "return": -0.1,
+      "judge_score": 2,
+      "regression_occurred": false
+    },
+    {
+      "episode_id": "ep_0010",
+      "task_id": "h10",
+      "model": "nvidia/nemotron-3-super-120b-a12b",
+      "success": true,
+      "final_pass_rate": 1.0,
+      "steps": 2,
+      "return": 0.58,
+      "judge_score": 4,
+      "regression_occurred": false
+    }
+  ]
+}
