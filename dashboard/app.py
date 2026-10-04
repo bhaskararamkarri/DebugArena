@@ -114,15 +114,14 @@ def load_tasks_metadata(tasks_dir: str = "tasks") -> Dict[str, Dict[str, Any]]:
     tp = Path(tasks_dir)
     if not tp.exists():
         return {}
-    for sub in tp.iterdir():
-        tjson = sub / "task.json" if sub.is_dir() else (sub if sub.suffix == ".json" else None)
-        if tjson and tjson.exists():
-            try:
-                with open(tjson, "r", encoding="utf-8") as f:
-                    d = json.load(f)
-                    meta[d["task_id"]] = d
-            except Exception:
-                pass
+    for p in tp.rglob("task.json"):
+        try:
+            with open(p, "r", encoding="utf-8") as f:
+                d = json.load(f)
+                tid = d.get("task_id", p.parent.name)
+                meta[tid] = d
+        except Exception:
+            pass
     return meta
 
 
@@ -130,7 +129,7 @@ def load_tasks_metadata(tasks_dir: str = "tasks") -> Dict[str, Dict[str, Any]]:
 runs_data = load_all_runs()
 tasks_meta = load_tasks_metadata()
 
-# Sidebar Navigation
+# Sidebar Navigation & Suite Selector
 st.sidebar.title("🏋️ AgentGym")
 st.sidebar.caption("Nebius × NVIDIA AI Hackathon")
 st.sidebar.markdown("---")
@@ -140,6 +139,14 @@ page = st.sidebar.radio(
     ["🏆 Leaderboard", "📊 Task Breakdown", "🎬 Episode Replay"],
     index=0,
 )
+
+st.sidebar.markdown("---")
+suite_filter = st.sidebar.selectbox(
+    "Benchmark Suite",
+    ["All Suites", "Core-20", "Hard-10"],
+    index=0,
+)
+show_smoke = st.sidebar.checkbox("Include Smoke/Test Runs", value=False)
 
 st.sidebar.markdown("---")
 st.sidebar.markdown(f"**Loaded Runs:** `{len(runs_data)}`")
@@ -152,8 +159,8 @@ st.sidebar.markdown(f"**Available Tasks:** `{len(tasks_meta)}`")
 if page == "🏆 Leaderboard":
     st.title("🏆 Agent Benchmark Leaderboard")
     st.markdown(
-        "Compare autonomous coding agent performance on the **AgentGym 20-task benchmark** "
-        "across execution sandbox pass rate, step efficiency, return, and code quality."
+        "Compare autonomous coding agent performance across **Core-20** and **Hard-10** benchmarks "
+        "evaluating sandbox pass rate, step efficiency, return, and code quality."
     )
 
     if not runs_data:
@@ -161,6 +168,9 @@ if page == "🏆 Leaderboard":
     else:
         rows = []
         for run_id, data in runs_data.items():
+            if not show_smoke and ("smoke" in run_id.lower() or "test" in run_id.lower()):
+                continue
+
             summary = data.get("summary", {})
             trajs = data.get("trajectories", [])
 
@@ -188,8 +198,24 @@ if page == "🏆 Leaderboard":
                 avg_steps = round(len(trajs) / max(1, total_tasks), 2)
                 avg_return = round(sum(t.get("reward", 0.0) for t in trajs) / max(1, total_tasks), 2)
 
+            # Infer suite from tasks or run_id
+            task_ids_in_run = [ep.get("task_id", "") for ep in summary.get("episodes", [])]
+            if not task_ids_in_run and trajs:
+                task_ids_in_run = list({t.get("task_id", "") for t in trajs})
+
+            if all(t.startswith("h") for t in task_ids_in_run if t):
+                run_suite = "Hard-10"
+            elif all(t.startswith("t") for t in task_ids_in_run if t):
+                run_suite = "Core-20"
+            else:
+                run_suite = "Combined / Custom"
+
+            if suite_filter != "All Suites" and run_suite != suite_filter:
+                continue
+
             rows.append({
                 "Run ID": run_id,
+                "Suite": run_suite,
                 "Model": display_model,
                 "Full Model": raw_model,
                 "Tasks": total_tasks,
@@ -201,23 +227,26 @@ if page == "🏆 Leaderboard":
                 "Judge Quality (1-5)": f"{avg_judge:.1f}" if avg_judge else "N/A",
             })
 
-        df = pd.DataFrame(rows).sort_values(by=["Success Rate (%)", "Avg Return"], ascending=False)
+        if not rows:
+            st.info(f"No runs matching suite filter: **{suite_filter}**.")
+        else:
+            df = pd.DataFrame(rows).sort_values(by=["Success Rate (%)", "Avg Return"], ascending=False)
 
-        # KPI Metrics
-        best_run = df.iloc[0]
-        kpi1, kpi2, kpi3, kpi4 = st.columns(4)
-        kpi1.metric("Top Model", best_run["Model"])
-        kpi2.metric("Best Pass Rate", f"{best_run['Success Rate (%)']}%")
-        kpi3.metric("Top Avg Return", f"{best_run['Avg Return']}")
-        kpi4.metric("Avg Quality Score", best_run["Judge Quality (1-5)"])
+            # KPI Metrics
+            best_run = df.iloc[0]
+            kpi1, kpi2, kpi3, kpi4 = st.columns(4)
+            kpi1.metric("Top Model", best_run["Model"])
+            kpi2.metric("Best Pass Rate", f"{best_run['Success Rate (%)']}%")
+            kpi3.metric("Top Avg Return", f"{best_run['Avg Return']}")
+            kpi4.metric("Avg Quality Score", best_run["Judge Quality (1-5)"])
 
-        st.markdown("### 📋 Evaluation Runs Standings")
-        st.caption("ℹ️ *Note on sample size:* With 20 tasks per evaluation run, binomial error bars are wide (e.g., 95% Wilson confidence interval for 19/20 is [76.4%, 99.1%]).")
-        st.dataframe(
-            df[["Model", "Run ID", "Tasks", "Solved", "Success Rate (%)", "95% Wilson CI", "Avg Steps", "Avg Return", "Judge Quality (1-5)"]],
-            use_container_width=True,
-            hide_index=True,
-        )
+            st.markdown("### 📋 Evaluation Runs Standings")
+            st.caption("ℹ️ *Statistical Rigor:* Success rates reported with 95% Wilson Score confidence intervals to account for benchmark sample size.")
+            st.dataframe(
+                df[["Model", "Suite", "Run ID", "Tasks", "Solved", "Success Rate (%)", "95% Wilson CI", "Avg Steps", "Avg Return", "Judge Quality (1-5)"]],
+                use_container_width=True,
+                hide_index=True,
+            )
 
         # Model Aggregates (Mean and Spread across runs)
         st.markdown("### 📊 Model Aggregate Performance (Mean ± Spread)")
@@ -309,8 +338,13 @@ elif page == "📊 Task Breakdown":
             for ep in episodes:
                 tid = ep.get("task_id", "")
                 t_meta = tasks_meta.get(tid, {})
+                task_suite = "Hard-10" if tid.startswith("h") else "Core-20"
+                if suite_filter != "All Suites" and task_suite != suite_filter:
+                    continue
+
                 task_rows.append({
                     "Run": run_id,
+                    "Suite": task_suite,
                     "Model": model,
                     "Task ID": tid,
                     "Difficulty": t_meta.get("difficulty", "unknown"),
@@ -384,6 +418,11 @@ elif page == "📊 Task Breakdown":
 
                 for ep in summary.get("episodes", []):
                     if not ep.get("success"):
+                        tid = ep.get("task_id", "")
+                        task_suite = "Hard-10" if tid.startswith("h") else "Core-20"
+                        if suite_filter != "All Suites" and task_suite != suite_filter:
+                            continue
+
                         ep_trajs = trajs_by_ep.get(ep.get("episode_id"), [])
                         category = "Wrong fix"
                         if any("error" in t.get("action", {}) or t.get("action", {}).get("type") not in ("edit", "run", "submit") for t in ep_trajs):
@@ -395,8 +434,9 @@ elif page == "📊 Task Breakdown":
 
                         failed_episodes.append({
                             "Model": disp_model,
+                            "Suite": task_suite,
                             "Run ID": run_id,
-                            "Task ID": ep.get("task_id"),
+                            "Task ID": tid,
                             "Failure Category": category,
                             "Final Pass Rate": f"{ep.get('final_pass_rate', 0.0):.1%}",
                             "Steps": ep.get("steps", 0),
@@ -420,7 +460,7 @@ elif page == "📊 Task Breakdown":
                     st.altair_chart(fc_chart, use_container_width=True)
                 with fc2:
                     st.markdown("#### Failed Episode Details")
-                    st.dataframe(fdf[["Model", "Task ID", "Failure Category", "Final Pass Rate", "Steps"]], use_container_width=True, hide_index=True)
+                    st.dataframe(fdf[["Model", "Suite", "Task ID", "Failure Category", "Final Pass Rate", "Steps"]], use_container_width=True, hide_index=True)
             else:
                 st.success("No failed episodes found in active model runs!")
 

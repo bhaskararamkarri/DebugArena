@@ -11,9 +11,9 @@
 | Stage | Status | Evidence |
 |---|---|---|
 | **Core-20 Runs** | **DONE** | Nemotron Nano 30B (18/20, 90.0%, 95% Wilson CI: `[69.9%, 97.2%]`) and Nemotron Super 120B (19/20, 95.0%, 95% Wilson CI: `[76.4%, 99.1%]`) completed in `runs/run1_*`. |
-| **Failure Analysis** | **DONE** | Documented in `reports/failure_analysis_core20.md` and integrated into the Streamlit dashboard (`Wrong fix`, `Regression`, `Invalid JSON`, `Ran out of steps`). |
-| **Hard-10 Suite** | **PARTIAL** | 10 multi-file/algorithmic tasks created in `tasks/hard/` with `scripts/build_hard_suite.py`, but untracked in git and unevaluated against models. |
-| **Streamlit Dashboard** | **DONE** | `dashboard/app.py` AST verified; Leaderboard with 95% Wilson score CIs, Task Breakdown with error categorizer, and step-by-step Episode Replay active. |
+| **Hard-10 Runs** | **DONE** | Nemotron Nano 30B (9/10, 90.0%, 95% Wilson CI: `[59.6%, 98.2%]`) and Nemotron Super 120B (6/10, 60.0%, 95% Wilson CI: `[31.3%, 83.2%]`) completed in `runs/hard_*`. |
+| **Failure Analysis** | **DONE** | Core-20 and Hard-10 error analysis integrated into `reports/` and Streamlit dashboard (`Wrong fix`, `Regression`, `Ran out of steps`, `Invalid JSON`). |
+| **Streamlit Dashboard** | **DONE** | `dashboard/app.py` AST verified; Suite selector (Core-20, Hard-10, All Suites), 95% Wilson CIs, Task Breakdown, and Episode Replay active. |
 | **Dataset Exports** | **DONE** | SFT (53 deduplicated trajectories: 43 train / 10 val) and DPO (9 preference pairs: 8 train / 1 val) in `dataset/` with verified `DATASET_CARD.md`. |
 | **Sandbox Isolation** | **DONE** | Dual-mode sandbox (`LocalSandbox` with ephemeral hidden-test mounting & automatic cleanup; `DockerSandbox` with `network_disabled=True`, 256MB RAM, 0.5 CPU, 128 PIDs, 10s timeout). |
 | **Unit Test Suite** | **DONE** | Pytest passes 100% (9 passed in 18.27s across `test_env.py`, `test_sandbox.py`, and `test_tasks.py`). |
@@ -27,14 +27,20 @@
 
 ## 2. Benchmark Results (Real Evaluated Model Runs)
 
-*Note: Results evaluated on the Core-20 task suite with step rewards, step costs (-0.01), and regression penalties (-0.20).*
+*Note: Results evaluated on Core-20 and Hard-10 benchmarks with step rewards, step costs (-0.01), and regression penalties (-0.20).*
 
 | Model | Suite | Episodes | Solved | Success Rate (%) | 95% Wilson Score CI | Avg Steps | Avg Return | Judge Score (1-5) |
 |---|---|---|---|---|---|---|---|---|
-| `nvidia/nemotron-3-super-120b-a12b` | Core-20 | 20 | 19 | **95.0%** | `[76.4%, 99.1%]` | 1.15 | +0.76 | 4.4 / 5.0 |
-| `nvidia/nemotron-3-nano-30b-a3b` | Core-20 | 20 | 18 | **90.0%** | `[69.9%, 97.2%]` | 1.45 | +0.67 | 4.1 / 5.0 |
-| *Reference Solver (Upper Bound)* | Core-20 | 20 | 20 | 100.0% | `[83.9%, 100.0%]` | 1.00 | +0.80 | N/A |
-| *No-Op Baseline (Lower Bound)* | Core-20 | 20 | 0 | 0.0% | `[0.0%, 16.1%]` | 1.00 | -1.00 | N/A |
+| `nvidia/nemotron-3-nano-30b-a3b` | **Core-20** | 20 | 18 | **90.0%** | `[69.9%, 97.2%]` | 1.45 | +0.67 | 4.1 / 5.0 |
+| `nvidia/nemotron-3-nano-30b-a3b` | **Hard-10** | 10 | 9 | **90.0%** | `[59.6%, 98.2%]` | 1.30 | +0.35 | 3.8 / 5.0 |
+| `nvidia/nemotron-3-nano-30b-a3b` | **Combined (30)** | 30 | 27 | **90.0%** | `[74.4%, 96.5%]` | 1.40 | +0.56 | 4.0 / 5.0 |
+| `nvidia/nemotron-3-super-120b-a12b` | **Core-20** | 20 | 19 | **95.0%** | `[76.4%, 99.1%]` | 1.15 | +0.76 | 4.4 / 5.0 |
+| `nvidia/nemotron-3-super-120b-a12b` | **Hard-10** | 10 | 6 | **60.0%** | `[31.3%, 83.2%]` | 4.90 | -0.05 | 3.2 / 5.0 |
+| `nvidia/nemotron-3-super-120b-a12b` | **Combined (30)** | 30 | 25 | **83.3%** | `[66.4%, 92.7%]` | 2.40 | +0.49 | 4.0 / 5.0 |
+| *Reference Solver (Upper Bound)* | **Hard-10** | 10 | 10 | 100.0% | `[72.2%, 100.0%]` | 1.00 | +0.80 | N/A |
+| *Reference Solver (Upper Bound)* | **Combined (30)** | 30 | 30 | 100.0% | `[88.6%, 100.0%]` | 1.00 | +0.80 | N/A |
+| *No-Op Baseline (Lower Bound)* | **Hard-10** | 10 | 0 | 0.0% | `[0.0%, 27.8%]` | 1.00 | -1.00 | N/A |
+| *No-Op Baseline (Lower Bound)* | **Combined (30)** | 30 | 0 | 0.0% | `[0.0%, 11.4%]` | 1.00 | -1.00 | N/A |
 
 ---
 
