@@ -54,7 +54,7 @@ def test_make_review_pack_and_import(tmp_path):
     out_sft = tmp_path / "verified_sft.jsonl"
     count = import_reviews(
         reviews_path=str(mock_reviews),
-        sft_path="dataset/agentgym_sft.jsonl",
+        sft_path="dataset/debugarena_sft.jsonl",
         output_path=str(out_sft),
         min_score=4,
     )

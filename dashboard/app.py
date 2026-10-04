@@ -141,6 +141,11 @@ page = st.sidebar.radio(
 )
 
 st.sidebar.markdown("---")
+protocol_filter = st.sidebar.selectbox(
+    "Protocol Version",
+    ["All Protocols", "Protocol v2 (Docker)", "Protocol v1 (Local)"],
+    index=0,
+)
 suite_filter = st.sidebar.selectbox(
     "Benchmark Suite",
     ["All Suites", "Core-20", "Hard-10"],
@@ -179,6 +184,13 @@ if page == "🏆 Leaderboard":
                 raw_model = trajs[0].get("model", "unknown")
 
             display_model = format_model_label(run_id, raw_model)
+            run_protocol = summary.get("protocol", "v1")
+            run_sandbox = summary.get("sandbox_type", "local")
+
+            if protocol_filter == "Protocol v2 (Docker)" and run_protocol != "v2":
+                continue
+            if protocol_filter == "Protocol v1 (Local)" and run_protocol != "v1":
+                continue
 
             total_tasks = summary.get("total_tasks", 0)
             solved_tasks = summary.get("solved_tasks", 0)
@@ -186,6 +198,8 @@ if page == "🏆 Leaderboard":
             avg_steps = summary.get("avg_steps", 0.0)
             avg_return = summary.get("avg_return", 0.0)
             avg_judge = summary.get("avg_judge_score", None)
+            ext_rate = summary.get("extraction_needed_rate", 0.0)
+            inv_events = summary.get("invalid_json_events", 0)
 
             # If summary wasn't written, compute from trajectories
             if not summary and trajs:
@@ -215,15 +229,18 @@ if page == "🏆 Leaderboard":
 
             rows.append({
                 "Run ID": run_id,
-                "Suite": run_suite,
                 "Model": display_model,
-                "Full Model": raw_model,
+                "Suite": run_suite,
+                "Protocol": f"v{run_protocol.replace('v', '')}",
+                "Sandbox": run_sandbox.capitalize(),
                 "Tasks": total_tasks,
                 "Solved": solved_tasks,
                 "Success Rate (%)": round(success_rate * 100, 1),
                 "95% Wilson CI": compute_wilson_ci(solved_tasks, total_tasks),
                 "Avg Steps": avg_steps,
                 "Avg Return": avg_return,
+                "Extraction Needed (%)": f"{ext_rate * 100:.1f}%",
+                "Invalid JSON": inv_events,
                 "Judge Quality (1-5)": f"{avg_judge:.1f}" if avg_judge else "N/A",
             })
 
@@ -243,7 +260,7 @@ if page == "🏆 Leaderboard":
             st.markdown("### 📋 Evaluation Runs Standings")
             st.caption("ℹ️ *Statistical Rigor:* Success rates reported with 95% Wilson Score confidence intervals to account for benchmark sample size.")
             st.dataframe(
-                df[["Model", "Suite", "Run ID", "Tasks", "Solved", "Success Rate (%)", "95% Wilson CI", "Avg Steps", "Avg Return", "Judge Quality (1-5)"]],
+                df[["Model", "Suite", "Protocol", "Sandbox", "Run ID", "Tasks", "Solved", "Success Rate (%)", "95% Wilson CI", "Avg Steps", "Avg Return", "Extraction Needed (%)", "Invalid JSON", "Judge Quality (1-5)"]],
                 use_container_width=True,
                 hide_index=True,
             )

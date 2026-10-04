@@ -30,6 +30,13 @@ def parse_args():
         help="Run identifier or 'all' to aggregate across all runs",
     )
     parser.add_argument(
+        "--protocol",
+        type=str,
+        default="v2",
+        choices=["v1", "v2", "all"],
+        help="Filter by protocol version: 'v2' (default, Docker runs), 'v1' (legacy), or 'all'",
+    )
+    parser.add_argument(
         "--format",
         type=str,
         choices=["sft", "dpo"],
@@ -46,7 +53,7 @@ def parse_args():
         "--output",
         type=str,
         default=None,
-        help="Output path for exported dataset (defaults to dataset/agentgym_<format>.jsonl)",
+        help="Output path for exported dataset (defaults to dataset/debugarena_<format>.jsonl)",
     )
     parser.add_argument(
         "--split",
@@ -68,7 +75,7 @@ def parse_args():
     return parser.parse_args()
 
 
-def load_episodes(run_target: str) -> Dict[str, List[Dict[str, Any]]]:
+def load_episodes(run_target: str, protocol: str = "v2") -> Dict[str, List[Dict[str, Any]]]:
     runs_dir = Path("runs")
     if not runs_dir.exists():
         console.print("[red]No runs/ directory found![/red]")
@@ -79,13 +86,29 @@ def load_episodes(run_target: str) -> Dict[str, List[Dict[str, Any]]]:
     else:
         trajectory_files = [runs_dir / run_target / "trajectories.jsonl"]
 
-    trajectory_files = [p for p in trajectory_files if p.exists()]
-    if not trajectory_files:
-        console.print(f"[red]No trajectories.jsonl found for run '{run_target}'[/red]")
-        return {}
+    # Filter out smoke/test runs
+    filtered_files = []
+    for p in trajectory_files:
+        if not p.exists():
+            continue
+        run_name = p.parent.name.lower()
+        if "smoke" in run_name or "test" in run_name:
+            continue
+        # Check summary for protocol
+        sum_p = p.parent / "summary.json"
+        if sum_p.exists() and protocol != "all":
+            try:
+                with open(sum_p, "r", encoding="utf-8") as f:
+                    sdata = json.load(f)
+                    p_ver = sdata.get("protocol", "v1")
+                    if p_ver != protocol:
+                        continue
+            except Exception:
+                pass
+        filtered_files.append(p)
 
     episodes: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
-    for tf in trajectory_files:
+    for tf in filtered_files:
         with open(tf, "r", encoding="utf-8") as f:
             for line in f:
                 line = line.strip()
@@ -97,6 +120,7 @@ def load_episodes(run_target: str) -> Dict[str, List[Dict[str, Any]]]:
                     episodes[key].append(record)
                 except Exception:
                     continue
+    return episodes
     return episodes
 
 
@@ -243,11 +267,11 @@ def write_jsonl(items: List[Dict[str, Any]], path: Path) -> None:
 
 def main():
     args = parse_args()
-    episodes = load_episodes(args.run)
+    episodes = load_episodes(args.run, protocol=args.protocol)
     if not episodes:
         return
 
-    default_output = f"dataset/agentgym_{args.format}.jsonl"
+    default_output = f"dataset/debugarena_{args.format}.jsonl"
     output_path = Path(args.output or default_output)
 
     if args.format == "sft":

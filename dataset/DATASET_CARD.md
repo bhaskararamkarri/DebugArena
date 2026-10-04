@@ -31,14 +31,14 @@ Each row represents an episode where the agent achieved a 100% test pass rate (`
 }
 ```
 
-### SFT Splits:
-- `agentgym_sft.jsonl`: Complete deduplicated set of 53 solved trajectories.
-- `agentgym_sft_train.jsonl`: 43 trajectories (80% train split).
-- `agentgym_sft_val.jsonl`: 10 trajectories (20% validation split).
+### SFT Splits (Protocol v2 in Docker):
+- `debugarena_sft.jsonl`: Complete deduplicated set of 79 solved trajectories.
+- `debugarena_sft_train.jsonl`: 64 trajectories (80% train split).
+- `debugarena_sft_val.jsonl`: 15 trajectories (20% validation split).
 
 ---
 
-## 2. DPO Preference Dataset (`agentgym_dpo.jsonl`)
+## 2. DPO Preference Dataset (`debugarena_dpo.jsonl`)
 
 Each row pairs a successful solution (`chosen`) against a failed or suboptimal attempt (`rejected`) for the identical task prompt:
 
@@ -63,10 +63,15 @@ Each row pairs a successful solution (`chosen`) against a failed or suboptimal a
 }
 ```
 
-### DPO Splits:
-- `agentgym_dpo.jsonl`: 9 preference pairs.
-- `agentgym_dpo_train.jsonl`: 8 pairs (train split).
-- `agentgym_dpo_val.jsonl`: 1 pair (val split).
+### DPO Splits (Protocol v2 in Docker):
+- `debugarena_dpo.jsonl`: 99 preference pairs.
+- `debugarena_dpo_train.jsonl`: 80 pairs (train split).
+- `debugarena_dpo_val.jsonl`: 19 pairs (val split).
+
+---
+
+## 3. Protocol v1 Archive
+Protocol v1 legacy datasets generated in LocalSandbox are preserved in `dataset/v1_archive/` (`agentgym_sft*.jsonl`, `agentgym_dpo*.jsonl`).
 
 ---
 
