@@ -44,16 +44,36 @@
 
 ---
 
-## 3. Open Problems & Findings
+## 3. Reward Formulation & Mathematical Derivation
 
-1. **Untracked Hard-10 Tasks & Working Tree Edits:** 10 new complex tasks in `tasks/hard/` and generation script `scripts/build_hard_suite.py` remain untracked in git along with unstaged task metadata edits.
-2. **Missing Hard-10 Model Evaluations:** Neither Nemotron Nano 30B nor Nemotron Super 120B has been benchmarked on the 10 multi-file hard tasks.
-3. **Optional Serverless & Human Annotations Pending:** Nebius Serverless Jobs runner script is not authored, and `review_pack/reviews.json` has not yet ingested external Tendem human expert ratings.
+**Real Reward Formula in Plain Words:**
+At each turn $t$, the environment executes hidden unit tests in the sandbox. The step reward is:
+$$\text{step\_reward}_t = (\text{pass\_rate}_t - \text{pass\_rate}_{t-1}) - \text{step\_cost} (0.01) - \text{regression\_penalty} (0.20) \times \mathbb{I}(\text{regression})$$
+where $\text{pass\_rate}_t = \frac{|\text{passed\_tests}_t|}{\text{total\_tests}}$, and regression occurs if any test that passed previously now fails.
+
+**Worked Examples:**
+1. **No-Op Submit ($t=1$):** Baseline pass rate = 25% ($1/4$). Submit produces 25% pass rate. Progress = $0.25 - 0.25 = 0.0$. Step cost = $-0.01$. Return = **-0.01** (or $-1.00$ in offline penalty baseline).
+2. **Reference Solver ($t=1$):** Baseline = 20% ($1/5$). 1-shot fix achieves 100% ($5/5$). Progress = $1.00 - 0.20 = +0.80$. Step cost = $-0.01$. Return = **+0.79** (average across suite: **+0.80**).
+3. **5-Step Success ($t=1..5$):** Baseline = 20%. Steps 1-4 execute sandbox tests without pass delta (4 steps $\times -0.01 = -0.04$). Step 5 fixes all tests ($+0.80 - 0.01 = +0.79$). Return = $+0.79 - 0.04 =$ **+0.75**.
 
 ---
 
-## 4. Next 3 Steps (Prioritized for Oct 11, 2026 Deadline)
+## 4. Diagnosis of Model Behaviors on Hard-10
 
-1. **Stage & Commit Hard-10 Suite:** Clean up and commit `tasks/hard/`, `scripts/build_hard_suite.py`, and unstaged task improvements to git with verified clean tests.
-2. **Run Hard-10 Model Benchmarks:** Execute evaluation runs for `nvidia/nemotron-3-nano-30b-a3b` and `nvidia/nemotron-3-super-120b-a12b` on the Hard-10 suite and update dashboard leaderboards.
-3. **Package Submission & Clean-Clone Verification:** Verify complete clean-clone reproducibility in a fresh virtual environment and finalize video demonstration / HuggingFace space links.
+- **Nemotron Nano 30B (9/10 Solved, 90.0%):** Followed strict JSON schema perfectly (0% invalid JSON). Solved 7 tasks in 1 step, 2 tasks in 2-5 steps. Failed only on `h08` (80% pass rate) due to submitting after fixing negative steps while missing Sunday start-date roll-forward.
+- **Nemotron Super 120B (6/10 Solved, 60.0%):** Failed on 4 tasks (`h06`, `h07`, `h08`, `h09`).
+  - *Evidence (`h07`, `h09`):* Model generated conversational chain-of-thought prose (`"We are in a debugging session..."`) instead of raw JSON. Even after receiving the JSON correction prompt, it replied with more commentary, triggering the safe fallback `echo 'Invalid JSON action'` across all 10 steps.
+  - *Evidence (`h06`):* Broke baseline logic on step 1 (regression penalty $-0.20$), tried running `python3` instead of `python`, and looped until step 10.
+  - *Evidence (`h08`):* Fixed negative step on step 1 (80% pass rate), then spent steps 2-10 running exploratory commands without submitting or applying the Sunday roll-forward.
+
+**Strategic Recommendation:**
+- **Recommendation:** **Option (A) — Keep results as they are and report them honestly.**
+- **Reason:** Super's failures on `h07` and `h09` were driven by conversational format drift / JSON parsing retries rather than insufficient step budgets. Running `max_steps=20` without modifying system prompts (which would violate zero-shot evaluation protocol) would simply execute more fallback loops. Reporting these authentic results highlights a crucial empirical finding: smaller instruction-tuned models like Nano 30B can exhibit superior action-format adherence in strict tool-use RL environments compared to larger models prone to conversational verbosity.
+- **Ablation Token Cost Estimate (if run):** ~80,000–120,000 tokens for 4 tasks $\times$ 20 steps with Super 120B.
+
+---
+
+## 5. Next Steps
+
+1. **Submission Pack Preparation:** Update final demo links and video walkthrough.
+2. **Clean-Clone Verification:** Ensure end-to-end clean reproduction in isolated environment.
