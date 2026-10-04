@@ -1,0 +1,23 @@
+{
+  "run_id": "hard_smoke",
+  "model": "nvidia/nemotron-3-nano-30b-a3b",
+  "total_tasks": 1,
+  "solved_tasks": 1,
+  "success_rate": 1.0,
+  "avg_steps": 5.0,
+  "avg_return": 0.35,
+  "avg_judge_score": 4.0,
+  "episodes": [
+    {
+      "episode_id": "ep_0001",
+      "task_id": "h01",
+      "model": "nvidia/nemotron-3-nano-30b-a3b",
+      "success": true,
+      "final_pass_rate": 1.0,
+      "steps": 5,
+      "return": 0.35,
+      "judge_score": 4,
+      "regression_occurred": false
+    }
+  ]
+}

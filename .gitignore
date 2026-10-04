@@ -44,12 +44,12 @@ scratch/
 runs/*
 !runs/sample/
 !runs/sample/**
-!runs/baseline_mock_solver/
-!runs/baseline_mock_solver/**
-!runs/2026-10-02_nemotron_nano/
-!runs/2026-10-02_nemotron_nano/**
-!runs/2026-10-02_nemotron_super/
-!runs/2026-10-02_nemotron_super/**
+!runs/baseline_*/
+!runs/baseline_*/**
+!runs/run1_*/
+!runs/run1_*/**
+!runs/hard_*/
+!runs/hard_*/**
 
 # Streamlit
 .streamlit/cache/
