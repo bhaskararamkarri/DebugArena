@@ -318,6 +318,8 @@ class EpisodeRunner:
             "docker_image_digest": docker_image_digest,
             "prompt_hash": get_prompt_hash(),
             "temperature": 0.2,
+            "max_tokens": 4096,
+            "response_format": "json_object",
             "max_steps": max_steps,
             "total_tasks": total,
             "solved_tasks": solved,

@@ -81,15 +81,37 @@ def validate_action_schema(action: Any) -> Tuple[bool, str, Dict[str, Any]]:
     return True, "", normalized
 
 
+def _sanitize_json_text(text: str) -> str:
+    """Cleans Python triple quotes, trailing commas, and unescaped newlines inside JSON."""
+    s = text
+
+    # Convert triple double-quotes """...""" or escaped triple double-quotes \"\"\"...\"\"\" to escaped JSON string
+    def replace_triple(m):
+        content = m.group(1)
+        # Unescape already escaped quotes if needed
+        content = content.replace(r'\"', '"').replace(r"\'", "'")
+        return json.dumps(content)
+
+    s = re.sub(r'"""([\s\S]*?)"""', replace_triple, s)
+    s = re.sub(r"'''([\s\S]*?)'''", replace_triple, s)
+    s = re.sub(r'\\\"\\\"\\\"([\s\S]*?)\\\"\\\"\\\"', replace_triple, s)
+
+    # Strip trailing commas before closing braces/brackets
+    s = re.sub(r',\s*([}\]])', r'\1', s)
+    return s
+
+
 def extract_action_json(text: str) -> Tuple[Optional[Dict[str, Any]], bool]:
     """Robustly extracts valid JSON action object from model reply.
 
     Handles:
     - Clean JSON objects (no extraction needed -> returns action, False)
+    - Python-style triple quotes (\"\"\"...\"\"\" and '''...''')
     - <think>...</think> reasoning blocks
     - Markdown code fences (```json ... ```)
     - Commentary before/after JSON
     - Multiple JSON objects (returns the LAST valid action object)
+    - Trailing commas
     """
     if not text or not isinstance(text, str):
         return None, False
@@ -105,11 +127,20 @@ def extract_action_json(text: str) -> Tuple[Optional[Dict[str, Any]], bool]:
     except Exception:
         pass
 
-    # If direct parse failed or wasn't a valid action, extraction is needed
-    # 2. Strip <think>...</think> or <thought>...</thought> blocks
+    # 2. Try sanitized direct parse
+    try:
+        sanitized_raw = _sanitize_json_text(raw)
+        data = json.loads(sanitized_raw)
+        valid, _, norm_action = validate_action_schema(data)
+        if valid:
+            return norm_action, True
+    except Exception:
+        pass
+
+    # 3. Strip <think>...</think> or <thought>...</thought> blocks
     cleaned = re.sub(r"<(?:think|thought)>[\s\S]*?</(?:think|thought)>", "", raw, flags=re.IGNORECASE).strip()
 
-    # 3. Check for markdown code fences
+    # 4. Check for markdown code fences
     fence_matches = re.findall(r"```(?:json)?\s*([\s\S]*?)\s*```", cleaned, flags=re.IGNORECASE)
     candidate_texts = list(fence_matches) if fence_matches else []
     candidate_texts.append(cleaned)
@@ -117,9 +148,11 @@ def extract_action_json(text: str) -> Tuple[Optional[Dict[str, Any]], bool]:
     valid_actions = []
 
     for c_text in candidate_texts:
-        # Try direct parse of fenced content
+        c_san = _sanitize_json_text(c_text.strip())
+
+        # Try direct parse of candidate text
         try:
-            d = json.loads(c_text.strip())
+            d = json.loads(c_san)
             valid, _, norm = validate_action_schema(d)
             if valid:
                 valid_actions.append(norm)
@@ -129,7 +162,7 @@ def extract_action_json(text: str) -> Tuple[Optional[Dict[str, Any]], bool]:
         # Search for all balanced JSON objects { ... } in the text
         stack = []
         start_idx = None
-        for i, ch in enumerate(c_text):
+        for i, ch in enumerate(c_san):
             if ch == "{":
                 if not stack:
                     start_idx = i
@@ -138,14 +171,21 @@ def extract_action_json(text: str) -> Tuple[Optional[Dict[str, Any]], bool]:
                 if stack:
                     stack.pop()
                     if not stack and start_idx is not None:
-                        substr = c_text[start_idx : i + 1]
+                        substr = c_san[start_idx : i + 1]
                         try:
                             obj = json.loads(substr)
                             valid, _, norm = validate_action_schema(obj)
                             if valid:
                                 valid_actions.append(norm)
                         except Exception:
-                            pass
+                            # Try further sanitization on the substring
+                            try:
+                                obj2 = json.loads(_sanitize_json_text(substr))
+                                valid2, _, norm2 = validate_action_schema(obj2)
+                                if valid2:
+                                    valid_actions.append(norm2)
+                            except Exception:
+                                pass
                         start_idx = None
 
     if valid_actions:
@@ -163,7 +203,7 @@ class Agent:
         provider: Optional[str] = None,
         config_path: str = "config.yaml",
         temperature: float = 0.2,
-        max_tokens: int = 1500,
+        max_tokens: int = 4096,
     ):
         self.config = self._load_config(config_path)
         self.temperature = temperature
@@ -283,6 +323,7 @@ class Agent:
                     messages=self.conversation_history,
                     temperature=self.temperature,
                     max_tokens=self.max_tokens,
+                    response_format={"type": "json_object"},
                 )
                 latency_ms = int((time.time() - start) * 1000)
                 choice = resp.choices[0]

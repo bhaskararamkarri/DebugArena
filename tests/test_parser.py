@@ -69,3 +69,41 @@ def test_invalid_schema_json():
     action, needed = extract_action_json(text)
     assert action is None
     assert needed is True
+
+
+def test_triple_quoted_strings_inside_json():
+    text = """{
+  "type": "edit",
+  "path": "wrapper.py",
+  "content": \"\"\"from token_stream import extract_words
+
+class LineWrapper:
+    def wrap(self, text: str) -> list[str]:
+        return text.splitlines()
+\"\"\"
+}"""
+    action, needed = extract_action_json(text)
+    assert action is not None
+    assert action["type"] == "edit"
+    assert action["path"] == "wrapper.py"
+    assert "class LineWrapper" in action["content"]
+    assert needed is True
+
+
+def test_trailing_commas_in_json():
+    text = '{"type": "run", "cmd": "pytest -v",}'
+    action, needed = extract_action_json(text)
+    assert action == {"type": "run", "cmd": "pytest -v"}
+    assert needed is True
+
+
+def test_real_super_h07_step4_reply():
+    # Real candidate output logged during smoke test
+    text = '{\n  "type": "edit",\n  "path": "wrapper.py",\n  "content": """from token_stream import extract_words\n\nclass LineWrapper:\n    def wrap(self, text):\n        return []\n"""\n}'
+    action, needed = extract_action_json(text)
+    assert action is not None
+    assert action["type"] == "edit"
+    assert action["path"] == "wrapper.py"
+    assert "LineWrapper" in action["content"]
+    assert needed is True
+
