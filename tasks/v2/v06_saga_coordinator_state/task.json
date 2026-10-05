@@ -1,0 +1,30 @@
+{
+  "task_id": "v06_saga_coordinator_state",
+  "suite": "v2",
+  "version": 2,
+  "difficulty": "medium",
+  "bug_type": "saga_compensation_order",
+  "categories": ["D", "I"],
+  "description": "Distributed saga transaction coordinator executes compensation rollback steps in forward FIFO order instead of reverse LIFO order, breaking transaction consistency.",
+  "spec_notes": "Invariant: On step failure, only successfully completed prior steps must be compensated, and they must execute in strict reverse (LIFO) order.",
+  "repo_files": {
+    "step.py": "from dataclasses import dataclass\nfrom typing import Callable, Any\n\n@dataclass\nclass SagaStep:\n    name: str\n    action: Callable[[dict], None]\n    compensate: Callable[[dict], None]\n",
+    "context.py": "from typing import Dict, Any, List\n\nclass SagaContext:\n    def __init__(self):\n        self.data: Dict[str, Any] = {}\n        self.execution_log: List[str] = []\n\n    def record(self, step_name: str, op: str) -> None:\n        self.execution_log.append(f\"{step_name}:{op}\")\n",
+    "saga.py": "from typing import List\nfrom step import SagaStep\nfrom context import SagaContext\n\nclass SagaCoordinator:\n    def __init__(self, context: SagaContext):\n        self.steps: List[SagaStep] = []\n        self.completed_steps: List[SagaStep] = []\n        self.context = context\n\n    def add_step(self, step: SagaStep) -> None:\n        self.steps.append(step)\n\n    def execute(self) -> bool:\n        self.completed_steps = []\n        for step in self.steps:\n            try:\n                step.action(self.context.data)\n                self.context.record(step.name, \"action\")\n                self.completed_steps.append(step)\n            except Exception as e:\n                self.context.record(step.name, \"failed\")\n                self._rollback()\n                return False\n        return True\n\n    def _rollback(self) -> None:\n        # Bug: executes compensation in forward order (FIFO) instead of reverse (LIFO)\n        for step in self.completed_steps:\n            step.compensate(self.context.data)\n            self.context.record(step.name, \"compensate\")\n"
+  },
+  "tests": {
+    "test_saga.py": "from step import SagaStep\nfrom context import SagaContext\nfrom saga import SagaCoordinator\n\ndef test_successful_saga():\n    ctx = SagaContext()\n    coordinator = SagaCoordinator(ctx)\n    \n    coordinator.add_step(SagaStep(\"step1\", lambda d: d.update({\"s1\": 1}), lambda d: d.pop(\"s1\", None)))\n    coordinator.add_step(SagaStep(\"step2\", lambda d: d.update({\"s2\": 2}), lambda d: d.pop(\"s2\", None)))\n    \n    assert coordinator.execute() is True\n    assert ctx.execution_log == [\"step1:action\", \"step2:action\"]\n    assert ctx.data == {\"s1\": 1, \"s2\": 2}\n\ndef test_rollback_reverse_lifo_order():\n    ctx = SagaContext()\n    coordinator = SagaCoordinator(ctx)\n    \n    coordinator.add_step(SagaStep(\"payment\", lambda d: d.update({\"paid\": True}), lambda d: d.update({\"refund\": True})))\n    coordinator.add_step(SagaStep(\"inventory\", lambda d: d.update({\"reserved\": True}), lambda d: d.update({\"unreserved\": True})))\n    \n    def fail_shipping(d):\n        raise RuntimeError(\"Shipping service down\")\n        \n    coordinator.add_step(SagaStep(\"shipping\", fail_shipping, lambda d: None))\n    \n    success = coordinator.execute()\n    assert success is False\n    # Invariant: inventory was completed second, so it must be compensated FIRST, then payment\n    expected = [\n        \"payment:action\",\n        \"inventory:action\",\n        \"shipping:failed\",\n        \"inventory:compensate\",\n        \"payment:compensate\",\n    ]\n    assert ctx.execution_log == expected\n"
+  },
+  "reference_fix": {
+    "saga.py": "from typing import List\nfrom step import SagaStep\nfrom context import SagaContext\n\nclass SagaCoordinator:\n    def __init__(self, context: SagaContext):\n        self.steps: List[SagaStep] = []\n        self.completed_steps: List[SagaStep] = []\n        self.context = context\n\n    def add_step(self, step: SagaStep) -> None:\n        self.steps.append(step)\n\n    def execute(self) -> bool:\n        self.completed_steps = []\n        for step in self.steps:\n            try:\n                step.action(self.context.data)\n                self.context.record(step.name, \"action\")\n                self.completed_steps.append(step)\n            except Exception as e:\n                self.context.record(step.name, \"failed\")\n                self._rollback()\n                return False\n        return True\n\n    def _rollback(self) -> None:\n        for step in reversed(self.completed_steps):\n            step.compensate(self.context.data)\n            self.context.record(step.name, \"compensate\")\n"
+  },
+  "metadata": {
+    "estimated_reasoning_steps": 3,
+    "file_count": 3,
+    "adversarial": false,
+    "stateful": true,
+    "multi_file": true,
+    "domain": "transaction_sagas",
+    "quality_score": 4.5
+  }
+}

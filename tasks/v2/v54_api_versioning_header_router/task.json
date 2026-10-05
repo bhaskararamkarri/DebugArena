@@ -1,0 +1,33 @@
+{
+  "task_id": "v54_api_versioning_header_router",
+  "suite": "v2",
+  "version": 2,
+  "difficulty": "hard",
+  "bug_type": "api_versioning_header_case_and_date_dispatch_mismatch",
+  "categories": [
+    "H",
+    "E"
+  ],
+  "description": "Versioned router fails to match date-based and case-variant API version headers, routing v2 clients to legacy v1 formats.",
+  "spec_notes": "VersionedAPIRouter must route '2026-01' and case-insensitive 'V2' headers to V2Adapter.",
+  "repo_files": {
+    "version.py": "\"\"\"API version header extractor.\"\"\"\n\nfrom typing import Dict\n\n\nclass APIVersionExtractor:\n    @staticmethod\n    def extract_version(headers: Dict[str, str]) -> str:\n        # Header: X-API-Version: 2026-01 or Accept: application/vnd.app.v2+json\n        v_hdr = headers.get(\"X-API-Version\")\n        if v_hdr:\n            return v_hdr.strip()\n        accept = headers.get(\"Accept\", \"\")\n        if \"vnd.app.v2\" in accept:\n            return \"v2\"\n        return \"v1\"\n",
+    "adapter_v1.py": "\"\"\"V1 API payload adapter.\"\"\"\n\nfrom typing import Any, Dict\n\n\nclass V1Adapter:\n    @staticmethod\n    def format_response(user_id: str, name: str) -> Dict[str, Any]:\n        return {\"id\": user_id, \"name\": name, \"version\": \"v1\"}\n",
+    "adapter_v2.py": "\"\"\"V2 API payload adapter.\"\"\"\n\nfrom typing import Any, Dict\n\n\nclass V2Adapter:\n    @staticmethod\n    def format_response(user_id: str, name: str) -> Dict[str, Any]:\n        return {\"data\": {\"userId\": user_id, \"displayName\": name}, \"version\": \"v2\"}\n",
+    "router.py": "\"\"\"Versioned route dispatcher.\"\"\"\n\nfrom typing import Any, Dict\nfrom adapter_v1 import V1Adapter\nfrom adapter_v2 import V2Adapter\nfrom version import APIVersionExtractor\n\n\nclass VersionedAPIRouter:\n    def route_request(self, headers: Dict[str, str], user_id: str, name: str) -> Dict[str, Any]:\n        ver = APIVersionExtractor.extract_version(headers)\n        # BUG: Case-sensitive version equality check fails on \"V2\" or date strings like \"2026-01\"!\n        if ver == \"v2\":\n            return V2Adapter.format_response(user_id, name)\n        return V1Adapter.format_response(user_id, name)\n"
+  },
+  "tests": {
+    "test_version_routing.py": "from router import VersionedAPIRouter\n\n\ndef test_default_v1_routing():\n    r = VersionedAPIRouter()\n    res = r.route_request({}, \"u1\", \"Alice\")\n    assert res[\"version\"] == \"v1\"\n    assert res[\"name\"] == \"Alice\"\n\n\ndef test_header_version_v2_routing():\n    r = VersionedAPIRouter()\n    res = r.route_request({\"X-API-Version\": \"v2\"}, \"u2\", \"Bob\")\n    assert res[\"version\"] == \"v2\"\n    assert res[\"data\"][\"displayName\"] == \"Bob\"\n\n\ndef test_date_based_version_routing():\n    r = VersionedAPIRouter()\n    res = r.route_request({\"X-API-Version\": \"2026-01\"}, \"u3\", \"Charlie\")\n    assert res[\"version\"] == \"v2\"\n    assert res[\"data\"][\"userId\"] == \"u3\"\n\n\ndef test_accept_header_content_negotiation():\n    r = VersionedAPIRouter()\n    res = r.route_request({\"Accept\": \"application/vnd.app.v2+json\"}, \"u4\", \"Dave\")\n    assert res[\"version\"] == \"v2\"\n"
+  },
+  "reference_fix": {
+    "router.py": "\"\"\"Versioned route dispatcher.\"\"\"\n\nfrom typing import Any, Dict\nfrom adapter_v1 import V1Adapter\nfrom adapter_v2 import V2Adapter\nfrom version import APIVersionExtractor\n\n\nclass VersionedAPIRouter:\n    def route_request(self, headers: Dict[str, str], user_id: str, name: str) -> Dict[str, Any]:\n        ver = APIVersionExtractor.extract_version(headers).lower()\n        if ver in (\"v2\", \"2026-01\", \"2\"):\n            return V2Adapter.format_response(user_id, name)\n        return V1Adapter.format_response(user_id, name)\n"
+  },
+  "metadata": {
+    "estimated_reasoning_steps": 3,
+    "file_count": 4,
+    "adversarial": false,
+    "stateful": false,
+    "multi_file": true,
+    "domain": "api-backend"
+  }
+}

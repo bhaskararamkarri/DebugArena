@@ -1,0 +1,32 @@
+{
+  "task_id": "v20_payload_boundary_validator",
+  "suite": "v2",
+  "version": 2,
+  "difficulty": "medium",
+  "bug_type": "payload_boundary_validation_bypass",
+  "categories": [
+    "L",
+    "F"
+  ],
+  "description": "Payload validator allows prototype/dunder key injection and fails to enforce recursion depth bounds on nested structures.",
+  "spec_notes": "PayloadValidator must enforce max_depth and block dunder/special attributes across all nested dicts and lists.",
+  "repo_files": {
+    "schema_rule.py": "\"\"\"Schema rule constraints for payload fields.\"\"\"\n\nfrom dataclasses import dataclass\nfrom typing import Optional\n\n\n@dataclass\nclass FieldRule:\n    name: str\n    field_type: type\n    max_len: Optional[int] = None\n    required: bool = True\n",
+    "request_context.py": "\"\"\"Request validation context and violation aggregator.\"\"\"\n\nfrom typing import List\n\n\nclass ValidationContext:\n    def __init__(self):\n        self.violations: List[str] = []\n\n    def add_violation(self, msg: str) -> None:\n        self.violations.append(msg)\n\n    @property\n    def is_valid(self) -> bool:\n        return len(self.violations) == 0\n",
+    "validator.py": "\"\"\"JSON payload boundary and recursion depth validator.\"\"\"\n\nfrom typing import Any, Dict, List\nfrom request_context import ValidationContext\nfrom schema_rule import FieldRule\n\n\nclass PayloadValidator:\n    def __init__(self, max_depth: int = 3, max_keys: int = 10):\n        self.max_depth = max_depth\n        self.max_keys = max_keys\n        self.rules: dict[str, FieldRule] = {}\n\n    def register_rule(self, rule: FieldRule) -> None:\n        self.rules[rule.name] = rule\n\n    def validate(self, payload: Any, ctx: ValidationContext, current_depth: int = 1) -> None:\n        if not isinstance(payload, dict):\n            ctx.add_violation(\"Payload must be a dictionary\")\n            return\n\n        # BUG: Depth limit check is > instead of >= and is not tracked across lists/subdicts properly\n        if current_depth > self.max_depth + 1:\n            ctx.add_violation(f\"Payload depth exceeds limit of {self.max_depth}\")\n            return\n\n        if len(payload) > self.max_keys:\n            ctx.add_violation(f\"Payload key count exceeds limit of {self.max_keys}\")\n            return\n\n        # Check for forbidden dunder / prototype pollution keys\n        for key, val in payload.items():\n            # BUG: Only checks exact string \"__proto__\" and misses \"__class__\", \"__globals__\"\n            if key == \"__proto__\":\n                ctx.add_violation(\"Forbidden special attribute in payload\")\n\n            if isinstance(val, dict):\n                self.validate(val, ctx, current_depth + 1)\n"
+  },
+  "tests": {
+    "test_payload_boundary.py": "from request_context import ValidationContext\nfrom validator import PayloadValidator\n\n\ndef test_valid_shallow_payload():\n    v = PayloadValidator(max_depth=3, max_keys=5)\n    ctx = ValidationContext()\n    v.validate({\"name\": \"item\", \"count\": 10}, ctx)\n    assert ctx.is_valid is True\n    assert len(ctx.violations) == 0\n\n\ndef test_deeply_nested_payload_depth_violation():\n    v = PayloadValidator(max_depth=2, max_keys=10)\n    ctx = ValidationContext()\n    # Depth 4 payload: level1 -> level2 -> level3 -> level4\n    nested = {\"a\": {\"b\": {\"c\": {\"d\": 1}}}}\n    v.validate(nested, ctx)\n    assert ctx.is_valid is False\n    assert any(\"depth exceeds limit\" in err for err in ctx.violations)\n\n\ndef test_dunder_attribute_injection_blocked():\n    v = PayloadValidator(max_depth=3, max_keys=10)\n    for bad_key in [\"__proto__\", \"__class__\", \"__globals__\", \"__dict__\"]:\n        ctx = ValidationContext()\n        v.validate({\"user\": {bad_key: \"exploit\"}}, ctx)\n        assert ctx.is_valid is False\n        assert any(\"Forbidden special attribute\" in err for err in ctx.violations)\n\n\ndef test_key_count_limit_enforced():\n    v = PayloadValidator(max_depth=3, max_keys=3)\n    ctx = ValidationContext()\n    v.validate({\"k1\": 1, \"k2\": 2, \"k3\": 3, \"k4\": 4}, ctx)\n    assert ctx.is_valid is False\n    assert any(\"key count exceeds limit\" in err for err in ctx.violations)\n\n\ndef test_nested_list_dictionary_depth_tracked():\n    v = PayloadValidator(max_depth=2, max_keys=10)\n    ctx = ValidationContext()\n    # Depth 3 via list of dicts\n    v.validate({\"items\": [{\"meta\": {\"deep\": \"val\"}}]}, ctx)\n    assert ctx.is_valid is False\n    assert any(\"depth exceeds limit\" in err for err in ctx.violations)\n"
+  },
+  "reference_fix": {
+    "validator.py": "\"\"\"JSON payload boundary and recursion depth validator.\"\"\"\n\nfrom typing import Any, Dict, List\nfrom request_context import ValidationContext\nfrom schema_rule import FieldRule\n\n\nFORBIDDEN_PREFIXES = (\"__\", \"constructor\", \"prototype\")\n\n\nclass PayloadValidator:\n    def __init__(self, max_depth: int = 3, max_keys: int = 10):\n        self.max_depth = max_depth\n        self.max_keys = max_keys\n        self.rules: dict[str, FieldRule] = {}\n\n    def register_rule(self, rule: FieldRule) -> None:\n        self.rules[rule.name] = rule\n\n    def validate(self, payload: Any, ctx: ValidationContext, current_depth: int = 1) -> None:\n        if not isinstance(payload, dict):\n            ctx.add_violation(\"Payload must be a dictionary\")\n            return\n\n        if current_depth > self.max_depth:\n            ctx.add_violation(f\"Payload depth exceeds limit of {self.max_depth}\")\n            return\n\n        if len(payload) > self.max_keys:\n            ctx.add_violation(f\"Payload key count exceeds limit of {self.max_keys}\")\n            return\n\n        for key, val in payload.items():\n            if any(key == fp or key.startswith(\"__\") for fp in FORBIDDEN_PREFIXES):\n                ctx.add_violation(f\"Forbidden special attribute in payload: {key}\")\n\n            if isinstance(val, dict):\n                self.validate(val, ctx, current_depth + 1)\n            elif isinstance(val, list):\n                for item in val:\n                    if isinstance(item, dict):\n                        self.validate(item, ctx, current_depth + 1)\n"
+  },
+  "metadata": {
+    "estimated_reasoning_steps": 4,
+    "file_count": 3,
+    "adversarial": false,
+    "stateful": false,
+    "multi_file": true,
+    "domain": "security"
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "task_id": "v39_wal_replay_checkpoint_recovery",
+  "suite": "v2",
+  "version": 2,
+  "difficulty": "hard",
+  "bug_type": "wal_log_replay_checkpoint_boundary_inclusive_error",
+  "categories": [
+    "I",
+    "D",
+    "E"
+  ],
+  "description": "WAL log reader includes the checkpoint LSN itself during replay (>= instead of >), re-applying pre-checkpoint state mutations.",
+  "spec_notes": "WALLogReader.get_entries_since must strictly check e.lsn > after_lsn.",
+  "repo_files": {
+    "wal_entry.py": "\"\"\"Write-ahead log entry definition.\"\"\"\n\nfrom dataclasses import dataclass\nfrom typing import Any\n\n\n@dataclass\nclass WALEntry:\n    lsn: int\n    op_type: str  # \"SET\" or \"DEL\"\n    key: str\n    value: Any\n",
+    "checkpoint.py": "\"\"\"Database checkpoint metadata.\"\"\"\n\nfrom dataclasses import dataclass\nfrom typing import Any, Dict\n\n\n@dataclass\nclass CheckpointState:\n    checkpoint_lsn: int\n    data: Dict[str, Any]\n",
+    "log_reader.py": "\"\"\"Log sequential reader and filter.\"\"\"\n\nfrom typing import List\nfrom wal_entry import WALEntry\n\n\nclass WALLogReader:\n    def __init__(self, entries: List[WALEntry]):\n        self.entries = list(entries)\n\n    def get_entries_since(self, after_lsn: int) -> List[WALEntry]:\n        # BUG: Uses >= instead of > when filtering after_lsn, re-applying the checkpoint entry itself!\n        return [e for e in self.entries if e.lsn >= after_lsn]\n",
+    "state_engine.py": "\"\"\"Database recovery and replay state engine.\"\"\"\n\nfrom typing import Any, Dict\nfrom checkpoint import CheckpointState\nfrom log_reader import WALLogReader\n\n\nclass RecoveryEngine:\n    def __init__(self, reader: WALLogReader):\n        self.reader = reader\n\n    def recover(self, cp: CheckpointState) -> Dict[str, Any]:\n        state = dict(cp.data)\n        # Replay log entries committed strictly AFTER checkpoint_lsn\n        entries = self.reader.get_entries_since(cp.checkpoint_lsn)\n        for e in entries:\n            if e.op_type == \"SET\":\n                state[e.key] = e.value\n            elif e.op_type == \"DEL\":\n                state.pop(e.key, None)\n        return state\n"
+  },
+  "tests": {
+    "test_wal_recovery.py": "from wal_entry import WALEntry\nfrom checkpoint import CheckpointState\nfrom log_reader import WALLogReader\nfrom state_engine import RecoveryEngine\n\n\ndef test_basic_replay_after_checkpoint():\n    # Checkpoint at LSN 10: {\"k1\": \"v1_old\"}\n    cp = CheckpointState(10, {\"k1\": \"v1_old\"})\n    log = [\n        WALEntry(10, \"SET\", \"k1\", \"v1_old\"),\n        WALEntry(11, \"SET\", \"k1\", \"v1_new\"),\n        WALEntry(12, \"SET\", \"k2\", \"v2\"),\n    ]\n    reader = WALLogReader(log)\n    engine = RecoveryEngine(reader)\n    recovered = engine.recover(cp)\n    assert recovered == {\"k1\": \"v1_new\", \"k2\": \"v2\"}\n\n\ndef test_checkpoint_lsn_entry_not_replayed_over_del():\n    # LSN 5 was a SET. Checkpoint captured at LSN 5 has {\"k\": \"val\"}.\n    # Later, at LSN 6, DEL is executed.\n    # If LSN 5 is replayed on recovery, but a sequence of edits occurred, re-evaluating must not corrupt delete!\n    cp = CheckpointState(5, {\"counter\": 10})\n    log = [\n        WALEntry(5, \"SET\", \"counter\", 10),\n        WALEntry(6, \"DEL\", \"counter\", None),\n    ]\n    reader = WALLogReader(log)\n    engine = RecoveryEngine(reader)\n    res = engine.recover(cp)\n    assert \"counter\" not in res\n\n\ndef test_no_entries_after_checkpoint():\n    cp = CheckpointState(20, {\"active\": True, \"num\": 100})\n    log = [WALEntry(19, \"SET\", \"active\", False), WALEntry(20, \"SET\", \"num\", 100)]\n    reader = WALLogReader(log)\n    engine = RecoveryEngine(reader)\n    assert engine.recover(cp) == {\"active\": True, \"num\": 100}\n\n\ndef test_multiple_mutations_and_deletions():\n    cp = CheckpointState(100, {\"a\": 1, \"b\": 2})\n    log = [\n        WALEntry(101, \"SET\", \"c\", 3),\n        WALEntry(102, \"DEL\", \"a\", None),\n        WALEntry(103, \"SET\", \"b\", 20),\n        WALEntry(104, \"SET\", \"d\", 4),\n    ]\n    reader = WALLogReader(log)\n    engine = RecoveryEngine(reader)\n    res = engine.recover(cp)\n    assert res == {\"b\": 20, \"c\": 3, \"d\": 4}\n\n\ndef test_empty_log_recovery():\n    cp = CheckpointState(0, {\"init\": \"data\"})\n    reader = WALLogReader([])\n    engine = RecoveryEngine(reader)\n    assert engine.recover(cp) == {\"init\": \"data\"}\n\n\ndef test_log_reader_boundary_condition():\n    entries = [WALEntry(1, \"SET\", \"a\", 1), WALEntry(2, \"SET\", \"b\", 2)]\n    r = WALLogReader(entries)\n    # Since LSN 1 must strictly return LSN 2\n    assert [e.lsn for e in r.get_entries_since(1)] == [2]\n    assert [e.lsn for e in r.get_entries_since(2)] == []\n"
+  },
+  "reference_fix": {
+    "log_reader.py": "\"\"\"Log sequential reader and filter.\"\"\"\n\nfrom typing import List\nfrom wal_entry import WALEntry\n\n\nclass WALLogReader:\n    def __init__(self, entries: List[WALEntry]):\n        self.entries = list(entries)\n\n    def get_entries_since(self, after_lsn: int) -> List[WALEntry]:\n        return [e for e in self.entries if e.lsn > after_lsn]\n"
+  },
+  "metadata": {
+    "estimated_reasoning_steps": 4,
+    "file_count": 4,
+    "adversarial": false,
+    "stateful": true,
+    "multi_file": true,
+    "domain": "database"
+  }
+}

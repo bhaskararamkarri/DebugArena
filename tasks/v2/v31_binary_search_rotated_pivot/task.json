@@ -1,0 +1,31 @@
+{
+  "task_id": "v31_binary_search_rotated_pivot",
+  "suite": "v2",
+  "version": 2,
+  "difficulty": "easy",
+  "bug_type": "binary_search_rotated_pivot_boundary_inversion",
+  "categories": [
+    "A",
+    "B"
+  ],
+  "description": "Rotated binary search indexer compares mid against left element instead of right boundary, failing on unrotated and rotated arrays.",
+  "spec_notes": "RotatedIndexer.find_pivot_index must compare nums[mid] > nums[right] to find pivot.",
+  "repo_files": {
+    "indexer.py": "\"\"\"Rotated sorted array minimum pivot indexer.\"\"\"\n\nfrom typing import List\n\n\nclass RotatedIndexer:\n    def __init__(self, nums: List[int]):\n        self.nums = nums\n\n    def find_pivot_index(self) -> int:\n        \"\"\"Returns the index of the minimum element in rotated sorted array.\"\"\"\n        if not self.nums:\n            return -1\n        left, right = 0, len(self.nums) - 1\n        while left < right:\n            mid = (left + right) // 2\n            # BUG: Compares mid against left element instead of right boundary element,\n            # failing to converge on the minimum pivot in unrotated and multi-element arrays!\n            if self.nums[mid] < self.nums[left]:\n                right = mid\n            else:\n                left = mid + 1\n        return left\n",
+    "search.py": "\"\"\"Search service utilizing rotated pivot index.\"\"\"\n\nfrom typing import List\nfrom indexer import RotatedIndexer\n\n\nclass SearchService:\n    @staticmethod\n    def find_minimum_value(dataset: List[int]) -> int:\n        if not dataset:\n            return -1\n        idx = RotatedIndexer(dataset)\n        pivot_pos = idx.find_pivot_index()\n        return dataset[pivot_pos]\n"
+  },
+  "tests": {
+    "test_rotated_search.py": "from search import SearchService\nfrom indexer import RotatedIndexer\n\n\ndef test_standard_rotated_array():\n    nums = [4, 5, 6, 7, 1, 2, 3]\n    idx = RotatedIndexer(nums)\n    assert idx.find_pivot_index() == 4\n    assert SearchService.find_minimum_value(nums) == 1\n\n\ndef test_unrotated_sorted_array():\n    nums = [1, 2, 3, 4, 5]\n    idx = RotatedIndexer(nums)\n    assert idx.find_pivot_index() == 0\n    assert SearchService.find_minimum_value(nums) == 1\n\n\ndef test_two_element_rotation():\n    nums = [3, 1]\n    idx = RotatedIndexer(nums)\n    assert idx.find_pivot_index() == 1\n    assert SearchService.find_minimum_value(nums) == 1\n\n\ndef test_pivot_at_last_element():\n    nums = [2, 3, 4, 5, 1]\n    idx = RotatedIndexer(nums)\n    assert idx.find_pivot_index() == 4\n    assert SearchService.find_minimum_value(nums) == 1\n\n\ndef test_single_element_array():\n    nums = [42]\n    idx = RotatedIndexer(nums)\n    assert idx.find_pivot_index() == 0\n    assert SearchService.find_minimum_value(nums) == 42\n\n\ndef test_empty_array():\n    idx = RotatedIndexer([])\n    assert idx.find_pivot_index() == -1\n    assert SearchService.find_minimum_value([]) == -1\n"
+  },
+  "reference_fix": {
+    "indexer.py": "\"\"\"Rotated sorted array minimum pivot indexer.\"\"\"\n\nfrom typing import List\n\n\nclass RotatedIndexer:\n    def __init__(self, nums: List[int]):\n        self.nums = nums\n\n    def find_pivot_index(self) -> int:\n        \"\"\"Returns the index of the minimum element in rotated sorted array.\"\"\"\n        if not self.nums:\n            return -1\n        left, right = 0, len(self.nums) - 1\n        while left < right:\n            mid = (left + right) // 2\n            if self.nums[mid] > self.nums[right]:\n                left = mid + 1\n            else:\n                right = mid\n        return left\n"
+  },
+  "metadata": {
+    "estimated_reasoning_steps": 2,
+    "file_count": 2,
+    "adversarial": false,
+    "stateful": false,
+    "multi_file": true,
+    "domain": "algorithms"
+  }
+}

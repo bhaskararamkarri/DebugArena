@@ -1,0 +1,30 @@
+{
+  "task_id": "v07_cursor_pagination_api",
+  "suite": "v2",
+  "version": 2,
+  "difficulty": "medium",
+  "bug_type": "cursor_offset_slice_bug",
+  "categories": ["H", "B"],
+  "description": "Cursor-based pagination API returns duplicate records across pages due to an off-by-one slicing error when seeking past the decoded cursor identifier.",
+  "spec_notes": "Invariant: Slicing after a cursor item must strictly start at index + 1, and return next_cursor as None on the final page.",
+  "repo_files": {
+    "models.py": "from dataclasses import dataclass\nfrom typing import List, Optional\n\n@dataclass\nclass Item:\n    id: str\n    title: str\n\n@dataclass\nclass PageResult:\n    items: List[Item]\n    next_cursor: Optional[str]\n",
+    "cursor.py": "import base64\n\ndef encode_cursor(item_id: str) -> str:\n    return base64.b64encode(item_id.encode(\"utf-8\")).decode(\"utf-8\")\n\ndef decode_cursor(cursor_str: str) -> str:\n    return base64.b64decode(cursor_str.encode(\"utf-8\")).decode(\"utf-8\")\n",
+    "paginator.py": "from typing import List, Optional\nfrom models import Item, PageResult\nfrom cursor import encode_cursor, decode_cursor\n\nclass Paginator:\n    def __init__(self, dataset: List[Item]):\n        self.dataset = dataset\n\n    def query_page(self, limit: int, cursor: Optional[str] = None) -> PageResult:\n        start_idx = 0\n        if cursor:\n            target_id = decode_cursor(cursor)\n            for idx, item in enumerate(self.dataset):\n                if item.id == target_id:\n                    # Bug: uses start_idx = idx instead of idx + 1, including the cursor item again in the next page\n                    start_idx = idx\n                    break\n\n        page_items = self.dataset[start_idx : start_idx + limit]\n        next_cursor = None\n        if start_idx + limit < len(self.dataset) and page_items:\n            next_cursor = encode_cursor(page_items[-1].id)\n\n        return PageResult(items=page_items, next_cursor=next_cursor)\n"
+  },
+  "tests": {
+    "test_paginator.py": "from models import Item\nfrom paginator import Paginator\n\ndef test_first_page_no_cursor():\n    items = [Item(f\"id_{i}\", f\"Item {i}\") for i in range(10)]\n    paginator = Paginator(items)\n    res = paginator.query_page(limit=3)\n    assert len(res.items) == 3\n    assert res.items[0].id == \"id_0\"\n    assert res.items[2].id == \"id_2\"\n    assert res.next_cursor is not None\n\ndef test_subsequent_page_no_duplicates():\n    items = [Item(f\"id_{i}\", f\"Item {i}\") for i in range(6)]\n    paginator = Paginator(items)\n    \n    page1 = paginator.query_page(limit=2)\n    assert [it.id for it in page1.items] == [\"id_0\", \"id_1\"]\n    assert page1.next_cursor is not None\n    \n    page2 = paginator.query_page(limit=2, cursor=page1.next_cursor)\n    # Must be id_2 and id_3, not id_1 duplicated\n    assert [it.id for it in page2.items] == [\"id_2\", \"id_3\"]\n    \n    page3 = paginator.query_page(limit=2, cursor=page2.next_cursor)\n    assert [it.id for it in page3.items] == [\"id_4\", \"id_5\"]\n    assert page3.next_cursor is None # Reached end\n"
+  },
+  "reference_fix": {
+    "paginator.py": "from typing import List, Optional\nfrom models import Item, PageResult\nfrom cursor import encode_cursor, decode_cursor\n\nclass Paginator:\n    def __init__(self, dataset: List[Item]):\n        self.dataset = dataset\n\n    def query_page(self, limit: int, cursor: Optional[str] = None) -> PageResult:\n        start_idx = 0\n        if cursor:\n            target_id = decode_cursor(cursor)\n            for idx, item in enumerate(self.dataset):\n                if item.id == target_id:\n                    start_idx = idx + 1\n                    break\n\n        page_items = self.dataset[start_idx : start_idx + limit]\n        next_cursor = None\n        if start_idx + limit < len(self.dataset) and page_items:\n            next_cursor = encode_cursor(page_items[-1].id)\n\n        return PageResult(items=page_items, next_cursor=next_cursor)\n"
+  },
+  "metadata": {
+    "estimated_reasoning_steps": 3,
+    "file_count": 3,
+    "adversarial": false,
+    "stateful": true,
+    "multi_file": true,
+    "domain": "rest_api_pagination",
+    "quality_score": 4.5
+  }
+}

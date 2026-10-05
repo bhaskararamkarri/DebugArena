@@ -1,0 +1,506 @@
+[
+  {
+    "task_id": "v57_raft_log_replication_split_vote",
+    "approved": true,
+    "report": {
+      "task_id": "v57_raft_log_replication_split_vote",
+      "is_valid": true,
+      "schema_valid": true,
+      "before_fix_passed": 1,
+      "before_fix_failed": 2,
+      "after_fix_passed": 3,
+      "after_fix_failed": 0,
+      "is_flaky": false,
+      "quality": {
+        "bug_clarity": 5.0,
+        "debugging_difficulty": 4.5,
+        "repository_realism": 5.0,
+        "reasoning_depth": 4.5,
+        "multi_file_complexity": 4.5,
+        "statefulness": 3.0,
+        "hidden_test_quality": 4.5,
+        "edge_case_coverage": 4.0,
+        "regression_potential": 4.0,
+        "agent_challenge": 4.5,
+        "total_score": 43.5,
+        "average_score": 4.35
+      },
+      "errors": []
+    },
+    "metrics": {
+      "file_count": 3,
+      "fix_files": 1,
+      "test_count": 3,
+      "loc": 68,
+      "quality_score": 4.35
+    }
+  },
+  {
+    "task_id": "v58_byzantine_fault_tolerant_quorum_consensus",
+    "approved": true,
+    "report": {
+      "task_id": "v58_byzantine_fault_tolerant_quorum_consensus",
+      "is_valid": true,
+      "schema_valid": true,
+      "before_fix_passed": 1,
+      "before_fix_failed": 2,
+      "after_fix_passed": 3,
+      "after_fix_failed": 0,
+      "is_flaky": false,
+      "quality": {
+        "bug_clarity": 5.0,
+        "debugging_difficulty": 4.5,
+        "repository_realism": 5.0,
+        "reasoning_depth": 4.5,
+        "multi_file_complexity": 4.5,
+        "statefulness": 4.0,
+        "hidden_test_quality": 4.5,
+        "edge_case_coverage": 4.0,
+        "regression_potential": 4.0,
+        "agent_challenge": 4.5,
+        "total_score": 44.5,
+        "average_score": 4.45
+      },
+      "errors": []
+    },
+    "metrics": {
+      "file_count": 3,
+      "fix_files": 1,
+      "test_count": 3,
+      "loc": 46,
+      "quality_score": 4.45
+    }
+  },
+  {
+    "task_id": "v59_jit_bytecode_optimizer_dead_code_elimination",
+    "approved": true,
+    "report": {
+      "task_id": "v59_jit_bytecode_optimizer_dead_code_elimination",
+      "is_valid": true,
+      "schema_valid": true,
+      "before_fix_passed": 2,
+      "before_fix_failed": 1,
+      "after_fix_passed": 3,
+      "after_fix_failed": 0,
+      "is_flaky": false,
+      "quality": {
+        "bug_clarity": 5.0,
+        "debugging_difficulty": 4.5,
+        "repository_realism": 5.0,
+        "reasoning_depth": 4.5,
+        "multi_file_complexity": 4.5,
+        "statefulness": 4.0,
+        "hidden_test_quality": 4.5,
+        "edge_case_coverage": 4.5,
+        "regression_potential": 4.5,
+        "agent_challenge": 4.5,
+        "total_score": 45.5,
+        "average_score": 4.55
+      },
+      "errors": []
+    },
+    "metrics": {
+      "file_count": 4,
+      "fix_files": 1,
+      "test_count": 3,
+      "loc": 72,
+      "quality_score": 4.55
+    }
+  },
+  {
+    "task_id": "v60_two_phase_commit_coordinator_crash_recovery",
+    "approved": true,
+    "report": {
+      "task_id": "v60_two_phase_commit_coordinator_crash_recovery",
+      "is_valid": true,
+      "schema_valid": true,
+      "before_fix_passed": 1,
+      "before_fix_failed": 1,
+      "after_fix_passed": 2,
+      "after_fix_failed": 0,
+      "is_flaky": false,
+      "quality": {
+        "bug_clarity": 5.0,
+        "debugging_difficulty": 4.5,
+        "repository_realism": 5.0,
+        "reasoning_depth": 4.5,
+        "multi_file_complexity": 4.5,
+        "statefulness": 4.0,
+        "hidden_test_quality": 4.0,
+        "edge_case_coverage": 4.0,
+        "regression_potential": 4.0,
+        "agent_challenge": 4.5,
+        "total_score": 44.0,
+        "average_score": 4.4
+      },
+      "errors": []
+    },
+    "metrics": {
+      "file_count": 4,
+      "fix_files": 1,
+      "test_count": 2,
+      "loc": 82,
+      "quality_score": 4.4
+    }
+  },
+  {
+    "task_id": "v61_graphql_federation_gateway_query_planner",
+    "approved": true,
+    "report": {
+      "task_id": "v61_graphql_federation_gateway_query_planner",
+      "is_valid": true,
+      "schema_valid": true,
+      "before_fix_passed": 1,
+      "before_fix_failed": 1,
+      "after_fix_passed": 2,
+      "after_fix_failed": 0,
+      "is_flaky": false,
+      "quality": {
+        "bug_clarity": 5.0,
+        "debugging_difficulty": 4.5,
+        "repository_realism": 5.0,
+        "reasoning_depth": 4.5,
+        "multi_file_complexity": 4.5,
+        "statefulness": 3.0,
+        "hidden_test_quality": 4.0,
+        "edge_case_coverage": 4.0,
+        "regression_potential": 4.0,
+        "agent_challenge": 4.5,
+        "total_score": 43.0,
+        "average_score": 4.3
+      },
+      "errors": []
+    },
+    "metrics": {
+      "file_count": 3,
+      "fix_files": 1,
+      "test_count": 2,
+      "loc": 54,
+      "quality_score": 4.3
+    }
+  },
+  {
+    "task_id": "v62_lsm_tree_compaction_sst_merge",
+    "approved": true,
+    "report": {
+      "task_id": "v62_lsm_tree_compaction_sst_merge",
+      "is_valid": true,
+      "schema_valid": true,
+      "before_fix_passed": 2,
+      "before_fix_failed": 1,
+      "after_fix_passed": 3,
+      "after_fix_failed": 0,
+      "is_flaky": false,
+      "quality": {
+        "bug_clarity": 5.0,
+        "debugging_difficulty": 4.5,
+        "repository_realism": 5.0,
+        "reasoning_depth": 4.5,
+        "multi_file_complexity": 4.5,
+        "statefulness": 3.0,
+        "hidden_test_quality": 4.5,
+        "edge_case_coverage": 4.0,
+        "regression_potential": 4.0,
+        "agent_challenge": 4.5,
+        "total_score": 43.5,
+        "average_score": 4.35
+      },
+      "errors": []
+    },
+    "metrics": {
+      "file_count": 3,
+      "fix_files": 1,
+      "test_count": 3,
+      "loc": 60,
+      "quality_score": 4.35
+    }
+  },
+  {
+    "task_id": "v63_oauth2_token_exchange_pkce_replay_attack",
+    "approved": true,
+    "report": {
+      "task_id": "v63_oauth2_token_exchange_pkce_replay_attack",
+      "is_valid": true,
+      "schema_valid": true,
+      "before_fix_passed": 2,
+      "before_fix_failed": 1,
+      "after_fix_passed": 3,
+      "after_fix_failed": 0,
+      "is_flaky": false,
+      "quality": {
+        "bug_clarity": 5.0,
+        "debugging_difficulty": 4.5,
+        "repository_realism": 5.0,
+        "reasoning_depth": 4.5,
+        "multi_file_complexity": 4.5,
+        "statefulness": 4.0,
+        "hidden_test_quality": 4.5,
+        "edge_case_coverage": 4.5,
+        "regression_potential": 4.5,
+        "agent_challenge": 4.5,
+        "total_score": 45.5,
+        "average_score": 4.55
+      },
+      "errors": []
+    },
+    "metrics": {
+      "file_count": 4,
+      "fix_files": 1,
+      "test_count": 3,
+      "loc": 76,
+      "quality_score": 4.55
+    }
+  },
+  {
+    "task_id": "v64_adversarial_telemetry_flaky_retry_storm",
+    "approved": true,
+    "report": {
+      "task_id": "v64_adversarial_telemetry_flaky_retry_storm",
+      "is_valid": true,
+      "schema_valid": true,
+      "before_fix_passed": 1,
+      "before_fix_failed": 2,
+      "after_fix_passed": 3,
+      "after_fix_failed": 0,
+      "is_flaky": false,
+      "quality": {
+        "bug_clarity": 5.0,
+        "debugging_difficulty": 4.8,
+        "repository_realism": 5.0,
+        "reasoning_depth": 4.8,
+        "multi_file_complexity": 4.5,
+        "statefulness": 4.0,
+        "hidden_test_quality": 4.5,
+        "edge_case_coverage": 4.5,
+        "regression_potential": 4.5,
+        "agent_challenge": 5.0,
+        "total_score": 46.6,
+        "average_score": 4.66
+      },
+      "errors": []
+    },
+    "metrics": {
+      "file_count": 6,
+      "fix_files": 1,
+      "test_count": 3,
+      "loc": 104,
+      "quality_score": 4.66
+    }
+  },
+  {
+    "task_id": "v65_actor_system_mailbox_deadlock_cycle",
+    "approved": true,
+    "report": {
+      "task_id": "v65_actor_system_mailbox_deadlock_cycle",
+      "is_valid": true,
+      "schema_valid": true,
+      "before_fix_passed": 2,
+      "before_fix_failed": 1,
+      "after_fix_passed": 3,
+      "after_fix_failed": 0,
+      "is_flaky": false,
+      "quality": {
+        "bug_clarity": 5.0,
+        "debugging_difficulty": 4.5,
+        "repository_realism": 5.0,
+        "reasoning_depth": 4.5,
+        "multi_file_complexity": 4.5,
+        "statefulness": 4.0,
+        "hidden_test_quality": 4.5,
+        "edge_case_coverage": 4.0,
+        "regression_potential": 4.0,
+        "agent_challenge": 4.5,
+        "total_score": 44.5,
+        "average_score": 4.45
+      },
+      "errors": []
+    },
+    "metrics": {
+      "file_count": 3,
+      "fix_files": 1,
+      "test_count": 3,
+      "loc": 59,
+      "quality_score": 4.45
+    }
+  },
+  {
+    "task_id": "v66_ast_pattern_rewriter_variable_shadowing",
+    "approved": true,
+    "report": {
+      "task_id": "v66_ast_pattern_rewriter_variable_shadowing",
+      "is_valid": true,
+      "schema_valid": true,
+      "before_fix_passed": 2,
+      "before_fix_failed": 1,
+      "after_fix_passed": 3,
+      "after_fix_failed": 0,
+      "is_flaky": false,
+      "quality": {
+        "bug_clarity": 5.0,
+        "debugging_difficulty": 4.5,
+        "repository_realism": 5.0,
+        "reasoning_depth": 4.5,
+        "multi_file_complexity": 4.5,
+        "statefulness": 3.0,
+        "hidden_test_quality": 4.5,
+        "edge_case_coverage": 4.0,
+        "regression_potential": 4.0,
+        "agent_challenge": 4.5,
+        "total_score": 43.5,
+        "average_score": 4.35
+      },
+      "errors": []
+    },
+    "metrics": {
+      "file_count": 3,
+      "fix_files": 1,
+      "test_count": 3,
+      "loc": 75,
+      "quality_score": 4.35
+    }
+  },
+  {
+    "task_id": "v67_b_plus_tree_leaf_split_borrow_rebalance",
+    "approved": true,
+    "report": {
+      "task_id": "v67_b_plus_tree_leaf_split_borrow_rebalance",
+      "is_valid": true,
+      "schema_valid": true,
+      "before_fix_passed": 2,
+      "before_fix_failed": 2,
+      "after_fix_passed": 4,
+      "after_fix_failed": 0,
+      "is_flaky": false,
+      "quality": {
+        "bug_clarity": 5.0,
+        "debugging_difficulty": 4.5,
+        "repository_realism": 5.0,
+        "reasoning_depth": 4.5,
+        "multi_file_complexity": 4.5,
+        "statefulness": 3.0,
+        "hidden_test_quality": 4.5,
+        "edge_case_coverage": 4.5,
+        "regression_potential": 4.5,
+        "agent_challenge": 4.5,
+        "total_score": 44.5,
+        "average_score": 4.45
+      },
+      "errors": []
+    },
+    "metrics": {
+      "file_count": 4,
+      "fix_files": 1,
+      "test_count": 4,
+      "loc": 130,
+      "quality_score": 4.45
+    }
+  },
+  {
+    "task_id": "v68_crdt_pn_counter_lww_element_set_convergence",
+    "approved": true,
+    "report": {
+      "task_id": "v68_crdt_pn_counter_lww_element_set_convergence",
+      "is_valid": true,
+      "schema_valid": true,
+      "before_fix_passed": 1,
+      "before_fix_failed": 1,
+      "after_fix_passed": 2,
+      "after_fix_failed": 0,
+      "is_flaky": false,
+      "quality": {
+        "bug_clarity": 5.0,
+        "debugging_difficulty": 4.5,
+        "repository_realism": 4.5,
+        "reasoning_depth": 4.5,
+        "multi_file_complexity": 3.5,
+        "statefulness": 3.0,
+        "hidden_test_quality": 4.0,
+        "edge_case_coverage": 4.0,
+        "regression_potential": 4.0,
+        "agent_challenge": 4.5,
+        "total_score": 41.5,
+        "average_score": 4.15
+      },
+      "errors": []
+    },
+    "metrics": {
+      "file_count": 2,
+      "fix_files": 1,
+      "test_count": 2,
+      "loc": 49,
+      "quality_score": 4.15
+    }
+  },
+  {
+    "task_id": "v69_service_mesh_circuit_breaker_half_open_oscillation",
+    "approved": true,
+    "report": {
+      "task_id": "v69_service_mesh_circuit_breaker_half_open_oscillation",
+      "is_valid": true,
+      "schema_valid": true,
+      "before_fix_passed": 1,
+      "before_fix_failed": 1,
+      "after_fix_passed": 2,
+      "after_fix_failed": 0,
+      "is_flaky": false,
+      "quality": {
+        "bug_clarity": 5.0,
+        "debugging_difficulty": 4.5,
+        "repository_realism": 5.0,
+        "reasoning_depth": 4.5,
+        "multi_file_complexity": 4.5,
+        "statefulness": 4.0,
+        "hidden_test_quality": 4.0,
+        "edge_case_coverage": 4.0,
+        "regression_potential": 4.0,
+        "agent_challenge": 4.5,
+        "total_score": 44.0,
+        "average_score": 4.4
+      },
+      "errors": []
+    },
+    "metrics": {
+      "file_count": 3,
+      "fix_files": 1,
+      "test_count": 2,
+      "loc": 63,
+      "quality_score": 4.4
+    }
+  },
+  {
+    "task_id": "v70_zero_knowledge_merkle_membership_proof",
+    "approved": true,
+    "report": {
+      "task_id": "v70_zero_knowledge_merkle_membership_proof",
+      "is_valid": true,
+      "schema_valid": true,
+      "before_fix_passed": 2,
+      "before_fix_failed": 1,
+      "after_fix_passed": 3,
+      "after_fix_failed": 0,
+      "is_flaky": false,
+      "quality": {
+        "bug_clarity": 5.0,
+        "debugging_difficulty": 4.5,
+        "repository_realism": 5.0,
+        "reasoning_depth": 4.5,
+        "multi_file_complexity": 4.5,
+        "statefulness": 3.0,
+        "hidden_test_quality": 4.5,
+        "edge_case_coverage": 4.0,
+        "regression_potential": 4.0,
+        "agent_challenge": 4.5,
+        "total_score": 43.5,
+        "average_score": 4.35
+      },
+      "errors": []
+    },
+    "metrics": {
+      "file_count": 4,
+      "fix_files": 1,
+      "test_count": 3,
+      "loc": 80,
+      "quality_score": 4.35
+    }
+  }
+]

@@ -1,0 +1,623 @@
+[
+  {
+    "task_id": "h01",
+    "path": "tasks/hard/h01/task.json",
+    "difficulty": "hard",
+    "bug_type": "interval_merging",
+    "files_count": 3,
+    "files": [
+      "interval.py",
+      "sorter.py",
+      "merger.py"
+    ],
+    "tests_count": 1,
+    "test_files": [
+      "test_merger.py"
+    ],
+    "ref_fix_files": [
+      "sorter.py",
+      "merger.py"
+    ],
+    "total_loc": 40,
+    "test_loc": 28,
+    "description": "The scheduling engine fails to combine overlapping and touching time windows, sometimes truncating earlier ranges or leaving adjacent slots unmerged."
+  },
+  {
+    "task_id": "h02",
+    "path": "tasks/hard/h02/task.json",
+    "difficulty": "hard",
+    "bug_type": "binary_search_bounds",
+    "files_count": 3,
+    "files": [
+      "models.py",
+      "predicates.py",
+      "searcher.py"
+    ],
+    "tests_count": 1,
+    "test_files": [
+      "test_searcher.py"
+    ],
+    "ref_fix_files": [
+      "searcher.py"
+    ],
+    "total_loc": 36,
+    "test_loc": 22,
+    "description": "Search queries for target values in sorted arrays produce incorrect boundary indices or return count 0 when values exist multiple times at array edges."
+  },
+  {
+    "task_id": "h03",
+    "path": "tasks/hard/h03/task.json",
+    "difficulty": "hard",
+    "bug_type": "topological_sort_cycle",
+    "files_count": 3,
+    "files": [
+      "errors.py",
+      "graph.py",
+      "resolver.py"
+    ],
+    "tests_count": 1,
+    "test_files": [
+      "test_resolver.py"
+    ],
+    "ref_fix_files": [
+      "resolver.py"
+    ],
+    "total_loc": 37,
+    "test_loc": 39,
+    "description": "The build orchestrator executes tasks in an unstable sequence when multiple tasks are ready, and fails to abort with an error when circular references exist between components."
+  },
+  {
+    "task_id": "h04",
+    "path": "tasks/hard/h04/task.json",
+    "difficulty": "hard",
+    "bug_type": "csv_parser_quoting",
+    "files_count": 3,
+    "files": [
+      "models.py",
+      "lexer.py",
+      "parser.py"
+    ],
+    "tests_count": 1,
+    "test_files": [
+      "test_csv.py"
+    ],
+    "ref_fix_files": [
+      "parser.py"
+    ],
+    "total_loc": 37,
+    "test_loc": 22,
+    "description": "Exported tabular text is corrupted: records containing commas inside quotation marks or escaped double quotes lose trailing columns or fail to preserve internal quotes."
+  },
+  {
+    "task_id": "h05",
+    "path": "tasks/hard/h05/task.json",
+    "difficulty": "hard",
+    "bug_type": "ttl_rate_limiter",
+    "files_count": 2,
+    "files": [
+      "policy.py",
+      "limiter.py"
+    ],
+    "tests_count": 1,
+    "test_files": [
+      "test_limiter.py"
+    ],
+    "ref_fix_files": [
+      "limiter.py"
+    ],
+    "total_loc": 28,
+    "test_loc": 48,
+    "description": "The API rate limiter incorrectly records timestamps for rejected requests, causing clients to remain throttled even after earlier accepted requests have expired from the sliding window."
+  },
+  {
+    "task_id": "h06",
+    "path": "tasks/hard/h06/task.json",
+    "difficulty": "hard",
+    "bug_type": "ledger_rounding",
+    "files_count": 3,
+    "files": [
+      "account.py",
+      "rounding.py",
+      "distributor.py"
+    ],
+    "tests_count": 1,
+    "test_files": [
+      "test_ledger.py"
+    ],
+    "ref_fix_files": [
+      "distributor.py"
+    ],
+    "total_loc": 26,
+    "test_loc": 29,
+    "description": "Financial allocations among stakeholders frequently lose or gain pennies due to independent rounding, causing the sum of distributed shares to not equal the original ledger amount."
+  },
+  {
+    "task_id": "h07",
+    "path": "tasks/hard/h07/task.json",
+    "difficulty": "hard",
+    "bug_type": "text_wrapping",
+    "files_count": 3,
+    "files": [
+      "rules.py",
+      "token_stream.py",
+      "wrapper.py"
+    ],
+    "tests_count": 1,
+    "test_files": [
+      "test_wrapper.py"
+    ],
+    "ref_fix_files": [
+      "wrapper.py"
+    ],
+    "total_loc": 25,
+    "test_loc": 21,
+    "description": "Formatted document printing hangs or crashes on unusually long identifiers that exceed column limits, and leaves ragged whitespace at line margins."
+  },
+  {
+    "task_id": "h08",
+    "path": "tasks/hard/h08/task.json",
+    "difficulty": "hard",
+    "bug_type": "datetime_business_days",
+    "files_count": 3,
+    "files": [
+      "date_util.py",
+      "holidays.py",
+      "business_calendar.py"
+    ],
+    "tests_count": 1,
+    "test_files": [
+      "test_calendar.py"
+    ],
+    "ref_fix_files": [
+      "business_calendar.py"
+    ],
+    "total_loc": 36,
+    "test_loc": 28,
+    "description": "Delivery date calculations produce weekend delivery dates when requests originate on Sundays, and miscount deadlines when adjusting backwards before bank holidays."
+  },
+  {
+    "task_id": "h09",
+    "path": "tasks/hard/h09/task.json",
+    "difficulty": "hard",
+    "bug_type": "graph_tiebreak",
+    "files_count": 3,
+    "files": [
+      "models.py",
+      "priority_queue.py",
+      "dijkstra.py"
+    ],
+    "tests_count": 1,
+    "test_files": [
+      "test_dijkstra.py"
+    ],
+    "ref_fix_files": [
+      "dijkstra.py"
+    ],
+    "total_loc": 47,
+    "test_loc": 35,
+    "description": "The routing optimizer crashes with type comparison errors on alternative paths of equal distance, or outputs non-deterministic routes depending on internal insertion order."
+  },
+  {
+    "task_id": "h10",
+    "path": "tasks/hard/h10/task.json",
+    "difficulty": "hard",
+    "bug_type": "config_precedence",
+    "files_count": 3,
+    "files": [
+      "source_layer.py",
+      "validator.py",
+      "config_merger.py"
+    ],
+    "tests_count": 1,
+    "test_files": [
+      "test_config.py"
+    ],
+    "ref_fix_files": [
+      "config_merger.py"
+    ],
+    "total_loc": 21,
+    "test_loc": 30,
+    "description": "Application startup settings ignore command-line flags when environment variables are set, and wipe out sibling configuration keys when overriding nested settings."
+  },
+  {
+    "task_id": "t01_off_by_one",
+    "path": "tasks/t01_off_by_one/task.json",
+    "difficulty": "easy",
+    "bug_type": "off_by_one",
+    "files_count": 1,
+    "files": [
+      "mathutils.py"
+    ],
+    "tests_count": 1,
+    "test_files": [
+      "test_mathutils.py"
+    ],
+    "ref_fix_files": [
+      "mathutils.py"
+    ],
+    "total_loc": 5,
+    "test_loc": 14,
+    "description": "sum_range(a, b) should return the sum of all integers from a to b inclusive, but it currently excludes b."
+  },
+  {
+    "task_id": "t02_wrong_operator",
+    "path": "tasks/t02_wrong_operator/task.json",
+    "difficulty": "easy",
+    "bug_type": "wrong_operator",
+    "files_count": 1,
+    "files": [
+      "grader.py"
+    ],
+    "tests_count": 1,
+    "test_files": [
+      "test_grader.py"
+    ],
+    "ref_fix_files": [
+      "grader.py"
+    ],
+    "total_loc": 3,
+    "test_loc": 14,
+    "description": "filter_passing_scores(scores, threshold) should return all scores that are greater than or equal to threshold, but it strictly filters out scores equal to threshold."
+  },
+  {
+    "task_id": "t03_wrong_return",
+    "path": "tasks/t03_wrong_return/task.json",
+    "difficulty": "easy",
+    "bug_type": "wrong_return_value",
+    "files_count": 1,
+    "files": [
+      "factorials.py"
+    ],
+    "tests_count": 1,
+    "test_files": [
+      "test_factorials.py"
+    ],
+    "ref_fix_files": [
+      "factorials.py"
+    ],
+    "total_loc": 10,
+    "test_loc": 17,
+    "description": "factorial(n) returns 0 for n == 0 instead of 1."
+  },
+  {
+    "task_id": "t04_variable_typo",
+    "path": "tasks/t04_variable_typo/task.json",
+    "difficulty": "easy",
+    "bug_type": "variable_typo",
+    "files_count": 1,
+    "files": [
+      "stats.py"
+    ],
+    "tests_count": 1,
+    "test_files": [
+      "test_stats.py"
+    ],
+    "ref_fix_files": [
+      "stats.py"
+    ],
+    "total_loc": 7,
+    "test_loc": 14,
+    "description": "calculate_variance(nums) contains a NameError typo referencing `sum_diffs` as `sum_diff`."
+  },
+  {
+    "task_id": "t05_string_reverse_words",
+    "path": "tasks/t05_string_reverse_words/task.json",
+    "difficulty": "easy",
+    "bug_type": "string_reversal",
+    "files_count": 1,
+    "files": [
+      "textutils.py"
+    ],
+    "tests_count": 1,
+    "test_files": [
+      "test_textutils.py"
+    ],
+    "ref_fix_files": [
+      "textutils.py"
+    ],
+    "total_loc": 5,
+    "test_loc": 15,
+    "description": "reverse_words(sentence) reverses every character in the string instead of reversing the order of words."
+  },
+  {
+    "task_id": "t06_clamp_boundary",
+    "path": "tasks/t06_clamp_boundary/task.json",
+    "difficulty": "easy",
+    "bug_type": "logic_swap",
+    "files_count": 1,
+    "files": [
+      "mathclamp.py"
+    ],
+    "tests_count": 1,
+    "test_files": [
+      "test_mathclamp.py"
+    ],
+    "ref_fix_files": [
+      "mathclamp.py"
+    ],
+    "total_loc": 4,
+    "test_loc": 14,
+    "description": "clamp(val, low, high) swapped the min and max boundary logic."
+  },
+  {
+    "task_id": "t07_discount_calc",
+    "path": "tasks/t07_discount_calc/task.json",
+    "difficulty": "easy",
+    "bug_type": "calculation_bug",
+    "files_count": 1,
+    "files": [
+      "pricing.py"
+    ],
+    "tests_count": 1,
+    "test_files": [
+      "test_pricing.py"
+    ],
+    "ref_fix_files": [
+      "pricing.py"
+    ],
+    "total_loc": 6,
+    "test_loc": 16,
+    "description": "apply_discount(price, discount_pct) treats discount_pct as a whole number deduction rather than a percentage reduction."
+  },
+  {
+    "task_id": "t08_empty_list_edge_case",
+    "path": "tasks/t08_empty_list_edge_case/task.json",
+    "difficulty": "medium",
+    "bug_type": "missing_edge_case",
+    "files_count": 1,
+    "files": [
+      "aggregates.py"
+    ],
+    "tests_count": 1,
+    "test_files": [
+      "test_aggregates.py"
+    ],
+    "ref_fix_files": [
+      "aggregates.py"
+    ],
+    "total_loc": 3,
+    "test_loc": 14,
+    "description": "calculate_mean(values, default=0.0) crashes with ZeroDivisionError when passed an empty list."
+  },
+  {
+    "task_id": "t09_mutable_default_arg",
+    "path": "tasks/t09_mutable_default_arg/task.json",
+    "difficulty": "medium",
+    "bug_type": "mutable_default_argument",
+    "files_count": 1,
+    "files": [
+      "cart.py"
+    ],
+    "tests_count": 1,
+    "test_files": [
+      "test_cart.py"
+    ],
+    "ref_fix_files": [
+      "cart.py"
+    ],
+    "total_loc": 4,
+    "test_loc": 16,
+    "description": "add_item(item, basket=[]) uses a mutable default argument, retaining items across independent calls."
+  },
+  {
+    "task_id": "t10_wrong_slicing",
+    "path": "tasks/t10_wrong_slicing/task.json",
+    "difficulty": "medium",
+    "bug_type": "wrong_string_slicing",
+    "files_count": 1,
+    "files": [
+      "emailutils.py"
+    ],
+    "tests_count": 1,
+    "test_files": [
+      "test_emailutils.py"
+    ],
+    "ref_fix_files": [
+      "emailutils.py"
+    ],
+    "total_loc": 7,
+    "test_loc": 14,
+    "description": "extract_domain(email) extracts the domain between @ and .com/etc, but slicing misses the first character after @."
+  },
+  {
+    "task_id": "t11_int_vs_float_div",
+    "path": "tasks/t11_int_vs_float_div/task.json",
+    "difficulty": "medium",
+    "bug_type": "integer_vs_float_division",
+    "files_count": 1,
+    "files": [
+      "dimensions.py"
+    ],
+    "tests_count": 1,
+    "test_files": [
+      "test_dimensions.py"
+    ],
+    "ref_fix_files": [
+      "dimensions.py"
+    ],
+    "total_loc": 6,
+    "test_loc": 17,
+    "description": "calculate_aspect_ratio(width, height) uses integer division // causing truncation instead of true floating point ratio."
+  },
+  {
+    "task_id": "t12_dict_key_handling",
+    "path": "tasks/t12_dict_key_handling/task.json",
+    "difficulty": "medium",
+    "bug_type": "missing_dict_key",
+    "files_count": 1,
+    "files": [
+      "roles.py"
+    ],
+    "tests_count": 1,
+    "test_files": [
+      "test_roles.py"
+    ],
+    "ref_fix_files": [
+      "roles.py"
+    ],
+    "total_loc": 4,
+    "test_loc": 17,
+    "description": "get_user_role(users_dict, user_id, default='guest') raises KeyError if user_id is missing or profile has no 'role'."
+  },
+  {
+    "task_id": "t13_flatten_nested",
+    "path": "tasks/t13_flatten_nested/task.json",
+    "difficulty": "medium",
+    "bug_type": "recursion_edge_case",
+    "files_count": 1,
+    "files": [
+      "lists.py"
+    ],
+    "tests_count": 1,
+    "test_files": [
+      "test_lists.py"
+    ],
+    "ref_fix_files": [
+      "lists.py"
+    ],
+    "total_loc": 10,
+    "test_loc": 15,
+    "description": "flatten(lst) only unpacks 1 level of nesting and fails on deeply nested lists."
+  },
+  {
+    "task_id": "t14_moving_average",
+    "path": "tasks/t14_moving_average/task.json",
+    "difficulty": "medium",
+    "bug_type": "index_misalignment",
+    "files_count": 1,
+    "files": [
+      "timeseries.py"
+    ],
+    "tests_count": 1,
+    "test_files": [
+      "test_timeseries.py"
+    ],
+    "ref_fix_files": [
+      "timeseries.py"
+    ],
+    "total_loc": 10,
+    "test_loc": 15,
+    "description": "moving_average(series, window) computes averages with index offset i instead of sliding window range."
+  },
+  {
+    "task_id": "t15_matrix_transpose",
+    "path": "tasks/t15_matrix_transpose/task.json",
+    "difficulty": "medium",
+    "bug_type": "index_bounds_error",
+    "files_count": 1,
+    "files": [
+      "matrix.py"
+    ],
+    "tests_count": 1,
+    "test_files": [
+      "test_matrix.py"
+    ],
+    "ref_fix_files": [
+      "matrix.py"
+    ],
+    "total_loc": 7,
+    "test_loc": 17,
+    "description": "transpose(matrix) works for square matrices but crashes or produces wrong dimension for non-square rectangular matrices."
+  },
+  {
+    "task_id": "t16_lru_cache_eviction",
+    "path": "tasks/t16_lru_cache_eviction/task.json",
+    "difficulty": "medium",
+    "bug_type": "cache_eviction_logic",
+    "files_count": 1,
+    "files": [
+      "cache.py"
+    ],
+    "tests_count": 1,
+    "test_files": [
+      "test_cache.py"
+    ],
+    "ref_fix_files": [
+      "cache.py"
+    ],
+    "total_loc": 19,
+    "test_loc": 24,
+    "description": "LRUCache get(key) retrieves value but does not move key to the most-recently-used position."
+  },
+  {
+    "task_id": "t17_two_file_import_bug",
+    "path": "tasks/t17_two_file_import_bug/task.json",
+    "difficulty": "hard",
+    "bug_type": "multi_file_interface_mismatch",
+    "files_count": 2,
+    "files": [
+      "data_loader.py",
+      "pipeline.py"
+    ],
+    "tests_count": 1,
+    "test_files": [
+      "test_pipeline.py"
+    ],
+    "ref_fix_files": [
+      "pipeline.py"
+    ],
+    "total_loc": 18,
+    "test_loc": 19,
+    "description": "Multi-file task: `data_loader.py` parses record rows, but `pipeline.py` calls it with incompatible key names causing a KeyError."
+  },
+  {
+    "task_id": "t18_stateful_quote_lexer",
+    "path": "tasks/t18_stateful_quote_lexer/task.json",
+    "difficulty": "hard",
+    "bug_type": "stateful_loop_lexer",
+    "files_count": 1,
+    "files": [
+      "lexer.py"
+    ],
+    "tests_count": 1,
+    "test_files": [
+      "test_lexer.py"
+    ],
+    "ref_fix_files": [
+      "lexer.py"
+    ],
+    "total_loc": 17,
+    "test_loc": 17,
+    "description": "tokenize_quoted_string(text) splits words by space except inside double quotes, but fails to handle escaped double quotes `\\\"`."
+  },
+  {
+    "task_id": "t19_custom_sort_priority",
+    "path": "tasks/t19_custom_sort_priority/task.json",
+    "difficulty": "hard",
+    "bug_type": "custom_sort_key",
+    "files_count": 1,
+    "files": [
+      "taskmgr.py"
+    ],
+    "tests_count": 1,
+    "test_files": [
+      "test_taskmgr.py"
+    ],
+    "ref_fix_files": [
+      "taskmgr.py"
+    ],
+    "total_loc": 5,
+    "test_loc": 33,
+    "description": "sort_tasks(tasks) should sort items by priority (high > medium > low) then deadline ascending, but inverted priority values cause low priority to be sorted first."
+  },
+  {
+    "task_id": "t20_retry_decorator",
+    "path": "tasks/t20_retry_decorator/task.json",
+    "difficulty": "hard",
+    "bug_type": "decorator_state_counter",
+    "files_count": 1,
+    "files": [
+      "retrier.py"
+    ],
+    "tests_count": 1,
+    "test_files": [
+      "test_retrier.py"
+    ],
+    "ref_fix_files": [
+      "retrier.py"
+    ],
+    "total_loc": 14,
+    "test_loc": 32,
+    "description": "retry(max_attempts=3) decorator catches exceptions and retries, but does not decrement or track remaining attempts, retrying infinitely or failing immediately."
+  }
+]

@@ -1,0 +1,33 @@
+{
+  "task_id": "v59_jit_bytecode_optimizer_dead_code_elimination",
+  "suite": "v2",
+  "version": 2,
+  "difficulty": "hard",
+  "bug_type": "compiler_dce_side_effect_call_pruning",
+  "categories": [
+    "B",
+    "K"
+  ],
+  "description": "JIT dead code elimination pass drops function calls with unused return values, deleting required external side-effects.",
+  "spec_notes": "DeadCodeEliminationPass must preserve instructions with has_side_effect=True or op=='CALL'.",
+  "repo_files": {
+    "opcodes.py": "\"\"\"Bytecode opcode and instruction definitions.\"\"\"\n\nfrom dataclasses import dataclass\nfrom typing import Any, Optional\n\n\n@dataclass\nclass Instruction:\n    op: str  # \"CONST\", \"LOAD\", \"STORE\", \"ADD\", \"CALL\", \"RETURN\"\n    arg: Optional[Any] = None\n    target_var: Optional[str] = None\n    has_side_effect: bool = False\n",
+    "basic_block.py": "\"\"\"CFG basic block node.\"\"\"\n\nfrom typing import List\nfrom opcodes import Instruction\n\n\nclass BasicBlock:\n    def __init__(self, block_id: str):\n        self.block_id = block_id\n        self.instructions: List[Instruction] = []\n        self.predecessors: List[\"BasicBlock\"] = []\n        self.successors: List[\"BasicBlock\"] = []\n",
+    "dce_pass.py": "\"\"\"Dead code elimination optimization pass.\"\"\"\n\nfrom typing import List, Set\nfrom basic_block import BasicBlock\nfrom opcodes import Instruction\n\n\nclass DeadCodeEliminationPass:\n    @staticmethod\n    def optimize_block(block: BasicBlock) -> List[Instruction]:\n        # Collect variables read by instructions\n        used_vars: Set[str] = set()\n        for instr in reversed(block.instructions):\n            if instr.op == \"RETURN\" and instr.arg:\n                used_vars.add(str(instr.arg))\n            elif instr.op == \"ADD\" and isinstance(instr.arg, tuple):\n                used_vars.add(str(instr.arg[0]))\n                used_vars.add(str(instr.arg[1]))\n\n        # Backward dead store elimination\n        surviving: List[Instruction] = []\n        for instr in reversed(block.instructions):\n            # BUG: Strips CALL / side-effect instructions if target_var is not in used_vars!\n            # Fails to treat instr.has_side_effect or op in (\"CALL\", \"RETURN\") as unconditional roots!\n            if instr.target_var and instr.target_var not in used_vars and not instr.has_side_effect:\n                continue  # Dead store removed\n            elif instr.op == \"CALL\" and instr.target_var and instr.target_var not in used_vars:\n                continue  # BUG: Erroneously prunes external function calls!\n\n            surviving.append(instr)\n            if instr.target_var and instr.target_var in used_vars:\n                used_vars.discard(instr.target_var)\n            if instr.op in (\"LOAD\", \"CONST\") and instr.arg:\n                used_vars.add(str(instr.arg))\n        return list(reversed(surviving))\n",
+    "optimizer.py": "\"\"\"JIT compiler optimization pipeline.\"\"\"\n\nfrom basic_block import BasicBlock\nfrom dce_pass import DeadCodeEliminationPass\nfrom opcodes import Instruction\n\n\nclass JITOptimizer:\n    def __init__(self):\n        self.dce = DeadCodeEliminationPass()\n\n    def run(self, block: BasicBlock) -> None:\n        block.instructions = self.dce.optimize_block(block)\n"
+  },
+  "tests": {
+    "test_jit_dce.py": "from basic_block import BasicBlock\nfrom opcodes import Instruction\nfrom optimizer import JITOptimizer\n\n\ndef test_pure_dead_stores_eliminated():\n    bb = BasicBlock(\"b1\")\n    bb.instructions = [\n        Instruction(\"CONST\", 10, target_var=\"unused_x\"),\n        Instruction(\"CONST\", 20, target_var=\"y\"),\n        Instruction(\"RETURN\", arg=\"y\"),\n    ]\n    opt = JITOptimizer()\n    opt.run(bb)\n    ops = [(i.op, i.target_var) for i in bb.instructions]\n    assert ops == [(\"CONST\", \"y\"), (\"RETURN\", None)]\n\n\ndef test_function_calls_with_side_effects_preserved():\n    bb = BasicBlock(\"b2\")\n    bb.instructions = [\n        Instruction(\"CALL\", \"send_email_webhook\", target_var=\"unused_resp\", has_side_effect=True),\n        Instruction(\"CONST\", 100, target_var=\"ret_val\"),\n        Instruction(\"RETURN\", arg=\"ret_val\"),\n    ]\n    opt = JITOptimizer()\n    opt.run(bb)\n    # Function call MUST be preserved despite unused return target_var\n    assert any(i.op == \"CALL\" for i in bb.instructions)\n    assert len(bb.instructions) == 3\n\n\ndef test_dependency_chain_kept():\n    bb = BasicBlock(\"b3\")\n    bb.instructions = [\n        Instruction(\"CONST\", 5, target_var=\"a\"),\n        Instruction(\"CONST\", 10, target_var=\"b\"),\n        Instruction(\"ADD\", (\"a\", \"b\"), target_var=\"c\"),\n        Instruction(\"RETURN\", arg=\"c\"),\n    ]\n    opt = JITOptimizer()\n    opt.run(bb)\n    assert len(bb.instructions) == 4\n"
+  },
+  "reference_fix": {
+    "dce_pass.py": "\"\"\"Dead code elimination optimization pass.\"\"\"\n\nfrom typing import List, Set\nfrom basic_block import BasicBlock\nfrom opcodes import Instruction\n\n\nclass DeadCodeEliminationPass:\n    @staticmethod\n    def optimize_block(block: BasicBlock) -> List[Instruction]:\n        used_vars: Set[str] = set()\n        for instr in reversed(block.instructions):\n            if instr.op == \"RETURN\" and instr.arg:\n                used_vars.add(str(instr.arg))\n            elif instr.op == \"ADD\" and isinstance(instr.arg, tuple):\n                used_vars.add(str(instr.arg[0]))\n                used_vars.add(str(instr.arg[1]))\n\n        surviving: List[Instruction] = []\n        for instr in reversed(block.instructions):\n            is_side_effect = instr.has_side_effect or instr.op in (\"CALL\", \"RETURN\")\n            if instr.target_var and instr.target_var not in used_vars and not is_side_effect:\n                continue\n\n            surviving.append(instr)\n            if instr.target_var and instr.target_var in used_vars:\n                used_vars.discard(instr.target_var)\n            if instr.op in (\"LOAD\", \"CONST\") and instr.arg:\n                used_vars.add(str(instr.arg))\n        return list(reversed(surviving))\n"
+  },
+  "metadata": {
+    "estimated_reasoning_steps": 4,
+    "file_count": 4,
+    "adversarial": false,
+    "stateful": false,
+    "multi_file": true,
+    "domain": "compilers"
+  }
+}

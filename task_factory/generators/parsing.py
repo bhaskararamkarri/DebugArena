@@ -1,0 +1,190 @@
+"""Category F: Parsing & Language Processing Task Generator."""
+
+from __future__ import annotations
+
+from typing import Any, Dict
+from task_factory.generators.base import BaseGenerator
+
+
+class ParsingTaskGenerator(BaseGenerator):
+    """Generates streaming parser and tokenizer state machine debugging tasks."""
+
+    def generate(self, spec: Dict[str, Any], seed: int = 42) -> Dict[str, Any]:
+        task_id = spec.get("task_id", "v28_streaming_csv_escaped_state")
+        return self._generate_escaped_csv_parser(task_id, spec, seed)
+
+    def _generate_escaped_csv_parser(self, task_id: str, spec: Dict[str, Any], seed: int) -> Dict[str, Any]:
+        repo_files = {
+            "tokenizer.py": (
+                '"""Streaming character tokenizer."""\n\n'
+                'class StreamTokenizer:\n'
+                '    def __init__(self, text: str):\n'
+                '        self.text = text\n'
+                '        self.pos = 0\n'
+                '        self.length = len(text)\n\n'
+                '    def has_next(self) -> bool:\n'
+                '        return self.pos < self.length\n\n'
+                '    def peek(self) -> str:\n'
+                '        if self.pos < self.length:\n'
+                '            return self.text[self.pos]\n'
+                '        return ""\n\n'
+                '    def peek_ahead(self, n: int = 1) -> str:\n'
+                '        target = self.pos + n\n'
+                '        if target < self.length:\n'
+                '            return self.text[target]\n'
+                '        return ""\n\n'
+                '    def advance(self) -> str:\n'
+                '        ch = self.peek()\n'
+                '        self.pos += 1\n'
+                '        return ch\n'
+            ),
+            "csv_parser.py": (
+                '"""RFC-4180 streaming CSV table parser."""\n\n'
+                'from typing import List\n'
+                'from tokenizer import StreamTokenizer\n\n\n'
+                'class StreamingCSVParser:\n'
+                '    def parse_rows(self, raw_csv: str) -> List[List[str]]:\n'
+                '        tok = StreamTokenizer(raw_csv)\n'
+                '        rows: List[List[str]] = []\n'
+                '        current_row: List[str] = []\n'
+                '        current_field: list[str] = []\n'
+                '        in_quotes = False\n\n'
+                '        while tok.has_next():\n'
+                '            ch = tok.advance()\n\n'
+                '            if ch == \'"\':\n'
+                '                # BUG: When inside quotes and encountering `""`, it immediately flips in_quotes to False\n'
+                '                # instead of consuming both quotes as a single escaped quote!\n'
+                '                if in_quotes:\n'
+                '                    in_quotes = False\n'
+                '                else:\n'
+                '                    in_quotes = True\n'
+                '            elif ch == "," and not in_quotes:\n'
+                '                current_row.append("".join(current_field))\n'
+                '                current_field = []\n'
+                '            elif ch == "\\n" and not in_quotes:\n'
+                '                current_row.append("".join(current_field))\n'
+                '                current_field = []\n'
+                '                rows.append(current_row)\n'
+                '                current_row = []\n'
+                '            elif ch == "\\r" and not in_quotes:\n'
+                '                if tok.peek() == "\\n":\n'
+                '                    tok.advance()\n'
+                '                current_row.append("".join(current_field))\n'
+                '                current_field = []\n'
+                '                rows.append(current_row)\n'
+                '                current_row = []\n'
+                '            else:\n'
+                '                current_field.append(ch)\n\n'
+                '        if current_field or current_row:\n'
+                '            current_row.append("".join(current_field))\n'
+                '            rows.append(current_row)\n\n'
+                '        return rows\n'
+            ),
+        }
+
+        reference_fix = {
+            "csv_parser.py": (
+                '"""RFC-4180 streaming CSV table parser."""\n\n'
+                'from typing import List\n'
+                'from tokenizer import StreamTokenizer\n\n\n'
+                'class StreamingCSVParser:\n'
+                '    def parse_rows(self, raw_csv: str) -> List[List[str]]:\n'
+                '        tok = StreamTokenizer(raw_csv)\n'
+                '        rows: List[List[str]] = []\n'
+                '        current_row: List[str] = []\n'
+                '        current_field: list[str] = []\n'
+                '        in_quotes = False\n\n'
+                '        while tok.has_next():\n'
+                '            ch = tok.advance()\n\n'
+                '            if ch == \'"\':\n'
+                '                if in_quotes:\n'
+                '                    # Lookahead: if followed immediately by another quote, it represents an escaped quote\n'
+                '                    if tok.peek() == \'"\':\n'
+                '                        tok.advance()  # consume escaped pair\n'
+                '                        current_field.append(\'"\')\n'
+                '                    else:\n'
+                '                        in_quotes = False\n'
+                '                else:\n'
+                '                    in_quotes = True\n'
+                '            elif ch == "," and not in_quotes:\n'
+                '                current_row.append("".join(current_field))\n'
+                '                current_field = []\n'
+                '            elif ch == "\\n" and not in_quotes:\n'
+                '                current_row.append("".join(current_field))\n'
+                '                current_field = []\n'
+                '                rows.append(current_row)\n'
+                '                current_row = []\n'
+                '            elif ch == "\\r" and not in_quotes:\n'
+                '                if tok.peek() == "\\n":\n'
+                '                    tok.advance()\n'
+                '                current_row.append("".join(current_field))\n'
+                '                current_field = []\n'
+                '                rows.append(current_row)\n'
+                '                current_row = []\n'
+                '            else:\n'
+                '                current_field.append(ch)\n\n'
+                '        if current_field or current_row:\n'
+                '            current_row.append("".join(current_field))\n'
+                '            rows.append(current_row)\n\n'
+                '        return rows\n'
+            )
+        }
+
+        tests = {
+            "test_csv_parser.py": (
+                'from csv_parser import StreamingCSVParser\n\n\n'
+                'def test_simple_unquoted_csv():\n'
+                '    parser = StreamingCSVParser()\n'
+                '    res = parser.parse_rows("a,b,c\\n1,2,3")\n'
+                '    assert res == [["a", "b", "c"], ["1", "2", "3"]]\n\n\n'
+                'def test_escaped_quote_inside_quoted_field():\n'
+                '    parser = StreamingCSVParser()\n'
+                '    # CSV field with internal escaped quote: "Hello ""World""" -> Hello "World"\n'
+                '    raw = \'title,desc\\nbook,"Hello ""World"""\'\n'
+                '    res = parser.parse_rows(raw)\n'
+                '    assert res[0] == ["title", "desc"]\n'
+                '    assert res[1] == ["book", \'Hello "World"\']\n\n\n'
+                'def test_multiline_field_with_escaped_quotes():\n'
+                '    parser = StreamingCSVParser()\n'
+                '    raw = \'id,body\\n1,"Line 1 with ""quotes""\\nLine 2 continued"\\n2,Simple\'\n'
+                '    res = parser.parse_rows(raw)\n'
+                '    assert len(res) == 3\n'
+                '    assert res[1] == ["1", \'Line 1 with "quotes"\\nLine 2 continued\']\n'
+                '    assert res[2] == ["2", "Simple"]\n\n\n'
+                'def test_crlf_windows_newlines():\n'
+                '    parser = StreamingCSVParser()\n'
+                '    res = parser.parse_rows("col1,col2\\r\\nval1,val2\\r\\nval3,val4")\n'
+                '    assert len(res) == 3\n'
+                '    assert res[1] == ["val1", "val2"]\n'
+                '    assert res[2] == ["val3", "val4"]\n\n\n'
+                'def test_empty_string():\n'
+                '    parser = StreamingCSVParser()\n'
+                '    assert parser.parse_rows("") == []\n\n\n'
+                'def test_commas_inside_quotes_preserved():\n'
+                '    parser = StreamingCSVParser()\n'
+                '    res = parser.parse_rows(\'name,location\\n"Doe, Jane","New York, NY"\')\n'
+                '    assert res[1] == ["Doe, Jane", "New York, NY"]\n'
+            )
+        }
+
+        return {
+            "task_id": task_id,
+            "suite": "v2",
+            "version": 2,
+            "difficulty": "medium",
+            "bug_type": "csv_parser_escaped_quote_state_machine_desync",
+            "categories": ["F", "D"],
+            "description": "Streaming CSV parser misinterprets double-quote escape sequences as closing quotes, corrupting multiline fields.",
+            "spec_notes": "StreamingCSVParser must look ahead and treat double quote pairs as single escaped quote characters.",
+            "repo_files": repo_files,
+            "tests": tests,
+            "reference_fix": reference_fix,
+            "metadata": {
+                "estimated_reasoning_steps": 3,
+                "file_count": len(repo_files),
+                "adversarial": False,
+                "stateful": True,
+                "multi_file": True,
+                "domain": "parsing",
+            },
+        }

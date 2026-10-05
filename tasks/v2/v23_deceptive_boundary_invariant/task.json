@@ -1,0 +1,33 @@
+{
+  "task_id": "v23_deceptive_boundary_invariant",
+  "suite": "v2",
+  "version": 2,
+  "difficulty": "adversarial",
+  "bug_type": "adversarial_boundary_off_by_one_eviction",
+  "categories": [
+    "M",
+    "B",
+    "D"
+  ],
+  "description": "Sliding window aggregator prematurely evicts samples at the exact duration cutoff due to <= operator instead of <.",
+  "spec_notes": "Window boundaries must retain samples matching exactly timestamp == (now - duration).",
+  "repo_files": {
+    "metric_types.py": "\"\"\"Telemetry sample data definitions.\"\"\"\n\nfrom dataclasses import dataclass\n\n\n@dataclass\nclass MetricPoint:\n    timestamp: float\n    value: float\n",
+    "window.py": "\"\"\"Sliding time-window aggregator.\nWindow Invariant:\nMaintains events within (current_time - duration, current_time].\n\"\"\"\n\nfrom collections import deque\nfrom typing import List\nfrom metric_types import MetricPoint\n\n\nclass SlidingWindowAggregator:\n    def __init__(self, duration_sec: float = 60.0):\n        self.duration = duration_sec\n        self.samples: deque[MetricPoint] = deque()\n\n    def add_point(self, point: MetricPoint) -> None:\n        self.samples.append(point)\n        self._evict_stale(point.timestamp)\n\n    def _evict_stale(self, now: float) -> None:\n        # MISLEADING INVARIANT TRAP:\n        # Comment asserts stale when timestamp < (now - duration),\n        # but code uses <= which prematurely evicts samples exactly at boundary!\n        cutoff = now - self.duration\n        while self.samples and self.samples[0].timestamp <= cutoff:\n            self.samples.popleft()\n\n    def get_average(self) -> float:\n        if not self.samples:\n            return 0.0\n        return sum(s.value for s in self.samples) / len(self.samples)\n",
+    "monitor.py": "\"\"\"Service health monitor consuming metric points.\"\"\"\n\nfrom window import SlidingWindowAggregator\nfrom metric_types import MetricPoint\n\n\nclass ServiceMonitor:\n    def __init__(self, window_sec: float = 10.0):\n        self.aggregator = SlidingWindowAggregator(duration_sec=window_sec)\n\n    def record(self, timestamp: float, latency_ms: float) -> float:\n        self.aggregator.add_point(MetricPoint(timestamp, latency_ms))\n        return self.aggregator.get_average()\n"
+  },
+  "tests": {
+    "test_window_invariant.py": "import pytest\nfrom metric_types import MetricPoint\nfrom monitor import ServiceMonitor\n\n\ndef test_basic_window_aggregation():\n    mon = ServiceMonitor(window_sec=10.0)\n    avg1 = mon.record(100.0, 50.0)\n    assert avg1 == 50.0\n    avg2 = mon.record(105.0, 70.0)\n    assert avg2 == 60.0\n\n\ndef test_boundary_exact_timestamp_retention():\n    mon = ServiceMonitor(window_sec=10.0)\n    # Point at t=10.0\n    mon.record(10.0, 100.0)\n    # Point at t=20.0: cutoff is 20.0 - 10.0 = 10.0.\n    # A sample at t=10.0 is inside the 10.0s window [10.0, 20.0] and MUST NOT be evicted!\n    avg = mon.record(20.0, 200.0)\n    assert len(mon.aggregator.samples) == 2\n    assert avg == pytest.approx(150.0)\n\n\ndef test_stale_sample_evicted_past_boundary():\n    mon = ServiceMonitor(window_sec=10.0)\n    mon.record(10.0, 100.0)\n    mon.record(20.1, 200.0)  # t=10.0 is strictly < 20.1 - 10.0 (10.1) -> evicted\n    assert len(mon.aggregator.samples) == 1\n    assert mon.aggregator.get_average() == 200.0\n\n\ndef test_empty_window_average():\n    mon = ServiceMonitor(window_sec=5.0)\n    assert mon.aggregator.get_average() == 0.0\n\n\ndef test_multiple_points_same_timestamp():\n    mon = ServiceMonitor(window_sec=5.0)\n    mon.record(10.0, 20.0)\n    mon.record(10.0, 40.0)\n    assert mon.aggregator.get_average() == 30.0\n"
+  },
+  "reference_fix": {
+    "window.py": "\"\"\"Sliding time-window aggregator.\"\"\"\n\nfrom collections import deque\nfrom typing import List\nfrom metric_types import MetricPoint\n\n\nclass SlidingWindowAggregator:\n    def __init__(self, duration_sec: float = 60.0):\n        self.duration = duration_sec\n        self.samples: deque[MetricPoint] = deque()\n\n    def add_point(self, point: MetricPoint) -> None:\n        self.samples.append(point)\n        self._evict_stale(point.timestamp)\n\n    def _evict_stale(self, now: float) -> None:\n        cutoff = now - self.duration\n        while self.samples and self.samples[0].timestamp < cutoff:\n            self.samples.popleft()\n\n    def get_average(self) -> float:\n        if not self.samples:\n            return 0.0\n        return sum(s.value for s in self.samples) / len(self.samples)\n"
+  },
+  "metadata": {
+    "estimated_reasoning_steps": 4,
+    "file_count": 3,
+    "adversarial": true,
+    "stateful": true,
+    "multi_file": true,
+    "domain": "metrics"
+  }
+}

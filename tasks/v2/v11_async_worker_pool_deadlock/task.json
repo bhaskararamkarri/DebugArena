@@ -1,0 +1,30 @@
+{
+  "task_id": "v11_async_worker_pool_deadlock",
+  "suite": "v2",
+  "version": 2,
+  "difficulty": "hard",
+  "bug_type": "semaphore_leak_on_error",
+  "categories": ["G", "D"],
+  "description": "Thread worker pool fails to release capacity tokens when a job raises an unhandled exception, causing the pool to permanently deadlock on subsequent job submissions.",
+  "spec_notes": "Invariant: Worker slot allocation must be wrapped in try/finally to guarantee release regardless of worker success or exception.",
+  "repo_files": {
+    "task.py": "from dataclasses import dataclass\nfrom typing import Callable, Any\n\n@dataclass\nclass WorkTask:\n    task_id: str\n    fn: Callable[[], Any]\n",
+    "worker.py": "from task import WorkTask\nfrom typing import Any\n\ndef execute_task(task: WorkTask) -> Any:\n    return task.fn()\n",
+    "pool.py": "import threading\nfrom typing import Dict, Any\nfrom task import WorkTask\nfrom worker import execute_task\n\nclass BoundedWorkerPool:\n    def __init__(self, max_concurrency: int = 1):\n        self.semaphore = threading.Semaphore(max_concurrency)\n        self.results: Dict[str, Any] = {}\n        self.active_workers = 0\n        self._lock = threading.Lock()\n\n    def submit(self, task: WorkTask, timeout: float = 1.0) -> bool:\n        acquired = self.semaphore.acquire(timeout=timeout)\n        if not acquired:\n            raise TimeoutError(\"Worker pool exhausted / deadlocked\")\n        with self._lock:\n            self.active_workers += 1\n        \n        # Bug: missing finally block: if execute_task raises, semaphore is leaked\n        try:\n            val = execute_task(task)\n            self.results[task.task_id] = val\n            self.semaphore.release()\n            with self._lock:\n                self.active_workers -= 1\n            return True\n        except Exception as e:\n            self.results[task.task_id] = f\"Error: {e}\"\n            return False\n"
+  },
+  "tests": {
+    "test_pool.py": "from task import WorkTask\nfrom pool import BoundedWorkerPool\n\ndef test_normal_task_execution():\n    pool = BoundedWorkerPool(max_concurrency=2)\n    pool.submit(WorkTask(\"t1\", lambda: 42))\n    pool.submit(WorkTask(\"t2\", lambda: 100))\n    assert pool.results[\"t1\"] == 42\n    assert pool.results[\"t2\"] == 100\n    assert pool.active_workers == 0\n\ndef test_exception_task_slot_reclaimed():\n    pool = BoundedWorkerPool(max_concurrency=1)\n    \n    def failing_fn():\n        raise ValueError(\"Bad input\")\n        \n    pool.submit(WorkTask(\"t_err\", failing_fn))\n    assert \"Bad input\" in pool.results[\"t_err\"]\n    \n    # In buggy code: semaphore was not released, so submitting next task raises TimeoutError\n    pool.submit(WorkTask(\"t_next\", lambda: \"recovered\"), timeout=0.2)\n    assert pool.results[\"t_next\"] == \"recovered\"\n    assert pool.active_workers == 0\n"
+  },
+  "reference_fix": {
+    "pool.py": "import threading\nfrom typing import Dict, Any\nfrom task import WorkTask\nfrom worker import execute_task\n\nclass BoundedWorkerPool:\n    def __init__(self, max_concurrency: int = 1):\n        self.semaphore = threading.Semaphore(max_concurrency)\n        self.results: Dict[str, Any] = {}\n        self.active_workers = 0\n        self._lock = threading.Lock()\n\n    def submit(self, task: WorkTask, timeout: float = 1.0) -> bool:\n        acquired = self.semaphore.acquire(timeout=timeout)\n        if not acquired:\n            raise TimeoutError(\"Worker pool exhausted / deadlocked\")\n        with self._lock:\n            self.active_workers += 1\n        \n        try:\n            val = execute_task(task)\n            self.results[task.task_id] = val\n            return True\n        except Exception as e:\n            self.results[task.task_id] = f\"Error: {e}\"\n            return False\n        finally:\n            self.semaphore.release()\n            with self._lock:\n                self.active_workers -= 1\n"
+  },
+  "metadata": {
+    "estimated_reasoning_steps": 4,
+    "file_count": 3,
+    "adversarial": false,
+    "stateful": true,
+    "multi_file": true,
+    "domain": "concurrency_threading",
+    "quality_score": 4.8
+  }
+}

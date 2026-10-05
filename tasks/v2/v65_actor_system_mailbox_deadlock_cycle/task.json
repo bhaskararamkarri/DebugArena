@@ -1,0 +1,32 @@
+{
+  "task_id": "v65_actor_system_mailbox_deadlock_cycle",
+  "suite": "v2",
+  "version": 2,
+  "difficulty": "hard",
+  "bug_type": "actor_ask_reply_mailbox_dispatch_omission",
+  "categories": [
+    "G",
+    "E"
+  ],
+  "description": "Actor reference fails to dispatch response messages back to caller mailbox on ask requests, deadlocking callers.",
+  "spec_notes": "ActorRef.process_one must enqueue replies to the sender mailbox via registry lookup.",
+  "repo_files": {
+    "message.py": "\"\"\"Actor message envelope.\"\"\"\n\nfrom dataclasses import dataclass\nfrom typing import Any, Optional\n\n\n@dataclass\nclass ActorMessage:\n    sender: Optional[str]\n    target: str\n    payload: Any\n    is_ask: bool = False\n    correlation_id: Optional[str] = None\n",
+    "mailbox.py": "\"\"\"Actor message mailbox with priority queue.\"\"\"\n\nfrom typing import List, Optional\nfrom message import ActorMessage\n\n\nclass Mailbox:\n    def __init__(self):\n        self.messages: List[ActorMessage] = []\n\n    def enqueue(self, msg: ActorMessage) -> None:\n        # Responses to ask requests get priority\n        if msg.correlation_id:\n            self.messages.insert(0, msg)\n        else:\n            self.messages.append(msg)\n\n    def dequeue(self) -> Optional[ActorMessage]:\n        return self.messages.pop(0) if self.messages else None\n",
+    "actor_ref.py": "\"\"\"Actor reference and message dispatch.\"\"\"\n\nfrom typing import Any, Callable, Dict, Optional\nfrom mailbox import Mailbox\nfrom message import ActorMessage\n\n\nclass ActorRef:\n    def __init__(self, name: str, handler: Callable[[ActorMessage], Any]):\n        self.name = name\n        self.handler = handler\n        self.mailbox = Mailbox()\n        self.outbox_replies: Dict[str, Any] = {}\n\n    def tell(self, target: \"ActorRef\", payload: Any) -> None:\n        msg = ActorMessage(sender=self.name, target=target.name, payload=payload)\n        target.mailbox.enqueue(msg)\n\n    def process_one(self) -> bool:\n        msg = self.mailbox.dequeue()\n        if not msg:\n            return False\n        res = self.handler(msg)\n        if msg.is_ask and msg.correlation_id and msg.sender:\n            # BUG: Stores response locally in self.outbox_replies instead of sending response message to sender.mailbox!\n            self.outbox_replies[msg.correlation_id] = res\n        return True\n"
+  },
+  "tests": {
+    "test_actor_mailbox.py": "from actor_ref import ActorRef\nfrom message import ActorMessage\n\n\ndef test_basic_tell_delivery():\n    a1 = ActorRef(\"sender\", lambda m: None)\n    a2 = ActorRef(\"receiver\", lambda m: None)\n    a1.tell(a2, \"hello\")\n    msg = a2.mailbox.dequeue()\n    assert msg is not None\n    assert msg.payload == \"hello\"\n\n\ndef test_empty_mailbox_returns_false():\n    a = ActorRef(\"idle\", lambda m: None)\n    assert a.process_one() is False\n\n\ndef test_actor_ask_response_routing():\n    a1 = ActorRef(\"worker\", lambda m: f\"processed_{m.payload}\")\n    a2 = ActorRef(\"caller\", lambda m: None)\n    a1.system_registry = {\"caller\": a2, \"worker\": a1}\n    a2.system_registry = {\"caller\": a2, \"worker\": a1}\n\n    # Caller sends ask message to worker\n    ask_msg = ActorMessage(sender=\"caller\", target=\"worker\", payload=\"task_1\", is_ask=True, correlation_id=\"req_100\")\n    a1.mailbox.enqueue(ask_msg)\n    # Worker processes message\n    a1.process_one()\n    # Reply must be queued into caller mailbox with priority correlation_id!\n    reply = a2.mailbox.dequeue()\n    assert reply is not None\n    assert reply.correlation_id == \"req_100\"\n    assert reply.payload == \"processed_task_1\"\n"
+  },
+  "reference_fix": {
+    "actor_ref.py": "\"\"\"Actor reference and message dispatch.\"\"\"\n\nfrom typing import Any, Callable, Dict, Optional\nfrom mailbox import Mailbox\nfrom message import ActorMessage\n\n\nclass ActorRef:\n    def __init__(self, name: str, handler: Callable[[ActorMessage], Any]):\n        self.name = name\n        self.handler = handler\n        self.mailbox = Mailbox()\n        self.system_registry: Dict[str, \"ActorRef\"] = {}\n\n    def tell(self, target: \"ActorRef\", payload: Any) -> None:\n        msg = ActorMessage(sender=self.name, target=target.name, payload=payload)\n        target.mailbox.enqueue(msg)\n\n    def process_one(self) -> bool:\n        msg = self.mailbox.dequeue()\n        if not msg:\n            return False\n        res = self.handler(msg)\n        if msg.is_ask and msg.correlation_id and msg.sender:\n            sender_ref = self.system_registry.get(msg.sender)\n            if sender_ref:\n                reply = ActorMessage(sender=self.name, target=msg.sender, payload=res, correlation_id=msg.correlation_id)\n                sender_ref.mailbox.enqueue(reply)\n        return True\n"
+  },
+  "metadata": {
+    "estimated_reasoning_steps": 4,
+    "file_count": 3,
+    "adversarial": false,
+    "stateful": true,
+    "multi_file": true,
+    "domain": "concurrency"
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "task_id": "v30_semver_comparator_precedence",
+  "suite": "v2",
+  "version": 2,
+  "difficulty": "easy",
+  "bug_type": "semver_prerelease_precedence_inversion",
+  "categories": [
+    "A",
+    "B"
+  ],
+  "description": "SemVer comparator inverts pre-release precedence rule, rating pre-releases higher than normal releases.",
+  "spec_notes": "SemVer standard stipulates 1.0.0 > 1.0.0-alpha.",
+  "repo_files": {
+    "semver.py": "\"\"\"Semantic version representation.\"\"\"\n\nfrom dataclasses import dataclass\nfrom typing import Optional, Tuple\n\n\n@dataclass\nclass SemVer:\n    major: int\n    minor: int\n    patch: int\n    prerelease: Optional[str] = None\n\n    @classmethod\n    def parse(cls, version_str: str) -> \"SemVer\":\n        clean = version_str.strip().lstrip(\"v\")\n        pre = None\n        if \"-\" in clean:\n            clean, pre = clean.split(\"-\", 1)\n        parts = list(map(int, clean.split(\".\")))\n        while len(parts) < 3:\n            parts.append(0)\n        return cls(parts[0], parts[1], parts[2], pre)\n",
+    "matcher.py": "\"\"\"SemVer comparison and ordering engine.\"\"\"\n\nfrom semver import SemVer\n\n\nclass SemVerComparator:\n    @staticmethod\n    def compare(v1: SemVer, v2: SemVer) -> int:\n        \"\"\"Returns -1 if v1 < v2, 0 if v1 == v2, 1 if v1 > v2.\"\"\"\n        if (v1.major, v1.minor, v1.patch) != (v2.major, v2.minor, v2.patch):\n            t1 = (v1.major, v1.minor, v1.patch)\n            t2 = (v2.major, v2.minor, v2.patch)\n            return 1 if t1 > t2 else -1\n\n        # Handle Prerelease precedence: standard release has HIGHER precedence than pre-release\n        # e.g., 1.0.0 > 1.0.0-alpha\n        # BUG: Inverted logic treats prerelease as greater than release\n        if v1.prerelease is None and v2.prerelease is not None:\n            return -1  # BUG: Should be +1\n        if v1.prerelease is not None and v2.prerelease is None:\n            return 1   # BUG: Should be -1\n\n        if v1.prerelease == v2.prerelease:\n            return 0\n        return 1 if str(v1.prerelease) > str(v2.prerelease) else -1\n"
+  },
+  "tests": {
+    "test_semver_comparator.py": "from semver import SemVer\nfrom matcher import SemVerComparator\n\n\ndef test_major_minor_patch_comparison():\n    v1 = SemVer.parse(\"1.2.3\")\n    v2 = SemVer.parse(\"1.2.4\")\n    v3 = SemVer.parse(\"2.0.0\")\n    assert SemVerComparator.compare(v1, v2) == -1\n    assert SemVerComparator.compare(v2, v1) == 1\n    assert SemVerComparator.compare(v3, v2) == 1\n    assert SemVerComparator.compare(v1, v1) == 0\n\n\ndef test_prerelease_lower_than_normal_release():\n    # 1.0.0 is strictly GREATER than 1.0.0-alpha\n    release = SemVer.parse(\"1.0.0\")\n    prerelease = SemVer.parse(\"1.0.0-alpha\")\n    assert SemVerComparator.compare(release, prerelease) == 1\n    assert SemVerComparator.compare(prerelease, release) == -1\n\n\ndef test_prerelease_lexicographical_comparison():\n    v_alpha = SemVer.parse(\"1.0.0-alpha\")\n    v_beta = SemVer.parse(\"1.0.0-beta\")\n    assert SemVerComparator.compare(v_alpha, v_beta) == -1\n    assert SemVerComparator.compare(v_beta, v_alpha) == 1\n\n\ndef test_v_prefix_parsing():\n    v = SemVer.parse(\"v2.1.0\")\n    assert v.major == 2 and v.minor == 1 and v.patch == 0\n\n\ndef test_equal_prereleases():\n    v1 = SemVer.parse(\"1.0.0-rc.1\")\n    v2 = SemVer.parse(\"1.0.0-rc.1\")\n    assert SemVerComparator.compare(v1, v2) == 0\n\n\ndef test_sorting_version_list():\n    raw = [\"1.0.0\", \"1.0.0-beta\", \"1.0.0-alpha\", \"0.9.0\", \"2.0.0\"]\n    versions = [SemVer.parse(r) for r in raw]\n    # Bubble sort using comparator\n    for i in range(len(versions)):\n        for j in range(len(versions) - 1):\n            if SemVerComparator.compare(versions[j], versions[j + 1]) == 1:\n                versions[j], versions[j + 1] = versions[j + 1], versions[j]\n    assert [f\"{v.major}.{v.minor}.{v.patch}\" + (f\"-{v.prerelease}\" if v.prerelease else \"\") for v in versions] == [\n        \"0.9.0\", \"1.0.0-alpha\", \"1.0.0-beta\", \"1.0.0\", \"2.0.0\"\n    ]\n"
+  },
+  "reference_fix": {
+    "matcher.py": "\"\"\"SemVer comparison and ordering engine.\"\"\"\n\nfrom semver import SemVer\n\n\nclass SemVerComparator:\n    @staticmethod\n    def compare(v1: SemVer, v2: SemVer) -> int:\n        \"\"\"Returns -1 if v1 < v2, 0 if v1 == v2, 1 if v1 > v2.\"\"\"\n        if (v1.major, v1.minor, v1.patch) != (v2.major, v2.minor, v2.patch):\n            t1 = (v1.major, v1.minor, v1.patch)\n            t2 = (v2.major, v2.minor, v2.patch)\n            return 1 if t1 > t2 else -1\n\n        # Standard release has HIGHER precedence than pre-release\n        if v1.prerelease is None and v2.prerelease is not None:\n            return 1\n        if v1.prerelease is not None and v2.prerelease is None:\n            return -1\n        if v1.prerelease == v2.prerelease:\n            return 0\n        return 1 if str(v1.prerelease) > str(v2.prerelease) else -1\n"
+  },
+  "metadata": {
+    "estimated_reasoning_steps": 2,
+    "file_count": 2,
+    "adversarial": false,
+    "stateful": false,
+    "multi_file": true,
+    "domain": "packaging"
+  }
+}

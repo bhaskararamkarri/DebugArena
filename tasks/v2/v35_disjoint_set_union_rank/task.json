@@ -1,0 +1,31 @@
+{
+  "task_id": "v35_disjoint_set_union_rank",
+  "suite": "v2",
+  "version": 2,
+  "difficulty": "medium",
+  "bug_type": "dsu_union_by_rank_unconditional_increment",
+  "categories": [
+    "C",
+    "B"
+  ],
+  "description": "Disjoint Set Union unconditionally increments tree rank on unequal unions, violating logarithmic tree depth bounds.",
+  "spec_notes": "DisjointSetUnion.union must only increment rank[root_x] when rank[root_x] == rank[root_y].",
+  "repo_files": {
+    "dsu.py": "\"\"\"Disjoint Set Union (Union-Find) with rank and path compression.\"\"\"\n\nfrom typing import Dict, List\n\n\nclass DisjointSetUnion:\n    def __init__(self, elements: List[str]):\n        self.parent: Dict[str, str] = {x: x for x in elements}\n        self.rank: Dict[str, int] = {x: 0 for x in elements}\n\n    def find(self, x: str) -> str:\n        if self.parent[x] != x:\n            self.parent[x] = self.find(self.parent[x])\n        return self.parent[x]\n\n    def union(self, x: str, y: str) -> bool:\n        root_x = self.find(x)\n        root_y = self.find(y)\n        if root_x == root_y:\n            return False\n\n        # BUG: Rank logic unconditionally increments rank of root_x\n        # even when rank[root_x] > rank[root_y] or rank[root_y] > rank[root_x]\n        if self.rank[root_x] < self.rank[root_y]:\n            self.parent[root_x] = root_y\n        elif self.rank[root_x] > self.rank[root_y]:\n            self.parent[root_y] = root_x\n        else:\n            self.parent[root_y] = root_x\n        self.rank[root_x] += 1  # BUG: Must ONLY increment when ranks were equal!\n        return True\n",
+    "cluster.py": "\"\"\"Network node connectivity cluster manager.\"\"\"\n\nfrom typing import List, Set\nfrom dsu import DisjointSetUnion\n\n\nclass ClusterManager:\n    def __init__(self, node_ids: List[str]):\n        self.dsu = DisjointSetUnion(node_ids)\n\n    def connect(self, u: str, v: str) -> bool:\n        return self.dsu.union(u, v)\n\n    def is_connected(self, u: str, v: str) -> bool:\n        return self.dsu.find(u) == self.dsu.find(v)\n\n    def get_max_rank(self) -> int:\n        return max(self.dsu.rank.values())\n"
+  },
+  "tests": {
+    "test_dsu.py": "from cluster import ClusterManager\n\n\ndef test_basic_connectivity():\n    nodes = [\"n1\", \"n2\", \"n3\", \"n4\"]\n    cm = ClusterManager(nodes)\n    assert cm.is_connected(\"n1\", \"n2\") is False\n    cm.connect(\"n1\", \"n2\")\n    assert cm.is_connected(\"n1\", \"n2\") is True\n    assert cm.is_connected(\"n1\", \"n3\") is False\n\n\ndef test_transitive_connectivity():\n    nodes = [\"a\", \"b\", \"c\", \"d\"]\n    cm = ClusterManager(nodes)\n    cm.connect(\"a\", \"b\")\n    cm.connect(\"b\", \"c\")\n    assert cm.is_connected(\"a\", \"c\") is True\n    assert cm.is_connected(\"a\", \"d\") is False\n\n\ndef test_rank_growth_bounded():\n    nodes = [f\"node_{i}\" for i in range(8)]\n    cm = ClusterManager(nodes)\n    cm.connect(\"node_0\", \"node_1\")\n    cm.connect(\"node_2\", \"node_3\")\n    cm.connect(\"node_4\", \"node_5\")\n    cm.connect(\"node_6\", \"node_7\")\n    cm.connect(\"node_0\", \"node_2\")\n    cm.connect(\"node_4\", \"node_6\")\n    cm.connect(\"node_0\", \"node_4\")\n    assert cm.get_max_rank() == 3\n\n\ndef test_unequal_rank_union_does_not_increment_rank():\n    cm = ClusterManager([\"a\", \"b\", \"c\", \"d\", \"e\"])\n    cm.connect(\"a\", \"b\")\n    cm.connect(\"c\", \"d\")\n    cm.connect(\"a\", \"c\")\n    cm.connect(\"a\", \"e\")\n    assert cm.get_max_rank() == 2\n\n\ndef test_redundant_connection_returns_false():\n    cm = ClusterManager([\"x\", \"y\"])\n    assert cm.connect(\"x\", \"y\") is True\n    assert cm.connect(\"x\", \"y\") is False\n"
+  },
+  "reference_fix": {
+    "dsu.py": "\"\"\"Disjoint Set Union (Union-Find) with rank and path compression.\"\"\"\n\nfrom typing import Dict, List\n\n\nclass DisjointSetUnion:\n    def __init__(self, elements: List[str]):\n        self.parent: Dict[str, str] = {x: x for x in elements}\n        self.rank: Dict[str, int] = {x: 0 for x in elements}\n\n    def find(self, x: str) -> str:\n        if self.parent[x] != x:\n            self.parent[x] = self.find(self.parent[x])\n        return self.parent[x]\n\n    def union(self, x: str, y: str) -> bool:\n        root_x = self.find(x)\n        root_y = self.find(y)\n        if root_x == root_y:\n            return False\n\n        if self.rank[root_x] < self.rank[root_y]:\n            self.parent[root_x] = root_y\n        elif self.rank[root_x] > self.rank[root_y]:\n            self.parent[root_y] = root_x\n        else:\n            self.parent[root_y] = root_x\n            self.rank[root_x] += 1\n        return True\n"
+  },
+  "metadata": {
+    "estimated_reasoning_steps": 3,
+    "file_count": 2,
+    "adversarial": false,
+    "stateful": true,
+    "multi_file": true,
+    "domain": "data-structures"
+  }
+}

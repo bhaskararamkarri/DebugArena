@@ -1,0 +1,506 @@
+[
+  {
+    "task_id": "v15_hierarchical_config_precedence",
+    "approved": true,
+    "report": {
+      "task_id": "v15_hierarchical_config_precedence",
+      "is_valid": true,
+      "schema_valid": true,
+      "before_fix_passed": 2,
+      "before_fix_failed": 3,
+      "after_fix_passed": 5,
+      "after_fix_failed": 0,
+      "is_flaky": false,
+      "quality": {
+        "bug_clarity": 5.0,
+        "debugging_difficulty": 3.5,
+        "repository_realism": 5.0,
+        "reasoning_depth": 3.5,
+        "multi_file_complexity": 5.0,
+        "statefulness": 4.0,
+        "hidden_test_quality": 5.0,
+        "edge_case_coverage": 4.5,
+        "regression_potential": 4.5,
+        "agent_challenge": 3.5,
+        "total_score": 43.5,
+        "average_score": 4.35
+      },
+      "errors": []
+    },
+    "metrics": {
+      "file_count": 3,
+      "fix_files": 2,
+      "test_count": 5,
+      "loc": 78,
+      "quality_score": 4.35
+    }
+  },
+  {
+    "task_id": "v16_env_interpolation_deep_merge",
+    "approved": true,
+    "report": {
+      "task_id": "v16_env_interpolation_deep_merge",
+      "is_valid": true,
+      "schema_valid": true,
+      "before_fix_passed": 5,
+      "before_fix_failed": 1,
+      "after_fix_passed": 6,
+      "after_fix_failed": 0,
+      "is_flaky": false,
+      "quality": {
+        "bug_clarity": 5.0,
+        "debugging_difficulty": 4.5,
+        "repository_realism": 5.0,
+        "reasoning_depth": 4.5,
+        "multi_file_complexity": 4.5,
+        "statefulness": 3.0,
+        "hidden_test_quality": 5.0,
+        "edge_case_coverage": 4.5,
+        "regression_potential": 4.5,
+        "agent_challenge": 4.5,
+        "total_score": 45.0,
+        "average_score": 4.5
+      },
+      "errors": []
+    },
+    "metrics": {
+      "file_count": 4,
+      "fix_files": 1,
+      "test_count": 6,
+      "loc": 70,
+      "quality_score": 4.5
+    }
+  },
+  {
+    "task_id": "v17_memory_leak_bounded_cache",
+    "approved": true,
+    "report": {
+      "task_id": "v17_memory_leak_bounded_cache",
+      "is_valid": true,
+      "schema_valid": true,
+      "before_fix_passed": 3,
+      "before_fix_failed": 2,
+      "after_fix_passed": 5,
+      "after_fix_failed": 0,
+      "is_flaky": false,
+      "quality": {
+        "bug_clarity": 5.0,
+        "debugging_difficulty": 3.5,
+        "repository_realism": 5.0,
+        "reasoning_depth": 3.5,
+        "multi_file_complexity": 4.5,
+        "statefulness": 5.0,
+        "hidden_test_quality": 5.0,
+        "edge_case_coverage": 4.5,
+        "regression_potential": 4.5,
+        "agent_challenge": 3.5,
+        "total_score": 44.0,
+        "average_score": 4.4
+      },
+      "errors": []
+    },
+    "metrics": {
+      "file_count": 3,
+      "fix_files": 1,
+      "test_count": 5,
+      "loc": 83,
+      "quality_score": 4.4
+    }
+  },
+  {
+    "task_id": "v18_quadratic_event_dedup_pipeline",
+    "approved": true,
+    "report": {
+      "task_id": "v18_quadratic_event_dedup_pipeline",
+      "is_valid": true,
+      "schema_valid": true,
+      "before_fix_passed": 5,
+      "before_fix_failed": 1,
+      "after_fix_passed": 6,
+      "after_fix_failed": 0,
+      "is_flaky": false,
+      "quality": {
+        "bug_clarity": 5.0,
+        "debugging_difficulty": 4.5,
+        "repository_realism": 5.0,
+        "reasoning_depth": 4.5,
+        "multi_file_complexity": 4.5,
+        "statefulness": 3.0,
+        "hidden_test_quality": 5.0,
+        "edge_case_coverage": 4.5,
+        "regression_potential": 4.5,
+        "agent_challenge": 4.5,
+        "total_score": 45.0,
+        "average_score": 4.5
+      },
+      "errors": []
+    },
+    "metrics": {
+      "file_count": 4,
+      "fix_files": 1,
+      "test_count": 6,
+      "loc": 66,
+      "quality_score": 4.5
+    }
+  },
+  {
+    "task_id": "v19_path_traversal_sanitizer",
+    "approved": true,
+    "report": {
+      "task_id": "v19_path_traversal_sanitizer",
+      "is_valid": true,
+      "schema_valid": true,
+      "before_fix_passed": 1,
+      "before_fix_failed": 5,
+      "after_fix_passed": 6,
+      "after_fix_failed": 0,
+      "is_flaky": false,
+      "quality": {
+        "bug_clarity": 5.0,
+        "debugging_difficulty": 4.5,
+        "repository_realism": 5.0,
+        "reasoning_depth": 4.5,
+        "multi_file_complexity": 4.5,
+        "statefulness": 3.0,
+        "hidden_test_quality": 5.0,
+        "edge_case_coverage": 4.5,
+        "regression_potential": 4.5,
+        "agent_challenge": 4.5,
+        "total_score": 45.0,
+        "average_score": 4.5
+      },
+      "errors": []
+    },
+    "metrics": {
+      "file_count": 3,
+      "fix_files": 1,
+      "test_count": 6,
+      "loc": 49,
+      "quality_score": 4.5
+    }
+  },
+  {
+    "task_id": "v20_payload_boundary_validator",
+    "approved": true,
+    "report": {
+      "task_id": "v20_payload_boundary_validator",
+      "is_valid": true,
+      "schema_valid": true,
+      "before_fix_passed": 3,
+      "before_fix_failed": 2,
+      "after_fix_passed": 5,
+      "after_fix_failed": 0,
+      "is_flaky": false,
+      "quality": {
+        "bug_clarity": 5.0,
+        "debugging_difficulty": 3.5,
+        "repository_realism": 5.0,
+        "reasoning_depth": 3.5,
+        "multi_file_complexity": 4.5,
+        "statefulness": 3.0,
+        "hidden_test_quality": 5.0,
+        "edge_case_coverage": 4.5,
+        "regression_potential": 4.5,
+        "agent_challenge": 3.5,
+        "total_score": 42.0,
+        "average_score": 4.2
+      },
+      "errors": []
+    },
+    "metrics": {
+      "file_count": 3,
+      "fix_files": 1,
+      "test_count": 5,
+      "loc": 65,
+      "quality_score": 4.2
+    }
+  },
+  {
+    "task_id": "v21_misleading_retry_budget",
+    "approved": true,
+    "report": {
+      "task_id": "v21_misleading_retry_budget",
+      "is_valid": true,
+      "schema_valid": true,
+      "before_fix_passed": 2,
+      "before_fix_failed": 4,
+      "after_fix_passed": 6,
+      "after_fix_failed": 0,
+      "is_flaky": false,
+      "quality": {
+        "bug_clarity": 5.0,
+        "debugging_difficulty": 4.8,
+        "repository_realism": 5.0,
+        "reasoning_depth": 4.8,
+        "multi_file_complexity": 5.0,
+        "statefulness": 4.0,
+        "hidden_test_quality": 5.0,
+        "edge_case_coverage": 4.5,
+        "regression_potential": 4.5,
+        "agent_challenge": 5.0,
+        "total_score": 47.6,
+        "average_score": 4.76
+      },
+      "errors": []
+    },
+    "metrics": {
+      "file_count": 3,
+      "fix_files": 2,
+      "test_count": 6,
+      "loc": 65,
+      "quality_score": 4.76
+    }
+  },
+  {
+    "task_id": "v22_distractor_middleware_auth",
+    "approved": true,
+    "report": {
+      "task_id": "v22_distractor_middleware_auth",
+      "is_valid": true,
+      "schema_valid": true,
+      "before_fix_passed": 4,
+      "before_fix_failed": 2,
+      "after_fix_passed": 6,
+      "after_fix_failed": 0,
+      "is_flaky": false,
+      "quality": {
+        "bug_clarity": 5.0,
+        "debugging_difficulty": 4.8,
+        "repository_realism": 5.0,
+        "reasoning_depth": 4.8,
+        "multi_file_complexity": 4.5,
+        "statefulness": 4.0,
+        "hidden_test_quality": 5.0,
+        "edge_case_coverage": 4.5,
+        "regression_potential": 4.5,
+        "agent_challenge": 5.0,
+        "total_score": 47.1,
+        "average_score": 4.71
+      },
+      "errors": []
+    },
+    "metrics": {
+      "file_count": 4,
+      "fix_files": 1,
+      "test_count": 6,
+      "loc": 78,
+      "quality_score": 4.71
+    }
+  },
+  {
+    "task_id": "v23_deceptive_boundary_invariant",
+    "approved": true,
+    "report": {
+      "task_id": "v23_deceptive_boundary_invariant",
+      "is_valid": true,
+      "schema_valid": true,
+      "before_fix_passed": 4,
+      "before_fix_failed": 1,
+      "after_fix_passed": 5,
+      "after_fix_failed": 0,
+      "is_flaky": false,
+      "quality": {
+        "bug_clarity": 5.0,
+        "debugging_difficulty": 4.8,
+        "repository_realism": 5.0,
+        "reasoning_depth": 4.8,
+        "multi_file_complexity": 4.5,
+        "statefulness": 3.0,
+        "hidden_test_quality": 5.0,
+        "edge_case_coverage": 4.5,
+        "regression_potential": 4.5,
+        "agent_challenge": 5.0,
+        "total_score": 46.1,
+        "average_score": 4.61
+      },
+      "errors": []
+    },
+    "metrics": {
+      "file_count": 3,
+      "fix_files": 1,
+      "test_count": 5,
+      "loc": 53,
+      "quality_score": 4.61
+    }
+  },
+  {
+    "task_id": "v24_order_processing_saga_rollback",
+    "approved": true,
+    "report": {
+      "task_id": "v24_order_processing_saga_rollback",
+      "is_valid": true,
+      "schema_valid": true,
+      "before_fix_passed": 3,
+      "before_fix_failed": 4,
+      "after_fix_passed": 7,
+      "after_fix_failed": 0,
+      "is_flaky": false,
+      "quality": {
+        "bug_clarity": 5.0,
+        "debugging_difficulty": 4.5,
+        "repository_realism": 5.0,
+        "reasoning_depth": 4.5,
+        "multi_file_complexity": 5.0,
+        "statefulness": 5.0,
+        "hidden_test_quality": 5.0,
+        "edge_case_coverage": 4.5,
+        "regression_potential": 4.5,
+        "agent_challenge": 4.5,
+        "total_score": 47.5,
+        "average_score": 4.75
+      },
+      "errors": []
+    },
+    "metrics": {
+      "file_count": 5,
+      "fix_files": 2,
+      "test_count": 7,
+      "loc": 132,
+      "quality_score": 4.75
+    }
+  },
+  {
+    "task_id": "v25_service_data_contract_propagation",
+    "approved": true,
+    "report": {
+      "task_id": "v25_service_data_contract_propagation",
+      "is_valid": true,
+      "schema_valid": true,
+      "before_fix_passed": 2,
+      "before_fix_failed": 4,
+      "after_fix_passed": 6,
+      "after_fix_failed": 0,
+      "is_flaky": false,
+      "quality": {
+        "bug_clarity": 5.0,
+        "debugging_difficulty": 4.5,
+        "repository_realism": 5.0,
+        "reasoning_depth": 4.5,
+        "multi_file_complexity": 5.0,
+        "statefulness": 3.0,
+        "hidden_test_quality": 5.0,
+        "edge_case_coverage": 4.5,
+        "regression_potential": 4.5,
+        "agent_challenge": 4.5,
+        "total_score": 45.5,
+        "average_score": 4.55
+      },
+      "errors": []
+    },
+    "metrics": {
+      "file_count": 4,
+      "fix_files": 2,
+      "test_count": 6,
+      "loc": 86,
+      "quality_score": 4.55
+    }
+  },
+  {
+    "task_id": "v26_async_task_executor_cancellation",
+    "approved": true,
+    "report": {
+      "task_id": "v26_async_task_executor_cancellation",
+      "is_valid": true,
+      "schema_valid": true,
+      "before_fix_passed": 4,
+      "before_fix_failed": 2,
+      "after_fix_passed": 6,
+      "after_fix_failed": 0,
+      "is_flaky": false,
+      "quality": {
+        "bug_clarity": 5.0,
+        "debugging_difficulty": 4.5,
+        "repository_realism": 5.0,
+        "reasoning_depth": 4.5,
+        "multi_file_complexity": 4.5,
+        "statefulness": 5.0,
+        "hidden_test_quality": 5.0,
+        "edge_case_coverage": 4.5,
+        "regression_potential": 4.5,
+        "agent_challenge": 4.5,
+        "total_score": 47.0,
+        "average_score": 4.7
+      },
+      "errors": []
+    },
+    "metrics": {
+      "file_count": 3,
+      "fix_files": 1,
+      "test_count": 6,
+      "loc": 76,
+      "quality_score": 4.7
+    }
+  },
+  {
+    "task_id": "v27_cursor_time_pagination_drift",
+    "approved": true,
+    "report": {
+      "task_id": "v27_cursor_time_pagination_drift",
+      "is_valid": true,
+      "schema_valid": true,
+      "before_fix_passed": 4,
+      "before_fix_failed": 1,
+      "after_fix_passed": 5,
+      "after_fix_failed": 0,
+      "is_flaky": false,
+      "quality": {
+        "bug_clarity": 5.0,
+        "debugging_difficulty": 3.5,
+        "repository_realism": 5.0,
+        "reasoning_depth": 3.5,
+        "multi_file_complexity": 4.5,
+        "statefulness": 3.0,
+        "hidden_test_quality": 5.0,
+        "edge_case_coverage": 4.5,
+        "regression_potential": 4.5,
+        "agent_challenge": 3.5,
+        "total_score": 42.0,
+        "average_score": 4.2
+      },
+      "errors": []
+    },
+    "metrics": {
+      "file_count": 3,
+      "fix_files": 1,
+      "test_count": 5,
+      "loc": 76,
+      "quality_score": 4.2
+    }
+  },
+  {
+    "task_id": "v28_streaming_csv_escaped_state",
+    "approved": true,
+    "report": {
+      "task_id": "v28_streaming_csv_escaped_state",
+      "is_valid": true,
+      "schema_valid": true,
+      "before_fix_passed": 4,
+      "before_fix_failed": 2,
+      "after_fix_passed": 6,
+      "after_fix_failed": 0,
+      "is_flaky": false,
+      "quality": {
+        "bug_clarity": 5.0,
+        "debugging_difficulty": 3.5,
+        "repository_realism": 4.5,
+        "reasoning_depth": 3.5,
+        "multi_file_complexity": 3.5,
+        "statefulness": 4.0,
+        "hidden_test_quality": 5.0,
+        "edge_case_coverage": 4.5,
+        "regression_potential": 4.5,
+        "agent_challenge": 3.5,
+        "total_score": 41.5,
+        "average_score": 4.15
+      },
+      "errors": []
+    },
+    "metrics": {
+      "file_count": 2,
+      "fix_files": 1,
+      "test_count": 6,
+      "loc": 73,
+      "quality_score": 4.15
+    }
+  }
+]

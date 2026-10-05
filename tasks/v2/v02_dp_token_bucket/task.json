@@ -1,0 +1,30 @@
+{
+  "task_id": "v02_dp_token_bucket",
+  "suite": "v2",
+  "version": 2,
+  "difficulty": "medium",
+  "bug_type": "token_refill_truncation",
+  "categories": ["B", "H"],
+  "description": "The rate limiter token bucket refill logic truncates fractional tokens using integer division, causing gradual token refill to stall for low rate intervals.",
+  "spec_notes": "Invariant: Fractional tokens must accumulate smoothly based on elapsed time * refill_rate.",
+  "repo_files": {
+    "config.py": "from dataclasses import dataclass\n\n@dataclass\nclass BucketConfig:\n    capacity: float\n    refill_rate: float  # tokens per second\n",
+    "bucket.py": "from config import BucketConfig\nfrom typing import Optional\n\nclass TokenBucket:\n    def __init__(self, config: BucketConfig):\n        self.capacity = config.capacity\n        self.refill_rate = config.refill_rate\n        self.tokens = config.capacity\n        self.last_update: Optional[float] = None\n\n    def refill(self, now: float) -> None:\n        if self.last_update is None:\n            self.last_update = now\n            return\n        elapsed = now - self.last_update\n        if elapsed > 0:\n            # Bug: int(elapsed) truncates sub-second fractions, causing refill to drop all delta if elapsed < 1.0\n            added_tokens = int(elapsed) * self.refill_rate\n            self.tokens = min(self.capacity, self.tokens + added_tokens)\n            self.last_update = now\n\n    def consume(self, amount: float, now: float) -> bool:\n        self.refill(now)\n        if self.tokens >= amount:\n            self.tokens -= amount\n            return True\n        return False\n",
+    "limiter.py": "from config import BucketConfig\nfrom bucket import TokenBucket\n\nclass RateLimiter:\n    def __init__(self, capacity: float, refill_rate: float):\n        self.bucket = TokenBucket(BucketConfig(capacity=capacity, refill_rate=refill_rate))\n\n    def allow_request(self, tokens: float, timestamp: float) -> bool:\n        return self.bucket.consume(tokens, timestamp)\n"
+  },
+  "tests": {
+    "test_limiter.py": "from limiter import RateLimiter\n\ndef test_burst_capacity():\n    rl = RateLimiter(capacity=10.0, refill_rate=2.0)\n    assert rl.allow_request(5.0, 1.0) is True\n    assert rl.allow_request(5.0, 1.0) is True\n    assert rl.allow_request(1.0, 1.0) is False # Bucket exhausted\n\ndef test_fractional_subsecond_refill():\n    rl = RateLimiter(capacity=10.0, refill_rate=10.0)\n    assert rl.allow_request(10.0, 0.0) is True # Emptied\n    # 0.5s later: should refill 5 tokens\n    assert rl.allow_request(4.0, 0.5) is True\n\ndef test_continuous_trickle_refill():\n    rl = RateLimiter(capacity=5.0, refill_rate=2.0)\n    assert rl.allow_request(5.0, 0.0) is True\n    # Multiple small steps of 0.25s (0.5 tokens each step)\n    assert rl.allow_request(0.5, 0.25) is True\n    assert rl.allow_request(0.5, 0.50) is True\n"
+  },
+  "reference_fix": {
+    "bucket.py": "from config import BucketConfig\nfrom typing import Optional\n\nclass TokenBucket:\n    def __init__(self, config: BucketConfig):\n        self.capacity = config.capacity\n        self.refill_rate = config.refill_rate\n        self.tokens = config.capacity\n        self.last_update: Optional[float] = None\n\n    def refill(self, now: float) -> None:\n        if self.last_update is None:\n            self.last_update = now\n            return\n        elapsed = now - self.last_update\n        if elapsed > 0:\n            added_tokens = elapsed * self.refill_rate\n            self.tokens = min(self.capacity, self.tokens + added_tokens)\n            self.last_update = now\n\n    def consume(self, amount: float, now: float) -> bool:\n        self.refill(now)\n        if self.tokens >= amount:\n            self.tokens -= amount\n            return True\n        return False\n"
+  },
+  "metadata": {
+    "estimated_reasoning_steps": 3,
+    "file_count": 3,
+    "adversarial": false,
+    "stateful": true,
+    "multi_file": true,
+    "domain": "rate_limiting",
+    "quality_score": 4.5
+  }
+}

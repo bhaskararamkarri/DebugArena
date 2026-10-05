@@ -1,0 +1,30 @@
+{
+  "task_id": "v03_service_repo_contract",
+  "suite": "v2",
+  "version": 2,
+  "difficulty": "medium",
+  "bug_type": "contract_casing_mismatch",
+  "categories": ["E", "H"],
+  "description": "The checkout service encounters KeyError crashes when communicating with the inventory repository due to mismatched data dictionary key conventions.",
+  "spec_notes": "Invariant: Repository expects snake_case keys (product_id, quantity), service was formatting payload with camelCase (productId, itemQty).",
+  "repo_files": {
+    "models.py": "from dataclasses import dataclass\nfrom typing import Optional\n\n@dataclass\nclass OrderResult:\n    order_id: str\n    success: bool\n    error: Optional[str] = None\n",
+    "repository.py": "from typing import Dict\n\nclass InventoryRepository:\n    def __init__(self):\n        self.stock: Dict[str, int] = {\n            \"item_a\": 10,\n            \"item_b\": 5,\n        }\n\n    def get_stock(self, product_id: str) -> int:\n        return self.stock.get(product_id, 0)\n\n    def deduct_stock(self, item_payload: Dict[str, int]) -> bool:\n        pid = item_payload[\"product_id\"]\n        qty = item_payload[\"quantity\"]\n        if self.stock.get(pid, 0) >= qty:\n            self.stock[pid] -= qty\n            return True\n        return False\n",
+    "service.py": "from models import OrderResult\nfrom repository import InventoryRepository\n\nclass CheckoutService:\n    def __init__(self, repo: InventoryRepository):\n        self.repo = repo\n\n    def checkout(self, order_id: str, product_id: str, quantity: int) -> OrderResult:\n        # Bug: passes camelCase keys to repository which expects snake_case\n        payload = {\n            \"productId\": product_id,\n            \"itemQty\": quantity\n        }\n        try:\n            success = self.repo.deduct_stock(payload)\n            if success:\n                return OrderResult(order_id=order_id, success=True)\n            return OrderResult(order_id=order_id, success=False, error=\"Insufficient stock\")\n        except KeyError as e:\n            return OrderResult(order_id=order_id, success=False, error=f\"KeyError: {e}\")\n"
+  },
+  "tests": {
+    "test_service.py": "from repository import InventoryRepository\nfrom service import CheckoutService\n\ndef test_repository_read_baseline():\n    repo = InventoryRepository()\n    svc = CheckoutService(repo)\n    # Baseline inspection passes initially\n    assert svc.repo.get_stock(\"item_a\") == 10\n    assert svc.repo.get_stock(\"item_b\") == 5\n\ndef test_successful_checkout():\n    repo = InventoryRepository()\n    svc = CheckoutService(repo)\n    res = svc.checkout(\"ord_2\", \"item_a\", 3)\n    assert res.success is True\n    assert repo.get_stock(\"item_a\") == 7\n\ndef test_exhaust_stock():\n    repo = InventoryRepository()\n    svc = CheckoutService(repo)\n    res = svc.checkout(\"ord_3\", \"item_b\", 5)\n    assert res.success is True\n    assert repo.get_stock(\"item_b\") == 0\n"
+  },
+  "reference_fix": {
+    "service.py": "from models import OrderResult\nfrom repository import InventoryRepository\n\nclass CheckoutService:\n    def __init__(self, repo: InventoryRepository):\n        self.repo = repo\n\n    def checkout(self, order_id: str, product_id: str, quantity: int) -> OrderResult:\n        payload = {\n            \"product_id\": product_id,\n            \"quantity\": quantity\n        }\n        try:\n            success = self.repo.deduct_stock(payload)\n            if success:\n                return OrderResult(order_id=order_id, success=True)\n            return OrderResult(order_id=order_id, success=False, error=\"Insufficient stock\")\n        except KeyError as e:\n            return OrderResult(order_id=order_id, success=False, error=f\"KeyError: {e}\")\n"
+  },
+  "metadata": {
+    "estimated_reasoning_steps": 3,
+    "file_count": 3,
+    "adversarial": false,
+    "stateful": true,
+    "multi_file": true,
+    "domain": "ecommerce_inventory",
+    "quality_score": 4.5
+  }
+}

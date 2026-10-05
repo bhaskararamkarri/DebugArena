@@ -1,0 +1,30 @@
+{
+  "task_id": "v04_event_bus_middleware",
+  "suite": "v2",
+  "version": 2,
+  "difficulty": "medium",
+  "bug_type": "middleware_chain_drop",
+  "categories": ["E", "D"],
+  "description": "Event bus middleware pipeline fails to propagate event transformations across sequential middleware handlers, causing downstream subscribers to receive un-sanitized events.",
+  "spec_notes": "Invariant: Each middleware in the pipeline must receive the transformed output of the preceding middleware.",
+  "repo_files": {
+    "event.py": "from dataclasses import dataclass, field\nfrom typing import Dict, Any, List\n\n@dataclass\nclass Event:\n    name: str\n    payload: Dict[str, Any] = field(default_factory=dict)\n    tags: List[str] = field(default_factory=list)\n",
+    "middleware.py": "from typing import Callable\nfrom event import Event\n\ndef sanitize_middleware(event: Event) -> Event:\n    cleaned = dict(event.payload)\n    cleaned.pop(\"password\", None)\n    return Event(name=event.name, payload=cleaned, tags=list(event.tags))\n\ndef tagging_middleware(event: Event) -> Event:\n    tags = list(event.tags) + [\"processed\"]\n    return Event(name=event.name, payload=dict(event.payload), tags=tags)\n",
+    "bus.py": "from typing import List, Callable, Dict\nfrom event import Event\n\nclass EventBus:\n    def __init__(self):\n        self.middlewares: List[Callable[[Event], Event]] = []\n        self.subscribers: Dict[str, List[Callable[[Event], None]]] = {}\n\n    def use(self, mw: Callable[[Event], Event]) -> None:\n        self.middlewares.append(mw)\n\n    def subscribe(self, event_name: str, handler: Callable[[Event], None]) -> None:\n        self.subscribers.setdefault(event_name, []).append(handler)\n\n    def publish(self, event: Event) -> None:\n        current_event = event\n        for mw in self.middlewares:\n            # Bug: calls mw(event) without reassigning current_event\n            mw(event)\n        \n        for handler in self.subscribers.get(current_event.name, []):\n            handler(current_event)\n"
+  },
+  "tests": {
+    "test_bus.py": "from event import Event\nfrom middleware import sanitize_middleware, tagging_middleware\nfrom bus import EventBus\n\ndef test_direct_publish_no_middleware():\n    bus = EventBus()\n    received = []\n    bus.subscribe(\"user_login\", lambda e: received.append(e))\n    bus.publish(Event(\"user_login\", {\"user\": \"alice\"}))\n    assert len(received) == 1\n    assert received[0].payload == {\"user\": \"alice\"}\n\ndef test_middleware_pipeline_propagation():\n    bus = EventBus()\n    bus.use(sanitize_middleware)\n    bus.use(tagging_middleware)\n    \n    received = []\n    bus.subscribe(\"user_signup\", lambda e: received.append(e))\n    \n    evt = Event(\"user_signup\", {\"user\": \"bob\", \"password\": \"secret123\"})\n    bus.publish(evt)\n    \n    assert len(received) == 1\n    res = received[0]\n    assert \"password\" not in res.payload\n    assert \"processed\" in res.tags\n"
+  },
+  "reference_fix": {
+    "bus.py": "from typing import List, Callable, Dict\nfrom event import Event\n\nclass EventBus:\n    def __init__(self):\n        self.middlewares: List[Callable[[Event], Event]] = []\n        self.subscribers: Dict[str, List[Callable[[Event], None]]] = {}\n\n    def use(self, mw: Callable[[Event], Event]) -> None:\n        self.middlewares.append(mw)\n\n    def subscribe(self, event_name: str, handler: Callable[[Event], None]) -> None:\n        self.subscribers.setdefault(event_name, []).append(handler)\n\n    def publish(self, event: Event) -> None:\n        current_event = event\n        for mw in self.middlewares:\n            current_event = mw(current_event)\n        \n        for handler in self.subscribers.get(current_event.name, []):\n            handler(current_event)\n"
+  },
+  "metadata": {
+    "estimated_reasoning_steps": 3,
+    "file_count": 3,
+    "adversarial": false,
+    "stateful": true,
+    "multi_file": true,
+    "domain": "event_driven_architecture",
+    "quality_score": 4.5
+  }
+}

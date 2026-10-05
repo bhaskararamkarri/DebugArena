@@ -10,6 +10,7 @@ import yaml
 
 from agentgym.reward import RewardCalculator
 from agentgym.sandbox import BaseSandbox, Sandbox
+from task_factory.feedback import get_feedback_adapter, BaseFeedbackAdapter
 
 
 class BugFixEnv:
@@ -21,6 +22,7 @@ class BugFixEnv:
         max_steps: Optional[int] = None,
         config_path: Optional[str] = "config.yaml",
         sandbox_mode: Optional[str] = None,
+        feedback_mode: Optional[str] = None,
     ):
         self.tasks_dir = Path(tasks_dir)
         self.config: Dict[str, Any] = {}
@@ -36,6 +38,8 @@ class BugFixEnv:
             self.max_steps = env_cfg.get("max_steps", 10)
         self.timeout = env_cfg.get("timeout_seconds", 10)
         self.sandbox_mode = sandbox_mode or env_cfg.get("sandbox_mode", "auto")
+        self.feedback_mode = feedback_mode or env_cfg.get("feedback_mode", "diagnostic")
+        self.feedback_adapter: BaseFeedbackAdapter = get_feedback_adapter(self.feedback_mode)
         self.mem_limit = env_cfg.get("mem_limit", "256m")
         self.cpu_limit = env_cfg.get("cpu_limit", 0.5)
         self.pids_limit = env_cfg.get("pids_limit", 128)
@@ -64,10 +68,12 @@ class BugFixEnv:
         if not target_path.exists():
             target_path = self.tasks_dir / "hard" / task_id / "task.json"
         if not target_path.exists():
+            target_path = self.tasks_dir / "v2" / task_id / "task.json"
+        if not target_path.exists():
             target_path = self.tasks_dir / f"{task_id}.json"
         if not target_path.exists():
             for p in self.tasks_dir.rglob("task.json"):
-                if p.parent.name == task_id:
+                if p.parent.name == task_id or p.parent.name.startswith(f"{task_id}_"):
                     target_path = p
                     break
         if not target_path or not target_path.exists():
@@ -79,7 +85,7 @@ class BugFixEnv:
         return task_data
 
     def list_task_ids(self, suite: Optional[str] = None) -> list[str]:
-        """Returns sorted list of all available task IDs, optionally filtered by suite ('core', 'hard', 'all')."""
+        """Returns sorted list of all available task IDs, optionally filtered by suite ('core', 'hard', 'v2', 'all')."""
         task_ids = []
         if not self.tasks_dir.exists():
             return []
@@ -89,7 +95,7 @@ class BugFixEnv:
                 with open(p, "r", encoding="utf-8") as f:
                     d = json.load(f)
                     tid = d.get("task_id", p.parent.name)
-                    task_suite = d.get("suite", "core" if tid.startswith("t") else "hard")
+                    task_suite = d.get("suite", "core" if tid.startswith("t") else ("hard" if tid.startswith("h") else "v2"))
                     if suite is None or suite == "all" or task_suite == suite:
                         task_ids.append(tid)
             except Exception:
@@ -148,12 +154,13 @@ class BugFixEnv:
 
     def _get_observation(self) -> Dict[str, Any]:
         files = self.sandbox.get_files() if self.sandbox else {}
-        return {
+        raw_obs = {
             "description": self.current_task.get("description", "") if self.current_task else "",
             "files": files,
             "last_output": self.last_output,
             "steps_left": self.steps_left,
         }
+        return self.feedback_adapter.filter_observation(raw_obs)
 
     def step(self, action: Dict[str, Any]) -> Tuple[Dict[str, Any], float, bool, Dict[str, Any]]:
         """Executes an action in the environment.
@@ -213,7 +220,7 @@ class BugFixEnv:
         ran_out_of_steps = (self.steps_left <= 0)
         done = all_tests_passed or submitted or ran_out_of_steps
 
-        info = {
+        raw_info = {
             "task_id": self.task_id,
             "step": self.current_step,
             "action": action,
@@ -231,7 +238,9 @@ class BugFixEnv:
             "ran_out_of_steps": ran_out_of_steps,
         }
 
-        return self._get_observation(), step_reward, done, info
+        observable_reward = self.feedback_adapter.filter_reward(step_reward, done, raw_info)
+        info = self.feedback_adapter.filter_info(raw_info)
+        return self._get_observation(), observable_reward, done, info
 
     def close(self) -> None:
         if self.sandbox:

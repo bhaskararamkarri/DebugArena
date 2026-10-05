@@ -1,0 +1,33 @@
+{
+  "task_id": "v19_path_traversal_sanitizer",
+  "suite": "v2",
+  "version": 2,
+  "difficulty": "hard",
+  "bug_type": "path_traversal_sanitization_bypass",
+  "categories": [
+    "L",
+    "E",
+    "F"
+  ],
+  "description": "Path sanitizer uses a single-pass string replacement, allowing nested and double-encoded traversal sequences to escape the root directory.",
+  "spec_notes": "PathSanitizer must canonicalize decoded paths and enforce strict root_dir containment via os.path.commonpath.",
+  "repo_files": {
+    "errors.py": "\"\"\"Security and storage boundary errors.\"\"\"\n\nclass SecurityBoundaryError(Exception):\n    \"\"\"Raised when an asset path attempts to escape the root jail.\"\"\"\n    pass\n",
+    "sanitizer.py": "\"\"\"File path sanitization and canonicalization routines.\"\"\"\n\nimport os\nimport urllib.parse\nfrom errors import SecurityBoundaryError\n\n\nclass PathSanitizer:\n    def __init__(self, root_dir: str):\n        self.root_dir = os.path.abspath(root_dir)\n\n    def resolve_safe_path(self, user_path: str) -> str:\n        # URL decode path once\n        decoded = urllib.parse.unquote(user_path)\n        # BUG: Uses naive single-pass replacement for \"../\" which can be bypassed\n        # via nested patterns like \"....//\"\n        cleaned = decoded.replace(\"../\", \"\").replace(\"..\\\\\", \"\")\n        cleaned = cleaned.lstrip(\"/\\\\\")\n        target = os.path.join(self.root_dir, cleaned)\n        # BUG: Does not check os.path.abspath() or os.path.commonpath() against root_dir!\n        return target\n",
+    "file_store.py": "\"\"\"Jailed asset storage service.\"\"\"\n\nimport os\nfrom errors import SecurityBoundaryError\nfrom sanitizer import PathSanitizer\n\n\nclass JailedFileStore:\n    def __init__(self, base_directory: str):\n        self.base_dir = os.path.abspath(base_directory)\n        self.sanitizer = PathSanitizer(self.base_dir)\n        self._virtual_fs: dict[str, str] = {}\n\n    def write_virtual(self, relative_path: str, data: str) -> str:\n        safe_target = self.sanitizer.resolve_safe_path(relative_path)\n        self._virtual_fs[safe_target] = data\n        return safe_target\n\n    def read_virtual(self, relative_path: str) -> str:\n        safe_target = self.sanitizer.resolve_safe_path(relative_path)\n        if safe_target not in self._virtual_fs:\n            raise FileNotFoundError(f\"Asset not found: {relative_path}\")\n        return self._virtual_fs[safe_target]\n"
+  },
+  "tests": {
+    "test_path_sanitization.py": "import pytest\nfrom errors import SecurityBoundaryError\nfrom file_store import JailedFileStore\n\n\ndef test_safe_relative_path_resolution():\n    store = JailedFileStore(\"/var/data/storage\")\n    store.write_virtual(\"docs/report.pdf\", \"data-1\")\n    content = store.read_virtual(\"docs/report.pdf\")\n    assert content == \"data-1\"\n\n\ndef test_nested_path_traversal_blocked():\n    store = JailedFileStore(\"/var/data/storage\")\n    with pytest.raises(SecurityBoundaryError):\n        store.write_virtual(\"....//....//etc/passwd\", \"evil\")\n\n\ndef test_double_url_encoded_traversal_blocked():\n    store = JailedFileStore(\"/var/data/storage\")\n    # %252e%252e%252f decodes to %2e%2e%2f then to ../\n    with pytest.raises(SecurityBoundaryError):\n        store.write_virtual(\"%252e%252e%252f%252e%252e%252fsecret.key\", \"evil\")\n\n\ndef test_null_byte_injection_cleaned():\n    store = JailedFileStore(\"/var/data/storage\")\n    store.write_virtual(\"file.txt\\x00.png\", \"safe_content\")\n    assert store.read_virtual(\"file.txt.png\") == \"safe_content\"\n\n\ndef test_absolute_path_escape_blocked():\n    store = JailedFileStore(\"/var/data/storage\")\n    store.write_virtual(\"/sub/item.json\", \"data-2\")\n    assert store.read_virtual(\"sub/item.json\") == \"data-2\"\n    # Sibling path escape like /var/data/storage_secret\n    with pytest.raises(SecurityBoundaryError):\n        store.write_virtual(\"../storage_secret/key.pem\", \"evil\")\n\n\ndef test_windows_backslash_traversal_blocked():\n    store = JailedFileStore(\"/var/data/storage\")\n    with pytest.raises(SecurityBoundaryError):\n        store.write_virtual(\"..\\\\..\\\\boot.ini\", \"evil\")\n"
+  },
+  "reference_fix": {
+    "sanitizer.py": "\"\"\"File path sanitization and canonicalization routines.\"\"\"\n\nimport os\nimport urllib.parse\nfrom errors import SecurityBoundaryError\n\n\nclass PathSanitizer:\n    def __init__(self, root_dir: str):\n        self.root_dir = os.path.abspath(root_dir)\n\n    def resolve_safe_path(self, user_path: str) -> str:\n        curr = user_path\n        for _ in range(3):\n            decoded = urllib.parse.unquote(curr)\n            if decoded == curr:\n                break\n            curr = decoded\n\n        clean = curr.replace(\"\\x00\", \"\").replace(\"\\\\\", \"/\")\n        segments = [s for s in clean.split(\"/\") if s and s != \".\"]\n        resolved: list[str] = []\n        for seg in segments:\n            if seg == \"..\" or seg.startswith(\"..\") or \"..\" in seg:\n                raise SecurityBoundaryError(f\"Path traversal detected: {user_path}\")\n            resolved.append(seg)\n\n        target = os.path.abspath(os.path.join(self.root_dir, *resolved))\n        if not target.startswith(self.root_dir):\n            raise SecurityBoundaryError(f\"Path traversal detected: {user_path}\")\n        return target\n"
+  },
+  "metadata": {
+    "estimated_reasoning_steps": 5,
+    "file_count": 3,
+    "adversarial": false,
+    "stateful": false,
+    "multi_file": true,
+    "domain": "security"
+  }
+}

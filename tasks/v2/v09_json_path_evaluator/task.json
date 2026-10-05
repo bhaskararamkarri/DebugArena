@@ -1,0 +1,30 @@
+{
+  "task_id": "v09_json_path_evaluator",
+  "suite": "v2",
+  "version": 2,
+  "difficulty": "medium",
+  "bug_type": "wildcard_dict_values_bug",
+  "categories": ["F", "B"],
+  "description": "JSONPath query evaluator returns dictionary keys instead of values when evaluating wildcard `*` selectors on nested objects, and fails on negative array indices.",
+  "spec_notes": "Invariant: Object wildcard selector `*` on a dictionary must extract the list of its values, preserving item content.",
+  "repo_files": {
+    "tokens.py": "from dataclasses import dataclass\nfrom typing import Optional\n\n@dataclass\nclass PathSegment:\n    key: str\n    index: Optional[int] = None\n    is_wildcard: bool = False\n",
+    "parser.py": "import re\nfrom typing import List\nfrom tokens import PathSegment\n\ndef parse_path(path_expr: str) -> List[PathSegment]:\n    segments = []\n    raw_parts = path_expr.strip(\"$.\").split(\".\")\n    for part in raw_parts:\n        if part == \"*\":\n            segments.append(PathSegment(key=\"*\", is_wildcard=True))\n            continue\n        match = re.match(r\"^(\\w+)(?:\\[(-?\\d+)\\])?$\", part)\n        if match:\n            key = match.group(1)\n            idx = int(match.group(2)) if match.group(2) is not None else None\n            segments.append(PathSegment(key=key, index=idx))\n        else:\n            segments.append(PathSegment(key=part))\n    return segments\n",
+    "evaluator.py": "from typing import Any, List\nfrom parser import parse_path\n\ndef query_json(data: Any, path_expr: str) -> Any:\n    segments = parse_path(path_expr)\n    current = data\n\n    for seg in segments:\n        if current is None:\n            return None\n\n        if seg.is_wildcard:\n            if isinstance(current, dict):\n                # Bug: returns list of keys instead of list of values\n                current = list(current.keys())\n            elif isinstance(current, list):\n                current = current\n            else:\n                return None\n        else:\n            if isinstance(current, dict):\n                current = current.get(seg.key)\n            elif isinstance(current, list):\n                current = [item.get(seg.key) for item in current if isinstance(item, dict) and seg.key in item]\n            else:\n                return None\n\n            if seg.index is not None and isinstance(current, list):\n                if 0 <= seg.index < len(current):\n                    current = current[seg.index]\n                elif -len(current) <= seg.index < 0:\n                    current = current[seg.index]\n                else:\n                    return None\n\n    return current\n"
+  },
+  "tests": {
+    "test_evaluator.py": "from evaluator import query_json\n\ndef test_simple_dot_path():\n    data = {\"user\": {\"profile\": {\"name\": \"Alice\"}}}\n    assert query_json(data, \"user.profile.name\") == \"Alice\"\n\ndef test_wildcard_object_values():\n    data = {\n        \"users\": {\n            \"u1\": {\"age\": 30, \"role\": \"admin\"},\n            \"u2\": {\"age\": 25, \"role\": \"user\"},\n        }\n    }\n    roles = query_json(data, \"users.*.role\")\n    assert sorted(roles) == [\"admin\", \"user\"]\n\ndef test_array_indexing():\n    data = {\"scores\": [10, 20, 30]}\n    assert query_json(data, \"scores[0]\") == 10\n    assert query_json(data, \"scores[-1]\") == 30\n"
+  },
+  "reference_fix": {
+    "evaluator.py": "from typing import Any, List\nfrom parser import parse_path\n\ndef query_json(data: Any, path_expr: str) -> Any:\n    segments = parse_path(path_expr)\n    current = data\n\n    for seg in segments:\n        if current is None:\n            return None\n\n        if seg.is_wildcard:\n            if isinstance(current, dict):\n                current = list(current.values())\n            elif isinstance(current, list):\n                current = current\n            else:\n                return None\n        else:\n            if isinstance(current, dict):\n                current = current.get(seg.key)\n            elif isinstance(current, list):\n                current = [item.get(seg.key) for item in current if isinstance(item, dict) and seg.key in item]\n            else:\n                return None\n\n            if seg.index is not None and isinstance(current, list):\n                if 0 <= seg.index < len(current):\n                    current = current[seg.index]\n                elif -len(current) <= seg.index < 0:\n                    current = current[seg.index]\n                else:\n                    return None\n\n    return current\n"
+  },
+  "metadata": {
+    "estimated_reasoning_steps": 3,
+    "file_count": 3,
+    "adversarial": false,
+    "stateful": false,
+    "multi_file": true,
+    "domain": "json_parsing",
+    "quality_score": 4.5
+  }
+}

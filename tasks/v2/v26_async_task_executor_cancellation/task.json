@@ -1,0 +1,32 @@
+{
+  "task_id": "v26_async_task_executor_cancellation",
+  "suite": "v2",
+  "version": 2,
+  "difficulty": "hard",
+  "bug_type": "task_queue_cancellation_status_bypass",
+  "categories": [
+    "G",
+    "D"
+  ],
+  "description": "Task queue pop_next ignores cancellation flags set during queue residency, causing cancelled jobs to execute.",
+  "spec_notes": "SafeTaskQueue.pop_next must ensure cancelled jobs return with CANCELLED status.",
+  "repo_files": {
+    "models.py": "\"\"\"Job task definition and status.\"\"\"\n\nfrom dataclasses import dataclass\nfrom typing import Any, Callable, Optional\n\n\n@dataclass\nclass TaskJob:\n    job_id: str\n    fn: Callable[[], Any]\n    status: str = \"QUEUED\"\n    result: Optional[Any] = None\n    error: Optional[str] = None\n",
+    "task_queue.py": "\"\"\"Thread-safe task queue with cancellation tracking.\"\"\"\n\nimport threading\nfrom typing import Optional\nfrom models import TaskJob\n\n\nclass SafeTaskQueue:\n    def __init__(self):\n        self._queue: list[TaskJob] = []\n        self._cancelled: set[str] = set()\n        self._lock = threading.Lock()\n\n    def push(self, job: TaskJob) -> None:\n        with self._lock:\n            self._queue.append(job)\n\n    def cancel(self, job_id: str) -> bool:\n        with self._lock:\n            if any(j.job_id == job_id for j in self._queue):\n                # BUG: Registers ID in cancelled set, but does not update job.status\n                # or synchronize status during pop_next() retrieval!\n                self._cancelled.add(job_id)\n                return True\n            return False\n\n    def pop_next(self) -> Optional[TaskJob]:\n        with self._lock:\n            # BUG: Pops raw job without checking if job.job_id was cancelled in _cancelled set\n            if self._queue:\n                return self._queue.pop(0)\n            return None\n",
+    "executor.py": "\"\"\"Task worker executor running queued jobs.\"\"\"\n\nfrom typing import Dict, List\nfrom models import TaskJob\nfrom task_queue import SafeTaskQueue\n\n\nclass TaskExecutor:\n    def __init__(self, queue: SafeTaskQueue):\n        self.queue = queue\n        self.completed: Dict[str, TaskJob] = {}\n\n    def drain_and_run(self) -> int:\n        executed_count = 0\n        while True:\n            job = self.queue.pop_next()\n            if not job:\n                break\n            # BUG: If job was cancelled while in queue, executor still executes fn()!\n            if job.status == \"CANCELLED\":\n                self.completed[job.job_id] = job\n                continue\n            try:\n                job.result = job.fn()\n                job.status = \"COMPLETED\"\n                executed_count += 1\n            except Exception as exc:\n                job.error = str(exc)\n                job.status = \"FAILED\"\n            self.completed[job.job_id] = job\n        return executed_count\n"
+  },
+  "tests": {
+    "test_task_executor.py": "from models import TaskJob\nfrom task_queue import SafeTaskQueue\nfrom executor import TaskExecutor\n\n\ndef test_fifo_execution():\n    q = SafeTaskQueue()\n    ex = TaskExecutor(q)\n    q.push(TaskJob(\"j1\", lambda: 10))\n    q.push(TaskJob(\"j2\", lambda: 20))\n    count = ex.drain_and_run()\n    assert count == 2\n    assert ex.completed[\"j1\"].result == 10\n    assert ex.completed[\"j2\"].result == 20\n\n\ndef test_cancelled_job_is_skipped_without_running_fn():\n    q = SafeTaskQueue()\n    ex = TaskExecutor(q)\n    ran_flag = False\n    def side_effect():\n        nonlocal ran_flag\n        ran_flag = True\n        return \"BAD\"\n\n    q.push(TaskJob(\"j_cancel\", side_effect))\n    res = q.cancel(\"j_cancel\")\n    assert res is True\n    count = ex.drain_and_run()\n    assert count == 0\n    assert ran_flag is False\n    assert ex.completed[\"j_cancel\"].status == \"CANCELLED\"\n    assert ex.completed[\"j_cancel\"].result is None\n\n\ndef test_cancel_nonexistent_job():\n    q = SafeTaskQueue()\n    assert q.cancel(\"missing\") is False\n\n\ndef test_failed_job_records_error():\n    q = SafeTaskQueue()\n    ex = TaskExecutor(q)\n    def will_crash():\n        raise ValueError(\"corrupt payload\")\n\n    q.push(TaskJob(\"j_err\", will_crash))\n    count = ex.drain_and_run()\n    assert count == 0\n    assert ex.completed[\"j_err\"].status == \"FAILED\"\n    assert \"corrupt payload\" in ex.completed[\"j_err\"].error\n\n\ndef test_multiple_jobs_with_interleaved_cancellation():\n    q = SafeTaskQueue()\n    ex = TaskExecutor(q)\n    q.push(TaskJob(\"a\", lambda: \"A\"))\n    q.push(TaskJob(\"b\", lambda: \"B\"))\n    q.push(TaskJob(\"c\", lambda: \"C\"))\n    q.cancel(\"b\")\n    count = ex.drain_and_run()\n    assert count == 2\n    assert ex.completed[\"a\"].status == \"COMPLETED\"\n    assert ex.completed[\"b\"].status == \"CANCELLED\"\n    assert ex.completed[\"c\"].status == \"COMPLETED\"\n\n\ndef test_empty_queue_drain():\n    q = SafeTaskQueue()\n    ex = TaskExecutor(q)\n    assert ex.drain_and_run() == 0\n"
+  },
+  "reference_fix": {
+    "task_queue.py": "\"\"\"Thread-safe task queue with cancellation tracking.\"\"\"\n\nimport threading\nfrom typing import Optional\nfrom models import TaskJob\n\n\nclass SafeTaskQueue:\n    def __init__(self):\n        self._queue: list[TaskJob] = []\n        self._cancelled: set[str] = set()\n        self._lock = threading.Lock()\n\n    def push(self, job: TaskJob) -> None:\n        with self._lock:\n            self._queue.append(job)\n\n    def cancel(self, job_id: str) -> bool:\n        with self._lock:\n            self._cancelled.add(job_id)\n            for job in self._queue:\n                if job.job_id == job_id:\n                    job.status = \"CANCELLED\"\n                    return True\n            return False\n\n    def is_cancelled(self, job_id: str) -> bool:\n        with self._lock:\n            return job_id in self._cancelled\n\n    def pop_next(self) -> Optional[TaskJob]:\n        with self._lock:\n            if self._queue:\n                job = self._queue.pop(0)\n                if job.job_id in self._cancelled:\n                    job.status = \"CANCELLED\"\n                return job\n            return None\n"
+  },
+  "metadata": {
+    "estimated_reasoning_steps": 4,
+    "file_count": 3,
+    "adversarial": false,
+    "stateful": true,
+    "multi_file": true,
+    "domain": "concurrency"
+  }
+}

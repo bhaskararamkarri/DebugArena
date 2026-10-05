@@ -1,0 +1,32 @@
+{
+  "task_id": "v61_graphql_federation_gateway_query_planner",
+  "suite": "v2",
+  "version": 2,
+  "difficulty": "hard",
+  "bug_type": "graphql_federation_requires_directive_dependency_omission",
+  "categories": [
+    "H",
+    "E"
+  ],
+  "description": "GraphQL federation query planner fails to inject required prerequisite fields across subgraphs, causing resolution failures.",
+  "spec_notes": "FederationQueryPlanner.plan_query must inject field.required_fields into upstream service sub-queries.",
+  "repo_files": {
+    "schema.py": "\"\"\"GraphQL federation subgraph schema definitions.\"\"\"\n\nfrom dataclasses import dataclass, field\nfrom typing import Dict, List\n\n\n@dataclass\nclass SubgraphField:\n    name: str\n    service_name: str\n    required_fields: List[str] = field(default_factory=list)\n",
+    "service_registry.py": "\"\"\"Subgraph service registry.\"\"\"\n\nfrom typing import Dict, List\nfrom schema import SubgraphField\n\n\nclass FederationRegistry:\n    def __init__(self):\n        # Maps field_name -> SubgraphField\n        self.fields: Dict[str, SubgraphField] = {}\n\n    def register_field(self, field: SubgraphField) -> None:\n        self.fields[field.name] = field\n",
+    "planner.py": "\"\"\"Federated query planner assembling cross-service execution steps.\"\"\"\n\nfrom typing import Dict, List, Set\nfrom schema import SubgraphField\nfrom service_registry import FederationRegistry\n\n\nclass QueryPlanStep:\n    def __init__(self, service: str, requested_fields: List[str]):\n        self.service = service\n        self.requested_fields = list(requested_fields)\n\n\nclass FederationQueryPlanner:\n    def __init__(self, registry: FederationRegistry):\n        self.registry = registry\n\n    def plan_query(self, target_fields: List[str]) -> List[QueryPlanStep]:\n        service_map: Dict[str, Set[str]] = {}\n        # BUG: Only schedules requested target_fields into service buckets,\n        # failing to inspect field.required_fields dependencies (like author_id for reviews)!\n        for f_name in target_fields:\n            field_def = self.registry.fields.get(f_name)\n            if not field_def:\n                continue\n            svc = field_def.service_name\n            if svc not in service_map:\n                service_map[svc] = set()\n            service_map[svc].add(f_name)\n        return [QueryPlanStep(svc, sorted(fields)) for svc, fields in service_map.items()]\n"
+  },
+  "tests": {
+    "test_federation_planner.py": "from schema import SubgraphField\nfrom service_registry import FederationRegistry\nfrom planner import FederationQueryPlanner\n\n\ndef test_federated_dependency_injection():\n    reg = FederationRegistry()\n    # User service provides id, username\n    reg.register_field(SubgraphField(\"id\", \"users_service\"))\n    reg.register_field(SubgraphField(\"username\", \"users_service\"))\n    # Reviews service provides rating, but requires id\n    reg.register_field(SubgraphField(\"rating\", \"reviews_service\", required_fields=[\"id\"]))\n    planner = FederationQueryPlanner(reg)\n    # Querying rating on reviews service must inject id fetch in users_service!\n    plan = planner.plan_query([\"rating\"])\n    svc_map = {step.service: step.requested_fields for step in plan}\n    assert \"reviews_service\" in svc_map\n    assert svc_map[\"reviews_service\"] == [\"rating\"]\n    assert \"users_service\" in svc_map\n    assert \"id\" in svc_map[\"users_service\"]\n\n\ndef test_simple_single_service_query():\n    reg = FederationRegistry()\n    reg.register_field(SubgraphField(\"title\", \"products_service\"))\n    planner = FederationQueryPlanner(reg)\n    plan = planner.plan_query([\"title\"])\n    assert len(plan) == 1\n    assert plan[0].service == \"products_service\"\n    assert plan[0].requested_fields == [\"title\"]\n"
+  },
+  "reference_fix": {
+    "planner.py": "\"\"\"Federated query planner assembling cross-service execution steps.\"\"\"\n\nfrom typing import Dict, List, Set\nfrom schema import SubgraphField\nfrom service_registry import FederationRegistry\n\n\nclass QueryPlanStep:\n    def __init__(self, service: str, requested_fields: List[str]):\n        self.service = service\n        self.requested_fields = list(requested_fields)\n\n\nclass FederationQueryPlanner:\n    def __init__(self, registry: FederationRegistry):\n        self.registry = registry\n\n    def plan_query(self, target_fields: List[str]) -> List[QueryPlanStep]:\n        service_map: Dict[str, Set[str]] = {}\n        for f_name in target_fields:\n            field_def = self.registry.fields.get(f_name)\n            if not field_def:\n                continue\n            svc = field_def.service_name\n            if svc not in service_map:\n                service_map[svc] = set()\n            service_map[svc].add(f_name)\n            # Inject required prerequisite dependency fields\n            for req in field_def.required_fields:\n                req_def = self.registry.fields.get(req)\n                if req_def:\n                    req_svc = req_def.service_name\n                    if req_svc not in service_map:\n                        service_map[req_svc] = set()\n                    service_map[req_svc].add(req)\n        return [QueryPlanStep(svc, sorted(fields)) for svc, fields in sorted(service_map.items())]\n"
+  },
+  "metadata": {
+    "estimated_reasoning_steps": 4,
+    "file_count": 3,
+    "adversarial": false,
+    "stateful": false,
+    "multi_file": true,
+    "domain": "api-gateways"
+  }
+}

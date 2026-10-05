@@ -1,0 +1,32 @@
+{
+  "task_id": "v42_ssrf_url_whitelist_validator",
+  "suite": "v2",
+  "version": 2,
+  "difficulty": "hard",
+  "bug_type": "ssrf_decimal_ip_and_private_subnet_bypass",
+  "categories": [
+    "L",
+    "H"
+  ],
+  "description": "SSRF guard uses naive string prefix checks, allowing decimal IP representations and 172.16.0.0/12 private addresses to bypass firewall.",
+  "spec_notes": "SSRFGuard must parse IP addresses via ipaddress library and block private, loopback, and cloud metadata addresses.",
+  "repo_files": {
+    "url_parser.py": "\"\"\"URL component extractor.\"\"\"\n\nimport urllib.parse\nfrom typing import Optional\n\n\nclass ParsedURL:\n    def __init__(self, scheme: str, host: str, port: Optional[int], path: str):\n        self.scheme = scheme\n        self.host = host\n        self.port = port\n        self.path = path\n\n\ndef parse_url(raw_url: str) -> Optional[ParsedURL]:\n    try:\n        p = urllib.parse.urlparse(raw_url.strip())\n        if not p.scheme or not p.netloc:\n            return None\n        host = p.hostname or \"\"\n        port = p.port\n        return ParsedURL(p.scheme.lower(), host.lower(), port, p.path)\n    except Exception:\n        return None\n",
+    "ssrf_guard.py": "\"\"\"SSRF protection and private IP subnet filter.\"\"\"\n\nimport ipaddress\nfrom url_parser import ParsedURL, parse_url\n\n\nFORBIDDEN_HOSTNAMES = {\"localhost\", \"127.0.0.1\", \"::1\", \"metadata.google.internal\"}\n\n\nclass SSRFGuard:\n    def __init__(self, allowed_schemes: set[str] = None):\n        self.allowed_schemes = allowed_schemes or {\"http\", \"https\"}\n\n    def is_safe_url(self, raw_url: str) -> bool:\n        parsed = parse_url(raw_url)\n        if not parsed:\n            return False\n        if parsed.scheme not in self.allowed_schemes:\n            return False\n        if parsed.host in FORBIDDEN_HOSTNAMES:\n            return False\n\n        # BUG: Attempts string prefix checks instead of ipaddress.ip_address() validation,\n        # failing on decimal IPs (e.g. 2130706433 for 127.0.0.1), hex IPs, or 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16!\n        if parsed.host.startswith(\"10.\") or parsed.host.startswith(\"192.168.\"):\n            return False\n        return True\n",
+    "fetcher.py": "\"\"\"Webhook dispatch fetcher.\"\"\"\n\nfrom typing import Any, Dict\nfrom ssrf_guard import SSRFGuard\n\n\nclass WebhookFetcher:\n    def __init__(self):\n        self.guard = SSRFGuard()\n\n    def dispatch(self, target_url: str, payload: Dict[str, Any]) -> bool:\n        if not self.guard.is_safe_url(target_url):\n            return False\n        return True\n"
+  },
+  "tests": {
+    "test_ssrf_validator.py": "from ssrf_guard import SSRFGuard\nfrom fetcher import WebhookFetcher\n\n\ndef test_public_domain_allowed():\n    fetcher = WebhookFetcher()\n    assert fetcher.dispatch(\"https://api.github.com/webhook\", {\"data\": 1}) is True\n    assert fetcher.dispatch(\"http://webhook.site/test\", {}) is True\n\n\ndef test_localhost_and_loopback_blocked():\n    fetcher = WebhookFetcher()\n    assert fetcher.dispatch(\"http://localhost:8080/admin\", {}) is False\n    assert fetcher.dispatch(\"http://127.0.0.1/status\", {}) is False\n    assert fetcher.dispatch(\"http://127.0.0.2:9000\", {}) is False\n\n\ndef test_decimal_ip_loopback_bypass_blocked():\n    # 2130706433 is integer decimal representation of 127.0.0.1 (0x7F000001)\n    fetcher = WebhookFetcher()\n    assert fetcher.dispatch(\"http://2130706433/internal\", {}) is False\n\n\ndef test_private_subnets_blocked():\n    fetcher = WebhookFetcher()\n    # 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 169.254.169.254 (cloud metadata)\n    assert fetcher.dispatch(\"http://10.1.2.3/secret\", {}) is False\n    assert fetcher.dispatch(\"http://172.16.0.1/db\", {}) is False\n    assert fetcher.dispatch(\"http://192.168.1.1/router\", {}) is False\n    assert fetcher.dispatch(\"http://169.254.169.254/latest/meta-data/\", {}) is False\n\n\ndef test_unsupported_schemes_rejected():\n    fetcher = WebhookFetcher()\n    assert fetcher.dispatch(\"file:///etc/passwd\", {}) is False\n    assert fetcher.dispatch(\"gopher://127.0.0.1:6379\", {}) is False\n    assert fetcher.dispatch(\"ftp://public.mirror.org\", {}) is False\n\n\ndef test_cloud_metadata_hostname_blocked():\n    fetcher = WebhookFetcher()\n    assert fetcher.dispatch(\"http://metadata.google.internal/computeMetadata/v1/\", {}) is False\n"
+  },
+  "reference_fix": {
+    "ssrf_guard.py": "\"\"\"SSRF protection and private IP subnet filter.\"\"\"\n\nimport ipaddress\nimport socket\nfrom url_parser import ParsedURL, parse_url\n\n\nFORBIDDEN_HOSTNAMES = {\"localhost\", \"metadata.google.internal\", \"instance-data\"}\n\n\nclass SSRFGuard:\n    def __init__(self, allowed_schemes: set[str] = None):\n        self.allowed_schemes = allowed_schemes or {\"http\", \"https\"}\n\n    def is_safe_url(self, raw_url: str) -> bool:\n        parsed = parse_url(raw_url)\n        if not parsed:\n            return False\n        if parsed.scheme not in self.allowed_schemes:\n            return False\n        if parsed.host in FORBIDDEN_HOSTNAMES:\n            return False\n\n        # Resolve and check IP address against private/loopback/link-local ranges\n        try:\n            ip = ipaddress.ip_address(parsed.host)\n            if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved:\n                return False\n        except ValueError:\n            # If hostname is a numeric string (e.g. decimal IP 2130706433), parse as integer IP\n            if parsed.host.isdigit():\n                try:\n                    ip = ipaddress.ip_address(int(parsed.host))\n                    if ip.is_private or ip.is_loopback or ip.is_link_local:\n                        return False\n                except Exception:\n                    return False\n        return True\n"
+  },
+  "metadata": {
+    "estimated_reasoning_steps": 4,
+    "file_count": 3,
+    "adversarial": false,
+    "stateful": false,
+    "multi_file": true,
+    "domain": "security"
+  }
+}

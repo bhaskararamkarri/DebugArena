@@ -64,15 +64,38 @@ flowchart TD
 
 ---
 
-## 3. Benchmark Tasks (30 Verified Scenarios)
+## 3. Benchmark Suites & Benchmark V2
 
-DebugArena includes 30 verified tasks across two suites:
-- **Core-20:** 20 fundamental debugging tasks (7 easy, 9 medium, 4 hard) covering off-by-one errors, mutable default arguments, division truncations, custom sorting, and multi-file interfaces.
-- **Hard-10:** 10 multi-step engineering bugs (e.g., date arithmetic, interval merging, tokenizer states, transaction rollbacks).
+DebugArena includes **44 verified benchmark tasks** across three suites:
+- **Core-20 (`t01`–`t20`):** 20 baseline debugging tasks (7 easy, 9 medium, 4 hard) covering off-by-one errors, mutable defaults, division truncations, custom sorting, and multi-file interfaces.
+- **Hard-10 (`h01`–`h10`):** 10 multi-step engineering bugs (topological sort cycles, Dijkstra tiebreaking, sliding window limiter, ledger rounding invariants, config precedence).
+- **V2 Pilot Suite (`v01`–`v14`):** 14 advanced SWE and adversarial tasks built with the **Task Factory**, covering all formal taxonomy categories (A–M) including concurrency deadlocks, thread-safe LRU locking, cursor pagination, idempotent webhooks, JSONPath evaluators, markdown table lexers, distributed saga transactions, and adversarial distractor traps.
+
+### Formal Benchmark V2 Taxonomy (Categories A–M)
+- `Category A`: Basic Debugging
+- `Category B`: Algorithmic Bugs
+- `Category C`: Data Structure Invariants
+- `Category D`: State Management & Lifecycle
+- `Category E`: Multi-File Repository Contracts
+- `Category F`: Parsing & Serialization
+- `Category G`: Async & Concurrency
+- `Category H`: API & Backend Logic
+- `Category I`: Database & Transactions
+- `Category J`: Configuration & Layering
+- `Category K`: Performance & Resource Leaks
+- `Category L`: Sandboxed Security & Validation
+- `Category M`: Adversarial Debugging
+
+### Task Factory Architecture (`task_factory/`)
+- `task_factory.schema`: Backwards-compatible `TaskSchemaV2` and `TaskMetadata` models.
+- `task_factory.quality`: 10-dimension composite quality scoring rubric.
+- `task_factory.dedup`: AST-normalizing structural deduplication and token n-gram similarity engine.
+- `task_factory.validators`: Automated verification gates (3x before/after determinism, regression baseline checks).
+- `task_factory.feedback`: Pluggable observation adapters (`diagnostic`, `realistic`, `blind`).
 
 Every task is verified across 3x repetitions with zero flakiness:
 ```bash
-python scripts/verify_tasks.py --suite all --sandbox docker
+python scripts/verify_tasks.py --suite all --sandbox local
 ```
 
 ---

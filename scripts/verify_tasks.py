@@ -99,8 +99,8 @@ def main():
         "--suite",
         type=str,
         default="all",
-        choices=["core", "hard", "all"],
-        help="Suite to verify: 'core', 'hard', or 'all' (default: all)",
+        choices=["core", "hard", "v2", "all"],
+        help="Suite to verify: 'core', 'hard', 'v2', or 'all' (default: all)",
     )
     parser.add_argument(
         "--sandbox",
@@ -120,7 +120,7 @@ def main():
             with open(tf, "r", encoding="utf-8") as f:
                 d = json.load(f)
                 tid = d.get("task_id", tf.parent.name)
-                tsuite = d.get("suite", "core" if tid.startswith("t") else "hard")
+                tsuite = d.get("suite", "core" if tid.startswith("t") else ("hard" if tid.startswith("h") else "v2"))
                 if args.suite == "all" or tsuite == args.suite:
                     task_files.append(tf)
         except Exception:

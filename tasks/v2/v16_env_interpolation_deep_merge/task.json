@@ -1,0 +1,34 @@
+{
+  "task_id": "v16_env_interpolation_deep_merge",
+  "suite": "v2",
+  "version": 2,
+  "difficulty": "hard",
+  "bug_type": "env_interpolation_chained_resolution",
+  "categories": [
+    "J",
+    "E",
+    "F"
+  ],
+  "description": "Environment variable interpolator fails on chained fallback expressions and nested array structures.",
+  "spec_notes": "EnvInterpolator must resolve nested variable expressions iteratively and handle deep merging.",
+  "repo_files": {
+    "schema.py": "\"\"\"Configuration type schema and validations.\"\"\"\n\nfrom typing import Any, Dict, List\n\n\nclass SchemaValidator:\n    @staticmethod\n    def validate_type(value: Any, expected_type: type) -> bool:\n        return isinstance(value, expected_type)\n",
+    "interpolator.py": "\"\"\"Resolves environment variable expressions in configuration strings.\"\"\"\n\nimport re\nfrom typing import Any, Dict\n\nPATTERN = re.compile(r\"\\$\\{([A-Za-z0-9_]+)(?::-([^}]*))?\\}\")\n\n\nclass EnvInterpolator:\n    def __init__(self, env: Dict[str, str]):\n        self.env = env\n\n    def interpolate_string(self, text: str) -> str:\n        def replace(match: re.Match) -> str:\n            var_name = match.group(1)\n            default_val = match.group(2) if match.group(2) is not None else \"\"\n            # BUG: Returns empty string when env var is missing and default is given as empty string vs None\n            if var_name in self.env:\n                return self.env[var_name]\n            if match.group(2) is not None:\n                return default_val\n            return match.group(0)  # Unresolved literal\n\n        # BUG: Only executes a single pass, failing nested or chained expressions like ${A:-${B}}\n        return PATTERN.sub(replace, text)\n\n    def interpolate_tree(self, obj: Any) -> Any:\n        if isinstance(obj, str):\n            return self.interpolate_string(obj)\n        if isinstance(obj, dict):\n            return {k: self.interpolate_tree(v) for k, v in obj.items()}\n        if isinstance(obj, list):\n            return [self.interpolate_tree(elem) for elem in obj]\n        return obj\n",
+    "merger.py": "\"\"\"Deep merging of nested configurations with conflict strategies.\"\"\"\n\nfrom typing import Any, Dict\n\n\ndef deep_merge(target: Dict[str, Any], source: Dict[str, Any]) -> Dict[str, Any]:\n    result = dict(target)\n    for k, v in source.items():\n        if k in result and isinstance(result[k], dict) and isinstance(v, dict):\n            result[k] = deep_merge(result[k], v)\n        else:\n            result[k] = v\n    return result\n",
+    "provider.py": "\"\"\"Unified configuration provider combining interpolation and merging.\"\"\"\n\nfrom typing import Any, Dict\nfrom interpolator import EnvInterpolator\nfrom merger import deep_merge\n\n\nclass ConfigProvider:\n    def __init__(self, env: Dict[str, str]):\n        self.interpolator = EnvInterpolator(env)\n\n    def compose(self, base_cfg: Dict[str, Any], overrides: Dict[str, Any]) -> Dict[str, Any]:\n        merged = deep_merge(base_cfg, overrides)\n        return self.interpolator.interpolate_tree(merged)\n"
+  },
+  "tests": {
+    "test_config_interpolation.py": "from provider import ConfigProvider\n\n\ndef test_basic_env_substitution():\n    env = {\"DB_HOST\": \"postgres.internal\", \"DB_PORT\": \"5432\"}\n    provider = ConfigProvider(env)\n    base = {\"db\": {\"host\": \"${DB_HOST}\", \"port\": \"${DB_PORT}\"}}\n    cfg = provider.compose(base, {})\n    assert cfg[\"db\"][\"host\"] == \"postgres.internal\"\n    assert cfg[\"db\"][\"port\"] == \"5432\"\n\n\ndef test_default_fallback_when_env_missing():\n    env = {}\n    provider = ConfigProvider(env)\n    base = {\"api\": {\"timeout\": \"${API_TIMEOUT:-30}\", \"prefix\": \"${API_PREFIX:-/v1}\"}}\n    cfg = provider.compose(base, {})\n    assert cfg[\"api\"][\"timeout\"] == \"30\"\n    assert cfg[\"api\"][\"prefix\"] == \"/v1\"\n\n\ndef test_nested_array_and_dict_interpolation():\n    env = {\"NODE_1\": \"10.0.0.1\", \"NODE_2\": \"10.0.0.2\"}\n    provider = ConfigProvider(env)\n    base = {\"cluster\": {\"nodes\": [\"${NODE_1}\", \"${NODE_2}\", \"${NODE_3:-10.0.0.3}\"]}}\n    cfg = provider.compose(base, {})\n    assert cfg[\"cluster\"][\"nodes\"] == [\"10.0.0.1\", \"10.0.0.2\", \"10.0.0.3\"]\n\n\ndef test_override_deep_merge_with_interpolation():\n    env = {\"LOG_LEVEL\": \"DEBUG\"}\n    provider = ConfigProvider(env)\n    base = {\"service\": {\"name\": \"auth\", \"log\": {\"level\": \"INFO\", \"format\": \"text\"}}}\n    overrides = {\"service\": {\"log\": {\"level\": \"${LOG_LEVEL}\"}}}\n    cfg = provider.compose(base, overrides)\n    assert cfg[\"service\"][\"name\"] == \"auth\"\n    assert cfg[\"service\"][\"log\"][\"level\"] == \"DEBUG\"\n    assert cfg[\"service\"][\"log\"][\"format\"] == \"text\"\n\n\ndef test_unresolved_env_without_default_remains_literal():\n    env = {}\n    provider = ConfigProvider(env)\n    base = {\"custom\": {\"raw_template\": \"${UNSET_VAR}\"}}\n    cfg = provider.compose(base, {})\n    assert cfg[\"custom\"][\"raw_template\"] == \"${UNSET_VAR}\"\n\n\ndef test_chained_nested_expression_resolution():\n    env = {\"SECONDARY\": \"backup.server\"}\n    provider = ConfigProvider(env)\n    base = {\"host\": \"${PRIMARY:-${SECONDARY}}\"}\n    cfg = provider.compose(base, {})\n    assert cfg[\"host\"] == \"backup.server\"\n"
+  },
+  "reference_fix": {
+    "interpolator.py": "\"\"\"Resolves environment variable expressions in configuration strings.\"\"\"\n\nimport re\nfrom typing import Any, Dict\n\nPATTERN = re.compile(r\"\\$\\{([A-Za-z0-9_]+)(?::-([^}]*))?\\}\")\n\n\nclass EnvInterpolator:\n    def __init__(self, env: Dict[str, str]):\n        self.env = env\n\n    def interpolate_string(self, text: str) -> str:\n        def replace_single(match: re.Match) -> str:\n            var_name = match.group(1)\n            default_val = match.group(2)\n            if var_name in self.env:\n                return self.env[var_name]\n            if default_val is not None:\n                return default_val\n            return match.group(0)\n\n        prev = text\n        for _ in range(5):\n            nxt = PATTERN.sub(replace_single, prev)\n            if nxt == prev:\n                break\n            prev = nxt\n        return prev\n\n    def interpolate_tree(self, obj: Any) -> Any:\n        if isinstance(obj, str):\n            return self.interpolate_string(obj)\n        if isinstance(obj, dict):\n            return {k: self.interpolate_tree(v) for k, v in obj.items()}\n        if isinstance(obj, list):\n            return [self.interpolate_tree(elem) for elem in obj]\n        return obj\n"
+  },
+  "metadata": {
+    "estimated_reasoning_steps": 5,
+    "file_count": 4,
+    "adversarial": false,
+    "stateful": false,
+    "multi_file": true,
+    "domain": "infrastructure"
+  }
+}

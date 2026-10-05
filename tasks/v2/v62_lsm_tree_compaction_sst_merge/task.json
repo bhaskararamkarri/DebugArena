@@ -1,0 +1,32 @@
+{
+  "task_id": "v62_lsm_tree_compaction_sst_merge",
+  "suite": "v2",
+  "version": 2,
+  "difficulty": "hard",
+  "bug_type": "lsm_tree_bottom_tier_tombstone_purge_omission",
+  "categories": [
+    "I",
+    "K"
+  ],
+  "description": "LSM compactor retains deletion tombstones during bottom-tier (max_level) merges, leaking storage space indefinitely.",
+  "spec_notes": "CompactionEngine.merge_sstables must filter out (k, None) tombstones when target_level >= max_level.",
+  "repo_files": {
+    "sstable.py": "\"\"\"Immutable Sorted String Table (SSTable) file representation.\"\"\"\n\nfrom dataclasses import dataclass\nfrom typing import Any, Dict, List, Optional, Tuple\n\n\n@dataclass\nclass SSTable:\n    table_id: str\n    level: int\n    # Stored as sorted list of (key, value) pairs; value=None is a tombstone\n    entries: List[Tuple[str, Optional[Any]]]\n\n    def get(self, key: str) -> Tuple[bool, Optional[Any]]:\n        for k, v in self.entries:\n            if k == key:\n                return True, v\n        return False, None\n",
+    "compactor.py": "\"\"\"LSM-tree multi-level SSTable compaction and merge sorter.\"\"\"\n\nfrom typing import Any, Dict, List, Optional, Tuple\nfrom sstable import SSTable\n\n\nclass CompactionEngine:\n    def __init__(self, max_level: int = 2):\n        self.max_level = max_level\n\n    def merge_sstables(self, target_level: int, tables: List[SSTable], new_table_id: str) -> SSTable:\n        # Multi-way merge sort: later tables in list represent newer timestamps\n        merged_map: Dict[str, Optional[Any]] = {}\n        for table in tables:\n            for k, v in table.entries:\n                merged_map[k] = v\n\n        # Sort by key\n        sorted_pairs = sorted(merged_map.items(), key=lambda p: p[0])\n\n        # BUG: Retains tombstones (value=None) even when target_level == self.max_level (bottom tier)!\n        # At max_level, no older tables exist below, so tombstones should be purged!\n        return SSTable(table_id=new_table_id, level=target_level, entries=sorted_pairs)\n",
+    "lsm_engine.py": "\"\"\"High level LSM storage engine.\"\"\"\n\nfrom typing import Any, Dict, List, Optional\nfrom compactor import CompactionEngine\nfrom sstable import SSTable\n\n\nclass LSMStorageEngine:\n    def __init__(self, max_level: int = 2):\n        self.compactor = CompactionEngine(max_level=max_level)\n        self.levels: Dict[int, List[SSTable]] = {lvl: [] for lvl in range(max_level + 1)}\n\n    def compact_level(self, level: int, out_id: str) -> SSTable:\n        tables = self.levels.get(level, [])\n        target_lvl = min(self.compactor.max_level, level + 1)\n        merged = self.compactor.merge_sstables(target_lvl, tables, out_id)\n        self.levels[level] = []\n        self.levels[target_lvl].append(merged)\n        return merged\n"
+  },
+  "tests": {
+    "test_lsm_compaction.py": "from sstable import SSTable\nfrom compactor import CompactionEngine\nfrom lsm_engine import LSMStorageEngine\n\n\ndef test_basic_sst_merge_overwrites():\n    engine = CompactionEngine(max_level=2)\n    t1 = SSTable(\"t1\", 0, [(\"a\", 1), (\"b\", 2)])\n    t2 = SSTable(\"t2\", 0, [(\"b\", 20), (\"c\", 3)])\n    merged = engine.merge_sstables(1, [t1, t2], \"m1\")\n    assert merged.entries == [(\"a\", 1), (\"b\", 20), (\"c\", 3)]\n\n\ndef test_bottom_level_compaction_purges_tombstones():\n    engine = CompactionEngine(max_level=2)\n    t1 = SSTable(\"t1\", 1, [(\"user_1\", \"Alice\"), (\"user_2\", \"Bob\")])\n    t2 = SSTable(\"t2\", 1, [(\"user_1\", None)])  # Deletion tombstone for user_1\n    # Compacting into max_level=2 must PURGE user_1 tombstone!\n    merged = engine.merge_sstables(2, [t1, t2], \"m_final\")\n    assert merged.entries == [(\"user_2\", \"Bob\")]\n    assert not any(k == \"user_1\" for k, v in merged.entries)\n\n\ndef test_intermediate_level_preserves_tombstones():\n    engine = CompactionEngine(max_level=3)\n    t1 = SSTable(\"t1\", 0, [(\"x\", \"val\")])\n    t2 = SSTable(\"t2\", 0, [(\"x\", None)])\n    # Compacting into intermediate level 1 must preserve tombstone for lower levels\n    merged = engine.merge_sstables(1, [t1, t2], \"m_inter\")\n    assert merged.entries == [(\"x\", None)]\n"
+  },
+  "reference_fix": {
+    "compactor.py": "\"\"\"LSM-tree multi-level SSTable compaction and merge sorter.\"\"\"\n\nfrom typing import Any, Dict, List, Optional, Tuple\nfrom sstable import SSTable\n\n\nclass CompactionEngine:\n    def __init__(self, max_level: int = 2):\n        self.max_level = max_level\n\n    def merge_sstables(self, target_level: int, tables: List[SSTable], new_table_id: str) -> SSTable:\n        merged_map: Dict[str, Optional[Any]] = {}\n        for table in tables:\n            for k, v in table.entries:\n                merged_map[k] = v\n\n        sorted_pairs = sorted(merged_map.items(), key=lambda p: p[0])\n\n        # Purge tombstones (value is None) when compacting into bottom level (max_level)\n        if target_level >= self.max_level:\n            sorted_pairs = [(k, v) for k, v in sorted_pairs if v is not None]\n\n        return SSTable(table_id=new_table_id, level=target_level, entries=sorted_pairs)\n"
+  },
+  "metadata": {
+    "estimated_reasoning_steps": 4,
+    "file_count": 3,
+    "adversarial": false,
+    "stateful": true,
+    "multi_file": true,
+    "domain": "storage-engines"
+  }
+}

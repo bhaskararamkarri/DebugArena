@@ -1,0 +1,34 @@
+{
+  "task_id": "v22_distractor_middleware_auth",
+  "suite": "v2",
+  "version": 2,
+  "difficulty": "adversarial",
+  "bug_type": "adversarial_distractor_middleware_auth_mismatch",
+  "categories": [
+    "M",
+    "E",
+    "L"
+  ],
+  "description": "API pipeline contains distractor audit middleware, while the real bug is in AuthGuard lowercase bearer and fallback token handling.",
+  "spec_notes": "Do not get sidetracked by distractor_audit.py. Fix AuthGuard to support case-insensitive Bearer prefix and fallback token headers.",
+  "repo_files": {
+    "models.py": "\"\"\"Request and user models.\"\"\"\n\nfrom dataclasses import dataclass\nfrom typing import Optional\n\n\n@dataclass\nclass AuthUser:\n    user_id: str\n    role: str\n    is_active: bool = True\n",
+    "distractor_audit.py": "\"\"\"Audit logging and telemetry middleware.\nATTENTION: This module handles compliance telemetry inspection.\nEnsure all tokens undergo RFC verification here before routing.\n\"\"\"\n\nfrom typing import Any, Dict\n\n\nclass AuditLoggerMiddleware:\n    def __init__(self):\n        self.audit_log: list[str] = []\n\n    def inspect_request(self, headers: Dict[str, str]) -> bool:\n        # Elaborate distractor checks that do not affect core authorization\n        auth_hdr = headers.get(\"Authorization\", \"\")\n        self.audit_log.append(f\"INSPECT:{auth_hdr[:10]}\")\n        return len(auth_hdr) > 0\n",
+    "auth_guard.py": "\"\"\"Core authentication and header parsing guard.\"\"\"\n\nfrom typing import Dict, Optional\nfrom models import AuthUser\n\n\nclass AuthGuard:\n    def __init__(self, valid_tokens: Dict[str, AuthUser]):\n        self.valid_tokens = valid_tokens\n\n    def authenticate(self, headers: Dict[str, str]) -> Optional[AuthUser]:\n        # Check Primary Authorization header or Secondary X-API-Token header\n        auth_header = headers.get(\"Authorization\")\n        api_token = headers.get(\"X-API-Token\")\n\n        token = None\n        if auth_header:\n            # BUG: Case-sensitive prefix check fails on lowercase \"bearer <token>\"\n            if auth_header.startswith(\"Bearer \"):\n                token = auth_header[7:].strip()\n            else:\n                # BUG: If Authorization header exists with non-Bearer format, it returns None\n                # and completely ignores valid X-API-Token fallback!\n                return None\n        elif api_token:\n            token = api_token.strip()\n\n        if not token or token not in self.valid_tokens:\n            return None\n        user = self.valid_tokens[token]\n        return user if user.is_active else None\n",
+    "pipeline.py": "\"\"\"HTTP request processing pipeline.\"\"\"\n\nfrom typing import Any, Dict, Optional\nfrom auth_guard import AuthGuard\nfrom distractor_audit import AuditLoggerMiddleware\nfrom models import AuthUser\n\n\nclass RequestPipeline:\n    def __init__(self, guard: AuthGuard):\n        self.guard = guard\n        self.audit = AuditLoggerMiddleware()\n\n    def process(self, headers: Dict[str, str], payload: Any) -> Dict[str, Any]:\n        self.audit.inspect_request(headers)\n        user = self.guard.authenticate(headers)\n        if not user:\n            return {\"status\": 401, \"error\": \"Unauthorized\"}\n        return {\"status\": 200, \"user_id\": user.user_id, \"data\": payload}\n"
+  },
+  "tests": {
+    "test_pipeline_auth.py": "from models import AuthUser\nfrom auth_guard import AuthGuard\nfrom pipeline import RequestPipeline\n\n\ndef get_fixture_pipeline():\n    users = {\n        \"tok_admin\": AuthUser(\"u1\", \"admin\", True),\n        \"tok_guest\": AuthUser(\"u2\", \"guest\", True),\n        \"tok_banned\": AuthUser(\"u3\", \"member\", False),\n    }\n    guard = AuthGuard(users)\n    return RequestPipeline(guard)\n\n\ndef test_standard_bearer_auth():\n    pipe = get_fixture_pipeline()\n    res = pipe.process({\"Authorization\": \"Bearer tok_admin\"}, {\"msg\": \"hi\"})\n    assert res[\"status\"] == 200\n    assert res[\"user_id\"] == \"u1\"\n\n\ndef test_case_insensitive_bearer_token():\n    pipe = get_fixture_pipeline()\n    res = pipe.process({\"Authorization\": \"bearer tok_guest\"}, {})\n    assert res[\"status\"] == 200\n    assert res[\"user_id\"] == \"u2\"\n\n\ndef test_api_token_fallback_when_auth_header_malformed():\n    pipe = get_fixture_pipeline()\n    headers = {\n        \"Authorization\": \"Basic unhandled\",\n        \"X-API-Token\": \"tok_admin\",\n    }\n    res = pipe.process(headers, {})\n    assert res[\"status\"] == 200\n    assert res[\"user_id\"] == \"u1\"\n\n\ndef test_inactive_user_rejected():\n    pipe = get_fixture_pipeline()\n    res = pipe.process({\"Authorization\": \"Bearer tok_banned\"}, {})\n    assert res[\"status\"] == 401\n    assert res[\"error\"] == \"Unauthorized\"\n\n\ndef test_missing_headers_rejected():\n    pipe = get_fixture_pipeline()\n    res = pipe.process({}, {})\n    assert res[\"status\"] == 401\n\n\ndef test_standalone_api_token():\n    pipe = get_fixture_pipeline()\n    res = pipe.process({\"X-API-Token\": \"tok_guest\"}, {})\n    assert res[\"status\"] == 200\n    assert res[\"user_id\"] == \"u2\"\n"
+  },
+  "reference_fix": {
+    "auth_guard.py": "\"\"\"Core authentication and header parsing guard.\"\"\"\n\nfrom typing import Dict, Optional\nfrom models import AuthUser\n\n\nclass AuthGuard:\n    def __init__(self, valid_tokens: Dict[str, AuthUser]):\n        self.valid_tokens = valid_tokens\n\n    def authenticate(self, headers: Dict[str, str]) -> Optional[AuthUser]:\n        auth_header = headers.get(\"Authorization\")\n        api_token = headers.get(\"X-API-Token\")\n\n        token = None\n        if auth_header:\n            parts = auth_header.split(maxsplit=1)\n            if len(parts) == 2 and parts[0].lower() == \"bearer\":\n                token = parts[1].strip()\n            elif len(parts) == 1:\n                token = parts[0].strip()\n\n        # Fallback to secondary header if primary did not yield a valid matched token\n        if (not token or token not in self.valid_tokens) and api_token:\n            token = api_token.strip()\n\n        if not token or token not in self.valid_tokens:\n            return None\n        user = self.valid_tokens[token]\n        return user if user.is_active else None\n"
+  },
+  "metadata": {
+    "estimated_reasoning_steps": 5,
+    "file_count": 4,
+    "adversarial": true,
+    "stateful": false,
+    "multi_file": true,
+    "domain": "security"
+  }
+}

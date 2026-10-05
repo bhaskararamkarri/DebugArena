@@ -1,0 +1,33 @@
+{
+  "task_id": "v53_message_queue_dedup_sliding_window",
+  "suite": "v2",
+  "version": 2,
+  "difficulty": "hard",
+  "bug_type": "queue_dedup_window_fifo_eviction_inversion",
+  "categories": [
+    "G",
+    "E"
+  ],
+  "description": "Deduplication window evicts newest messages (pop()) instead of oldest (pop(0)) when capacity is exceeded.",
+  "spec_notes": "DedupWindow.is_duplicate_and_record must pop from index 0 on overflow.",
+  "repo_files": {
+    "message.py": "\"\"\"Broker message payload.\"\"\"\n\nfrom dataclasses import dataclass\nfrom typing import Any\n\n\n@dataclass\nclass QueueMessage:\n    msg_id: str\n    body: Any\n    sequence: int\n",
+    "dedup_window.py": "\"\"\"Sliding deduplication window for streaming queues.\"\"\"\n\nclass DedupWindow:\n    def __init__(self, max_size: int = 5):\n        self.max_size = max_size\n        self.seen_ids = set()\n        self.order = []\n\n    def is_duplicate_and_record(self, msg_id: str) -> bool:\n        if msg_id in self.seen_ids:\n            return True\n        self.seen_ids.add(msg_id)\n        self.order.append(msg_id)\n        if len(self.order) > self.max_size:\n            # BUG: Pops from back self.order.pop() instead of self.order.pop(0)!\n            # Evicting the NEWEST element instead of the OLDEST element!\n            evicted = self.order.pop()\n            self.seen_ids.discard(evicted)\n        return False\n",
+    "broker.py": "\"\"\"Message queue broker with deduplication filter.\"\"\"\n\nfrom typing import List, Optional\nfrom dedup_window import DedupWindow\nfrom message import QueueMessage\n\n\nclass QueueBroker:\n    def __init__(self, dedup_size: int = 4):\n        self.dedup = DedupWindow(max_size=dedup_size)\n        self.queue: List[QueueMessage] = []\n\n    def publish(self, msg: QueueMessage) -> bool:\n        if self.dedup.is_duplicate_and_record(msg.msg_id):\n            return False\n        self.queue.append(msg)\n        return True\n\n    def consume(self) -> Optional[QueueMessage]:\n        if self.queue:\n            return self.queue.pop(0)\n        return None\n",
+    "consumer.py": "\"\"\"Message consumer client.\"\"\"\n\nfrom typing import List\nfrom broker import QueueBroker\n\n\nclass MessageConsumer:\n    def __init__(self, broker: QueueBroker):\n        self.broker = broker\n\n    def drain_all(self) -> List[str]:\n        out = []\n        while True:\n            m = self.broker.consume()\n            if not m:\n                break\n            out.append(m.msg_id)\n        return out\n"
+  },
+  "tests": {
+    "test_queue_dedup.py": "from message import QueueMessage\nfrom broker import QueueBroker\nfrom consumer import MessageConsumer\n\n\ndef test_basic_deduplication():\n    broker = QueueBroker(dedup_size=3)\n    assert broker.publish(QueueMessage(\"m1\", \"data\", 1)) is True\n    assert broker.publish(QueueMessage(\"m1\", \"data\", 2)) is False  # duplicate\n    assert broker.publish(QueueMessage(\"m2\", \"data\", 3)) is True\n    consumer = MessageConsumer(broker)\n    assert consumer.drain_all() == [\"m1\", \"m2\"]\n\n\ndef test_fifo_window_eviction_order():\n    broker = QueueBroker(dedup_size=2)\n    # Push m1, m2 (window holds {m1, m2})\n    broker.publish(QueueMessage(\"m1\", \"\", 1))\n    broker.publish(QueueMessage(\"m2\", \"\", 2))\n    # Push m3: window size 2 exceeded -> m1 (OLDEST) must be evicted, m2 & m3 kept\n    broker.publish(QueueMessage(\"m3\", \"\", 3))\n    # Immediate re-send of m3 must be recognized as duplicate (m3 is in window)\n    assert broker.publish(QueueMessage(\"m3\", \"\", 4)) is False\n    # m1 was evicted, so m1 can now enter again\n    assert broker.publish(QueueMessage(\"m1\", \"\", 5)) is True\n\n\ndef test_empty_broker_consume():\n    broker = QueueBroker()\n    assert broker.consume() is None\n\n\ndef test_sequential_unique_messages():\n    broker = QueueBroker(dedup_size=5)\n    for i in range(5):\n        assert broker.publish(QueueMessage(f\"id_{i}\", \"\", i)) is True\n    consumer = MessageConsumer(broker)\n    assert len(consumer.drain_all()) == 5\n"
+  },
+  "reference_fix": {
+    "dedup_window.py": "\"\"\"Sliding deduplication window for streaming queues.\"\"\"\n\nclass DedupWindow:\n    def __init__(self, max_size: int = 5):\n        self.max_size = max_size\n        self.seen_ids = set()\n        self.order = []\n\n    def is_duplicate_and_record(self, msg_id: str) -> bool:\n        if msg_id in self.seen_ids:\n            return True\n        self.seen_ids.add(msg_id)\n        self.order.append(msg_id)\n        if len(self.order) > self.max_size:\n            evicted = self.order.pop(0)\n            self.seen_ids.discard(evicted)\n        return False\n"
+  },
+  "metadata": {
+    "estimated_reasoning_steps": 3,
+    "file_count": 4,
+    "adversarial": false,
+    "stateful": true,
+    "multi_file": true,
+    "domain": "concurrency"
+  }
+}

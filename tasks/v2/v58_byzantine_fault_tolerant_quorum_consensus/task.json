@@ -1,0 +1,32 @@
+{
+  "task_id": "v58_byzantine_fault_tolerant_quorum_consensus",
+  "suite": "v2",
+  "version": 2,
+  "difficulty": "hard",
+  "bug_type": "bft_quorum_calculation_undercount_error",
+  "categories": [
+    "G",
+    "L"
+  ],
+  "description": "BFT consensus quorum calculator uses truncated integer division, accepting 2 votes instead of 3 in a 4-node PBFT cluster.",
+  "spec_notes": "ValidatorSet.required_commit_quorum must enforce 2f + 1 where f = (N - 1) // 3.",
+  "repo_files": {
+    "bft_message.py": "\"\"\"BFT consensus vote messages.\"\"\"\n\nfrom dataclasses import dataclass\nfrom typing import Any\n\n\n@dataclass\nclass CommitVote:\n    view: int\n    sequence: int\n    block_hash: str\n    node_id: str\n",
+    "validator_set.py": "\"\"\"Validator set membership and quorum threshold calculator.\"\"\"\n\nclass ValidatorSet:\n    def __init__(self, validators: list[str]):\n        self.validators = list(validators)\n\n    @property\n    def size(self) -> int:\n        return len(self.validators)\n\n    def required_commit_quorum(self) -> int:\n        # In PBFT (3f + 1), required commit quorum is 2f + 1\n        # BUG: Uses naive (2 * N) // 3 which undercounts when N=4 (returns 2 instead of 3)!\n        return (2 * self.size) // 3\n",
+    "bft_engine.py": "\"\"\"BFT block finalization engine.\"\"\"\n\nfrom typing import Dict, List\nfrom bft_message import CommitVote\nfrom validator_set import ValidatorSet\n\n\nclass BFTEngine:\n    def __init__(self, val_set: ValidatorSet):\n        self.val_set = val_set\n        self.commit_votes: Dict[str, set[str]] = {}  # block_hash -> set(node_ids)\n\n    def receive_vote(self, vote: CommitVote) -> bool:\n        if vote.node_id not in self.val_set.validators:\n            return False\n        if vote.block_hash not in self.commit_votes:\n            self.commit_votes[vote.block_hash] = set()\n        self.commit_votes[vote.block_hash].add(vote.node_id)\n        threshold = self.val_set.required_commit_quorum()\n        return len(self.commit_votes[vote.block_hash]) >= threshold\n"
+  },
+  "tests": {
+    "test_bft_quorum.py": "from bft_message import CommitVote\nfrom bft_engine import BFTEngine\nfrom validator_set import ValidatorSet\n\n\ndef test_validator_set_size_and_membership():\n    vs = ValidatorSet([\"v1\", \"v2\", \"v3\"])\n    assert vs.size == 3\n    engine = BFTEngine(vs)\n    assert engine.receive_vote(CommitVote(1, 1, \"blk\", \"unknown\")) is False\n\n\ndef test_four_node_cluster_requires_three_votes():\n    # N=4 (f=1) requires 2f+1 = 3 votes for finality\n    vals = [\"v0\", \"v1\", \"v2\", \"v3\"]\n    vs = ValidatorSet(vals)\n    engine = BFTEngine(vs)\n    # 2 votes must NOT finalize block\n    assert engine.receive_vote(CommitVote(1, 1, \"blk_a\", \"v0\")) is False\n    assert engine.receive_vote(CommitVote(1, 1, \"blk_a\", \"v1\")) is False\n    # 3rd vote reaches 2f+1 quorum -> finalized\n    assert engine.receive_vote(CommitVote(1, 1, \"blk_a\", \"v2\")) is True\n\n\ndef test_seven_node_cluster_requires_five_votes():\n    # N=7 (f=2) requires 2(2)+1 = 5 votes\n    vs = ValidatorSet([f\"v_{i}\" for i in range(7)])\n    assert vs.required_commit_quorum() == 5\n"
+  },
+  "reference_fix": {
+    "validator_set.py": "\"\"\"Validator set membership and quorum threshold calculator.\"\"\"\n\nimport math\n\n\nclass ValidatorSet:\n    def __init__(self, validators: list[str]):\n        self.validators = list(validators)\n\n    @property\n    def size(self) -> int:\n        return len(self.validators)\n\n    def required_commit_quorum(self) -> int:\n        # For N = 3f + 1, f = (N - 1) // 3, required quorum = 2f + 1\n        f = (self.size - 1) // 3\n        return 2 * f + 1\n"
+  },
+  "metadata": {
+    "estimated_reasoning_steps": 4,
+    "file_count": 3,
+    "adversarial": false,
+    "stateful": true,
+    "multi_file": true,
+    "domain": "distributed-consensus"
+  }
+}

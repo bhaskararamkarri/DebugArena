@@ -1,0 +1,32 @@
+{
+  "task_id": "v57_raft_log_replication_split_vote",
+  "suite": "v2",
+  "version": 2,
+  "difficulty": "hard",
+  "bug_type": "raft_request_vote_log_completeness_omission",
+  "categories": [
+    "G",
+    "E"
+  ],
+  "description": "Raft node grants votes without checking candidate log up-to-dateness (\u00a75.4.1), electing stale leaders that lose committed state.",
+  "spec_notes": "RaftNode.handle_request_vote must verify candidate's last_log_term and last_log_index before granting vote.",
+  "repo_files": {
+    "log_entry.py": "\"\"\"Raft log entry definition.\"\"\"\n\nfrom dataclasses import dataclass\nfrom typing import Any\n\n\n@dataclass\nclass LogEntry:\n    index: int\n    term: int\n    command: Any\n",
+    "rpc.py": "\"\"\"Raft RPC request and response payloads.\"\"\"\n\nfrom dataclasses import dataclass\nfrom typing import Any, List\nfrom log_entry import LogEntry\n\n\n@dataclass\nclass RequestVoteArgs:\n    term: int\n    candidate_id: str\n    last_log_index: int\n    last_log_term: int\n\n\n@dataclass\nclass RequestVoteReply:\n    term: int\n    vote_granted: bool\n",
+    "raft_node.py": "\"\"\"Raft consensus protocol node.\"\"\"\n\nfrom typing import List, Optional\nfrom log_entry import LogEntry\nfrom rpc import RequestVoteArgs, RequestVoteReply\n\n\nclass RaftNode:\n    def __init__(self, node_id: str):\n        self.node_id = node_id\n        self.current_term = 0\n        self.voted_for: Optional[str] = None\n        self.log: List[LogEntry] = []\n\n    @property\n    def last_log_index(self) -> int:\n        return self.log[-1].index if self.log else 0\n\n    @property\n    def last_log_term(self) -> int:\n        return self.log[-1].term if self.log else 0\n\n    def handle_request_vote(self, args: RequestVoteArgs) -> RequestVoteReply:\n        if args.term < self.current_term:\n            return RequestVoteReply(self.current_term, False)\n\n        if args.term > self.current_term:\n            self.current_term = args.term\n            self.voted_for = None\n\n        # BUG: Only checks if voted_for is None or equals candidate_id,\n        # completely ignoring \u00a75.4.1 log up-to-dateness check!\n        # Allows stale candidate with shorter/older log to receive votes.\n        can_vote = self.voted_for is None or self.voted_for == args.candidate_id\n        if can_vote:\n            self.voted_for = args.candidate_id\n            return RequestVoteReply(self.current_term, True)\n        return RequestVoteReply(self.current_term, False)\n"
+  },
+  "tests": {
+    "test_raft_election.py": "from log_entry import LogEntry\nfrom raft_node import RaftNode\nfrom rpc import RequestVoteArgs\n\n\ndef test_vote_granted_when_candidate_up_to_date():\n    node = RaftNode(\"n1\")\n    node.current_term = 1\n    node.log = [LogEntry(1, 1, \"cmd1\")]\n    args = RequestVoteArgs(term=2, candidate_id=\"cand_2\", last_log_index=1, last_log_term=1)\n    reply = node.handle_request_vote(args)\n    assert reply.vote_granted is True\n    assert node.voted_for == \"cand_2\"\n\n\ndef test_vote_denied_when_candidate_log_term_is_stale():\n    node = RaftNode(\"n2\")\n    node.current_term = 3\n    node.log = [LogEntry(1, 1, \"c1\"), LogEntry(2, 3, \"c2\")]\n    # Candidate has term 4 (higher term), but last_log_term is 2 (< node term 3)\n    args = RequestVoteArgs(term=4, candidate_id=\"stale_cand\", last_log_index=5, last_log_term=2)\n    reply = node.handle_request_vote(args)\n    # Stale candidate MUST NOT be granted vote!\n    assert reply.vote_granted is False\n    assert node.voted_for is None\n\n\ndef test_vote_denied_when_candidate_log_shorter_at_same_term():\n    node = RaftNode(\"n3\")\n    node.current_term = 2\n    node.log = [LogEntry(1, 1, \"c1\"), LogEntry(2, 2, \"c2\"), LogEntry(3, 2, \"c3\")]\n    # Candidate has last_log_index 2 at term 2 (node has index 3 at term 2)\n    args = RequestVoteArgs(term=3, candidate_id=\"shorter_cand\", last_log_index=2, last_log_term=2)\n    reply = node.handle_request_vote(args)\n    assert reply.vote_granted is False\n"
+  },
+  "reference_fix": {
+    "raft_node.py": "\"\"\"Raft consensus protocol node.\"\"\"\n\nfrom typing import List, Optional\nfrom log_entry import LogEntry\nfrom rpc import RequestVoteArgs, RequestVoteReply\n\n\nclass RaftNode:\n    def __init__(self, node_id: str):\n        self.node_id = node_id\n        self.current_term = 0\n        self.voted_for: Optional[str] = None\n        self.log: List[LogEntry] = []\n\n    @property\n    def last_log_index(self) -> int:\n        return self.log[-1].index if self.log else 0\n\n    @property\n    def last_log_term(self) -> int:\n        return self.log[-1].term if self.log else 0\n\n    def handle_request_vote(self, args: RequestVoteArgs) -> RequestVoteReply:\n        if args.term < self.current_term:\n            return RequestVoteReply(self.current_term, False)\n\n        if args.term > self.current_term:\n            self.current_term = args.term\n            self.voted_for = None\n\n        can_vote = self.voted_for is None or self.voted_for == args.candidate_id\n        # Raft \u00a75.4.1: Candidate log must be at least as up-to-date as receiver log\n        log_ok = (\n            args.last_log_term > self.last_log_term\n            or (\n                args.last_log_term == self.last_log_term\n                and args.last_log_index >= self.last_log_index\n            )\n        )\n        if can_vote and log_ok:\n            self.voted_for = args.candidate_id\n            return RequestVoteReply(self.current_term, True)\n        return RequestVoteReply(self.current_term, False)\n"
+  },
+  "metadata": {
+    "estimated_reasoning_steps": 4,
+    "file_count": 3,
+    "adversarial": false,
+    "stateful": true,
+    "multi_file": true,
+    "domain": "distributed-consensus"
+  }
+}

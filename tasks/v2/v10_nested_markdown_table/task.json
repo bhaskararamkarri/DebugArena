@@ -1,0 +1,30 @@
+{
+  "task_id": "v10_nested_markdown_table",
+  "suite": "v2",
+  "version": 2,
+  "difficulty": "medium",
+  "bug_type": "escaped_pipe_lexer_split",
+  "categories": ["F", "B"],
+  "description": "Markdown table parser corrupts columns and splits cells prematurely when cells contain escaped pipe characters `\\|`.",
+  "spec_notes": "Invariant: Escaped pipes `\\|` must be preserved as literal pipe characters within cell contents and not treated as table column delimiters.",
+  "repo_files": {
+    "row.py": "from dataclasses import dataclass\nfrom typing import List\n\n@dataclass\nclass TableRow:\n    cells: List[str]\n",
+    "lexer.py": "from typing import List\n\ndef split_markdown_row(raw_line: str) -> List[str]:\n    line = raw_line.strip()\n    if line.startswith(\"|\"):\n        line = line[1:]\n    if line.endswith(\"|\"):\n        line = line[:-1]\n\n    # Bug: naive split by '|' does not respect escaped pipes\n    raw_cells = line.split(\"|\")\n    return [c.strip() for c in raw_cells]\n",
+    "table_parser.py": "from typing import List\nfrom row import TableRow\nfrom lexer import split_markdown_row\n\nclass MarkdownTableParser:\n    def parse(self, text: str) -> List[TableRow]:\n        lines = [line.strip() for line in text.strip().splitlines() if line.strip()]\n        if len(lines) < 2:\n            return []\n\n        rows = []\n        for line in lines:\n            # Ignore separator row like |---|---|\n            cleaned = line.replace(\"|\", \"\").replace(\":\", \"\").replace(\"-\", \"\").strip()\n            if not cleaned:\n                continue\n            cells = split_markdown_row(line)\n            rows.append(TableRow(cells=cells))\n        return rows\n"
+  },
+  "tests": {
+    "test_table_parser.py": "from table_parser import MarkdownTableParser\n\ndef test_simple_table():\n    md = \"| Header 1 | Header 2 |\\n| --- | --- |\\n| val1 | val2 |\"\n    parser = MarkdownTableParser()\n    rows = parser.parse(md)\n    assert len(rows) == 2\n    assert rows[0].cells == [\"Header 1\", \"Header 2\"]\n    assert rows[1].cells == [\"val1\", \"val2\"]\n\ndef test_escaped_pipe_in_cell():\n    md = \"| Syntax | Description |\\n| :--- | :--- |\\n| a \\\\| b | Option A or B |\"\n    parser = MarkdownTableParser()\n    rows = parser.parse(md)\n    assert len(rows) == 2\n    assert rows[1].cells == [\"a | b\", \"Option A or B\"]\n"
+  },
+  "reference_fix": {
+    "lexer.py": "from typing import List\n\ndef split_markdown_row(raw_line: str) -> List[str]:\n    line = raw_line.strip()\n    if line.startswith(\"|\"):\n        line = line[1:]\n    if line.endswith(\"|\") and not line.endswith(\"\\\\|\"):\n        line = line[:-1]\n\n    cells = []\n    current = []\n    escaped = False\n    for char in line:\n        if escaped:\n            if char == \"|\":\n                current.append(\"|\")\n            else:\n                current.append(\"\\\\\" + char)\n            escaped = False\n        elif char == \"\\\\\":\n            escaped = True\n        elif char == \"|\":\n            cells.append(\"\".join(current).strip())\n            current = []\n        else:\n            current.append(char)\n\n    if current or line.endswith(\"|\"):\n        cells.append(\"\".join(current).strip())\n\n    return cells\n"
+  },
+  "metadata": {
+    "estimated_reasoning_steps": 3,
+    "file_count": 3,
+    "adversarial": false,
+    "stateful": false,
+    "multi_file": true,
+    "domain": "markdown_parsing",
+    "quality_score": 4.5
+  }
+}

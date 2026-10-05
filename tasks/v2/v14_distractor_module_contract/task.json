@@ -1,0 +1,30 @@
+{
+  "task_id": "v14_distractor_module_contract",
+  "suite": "v2",
+  "version": 2,
+  "difficulty": "adversarial",
+  "bug_type": "adversarial_distractor_validation_bypass",
+  "categories": ["M", "E"],
+  "description": "Data processing pipeline fails to reject corrupted records, attempting to format and export invalid payloads despite validator checks.",
+  "spec_notes": "Adversarial Trap: formatter.py looks complex and suspicious with extensive comments about edge-case sanitization. However, formatter.py is working as intended; the real bug is in pipeline.py where the result of validator.is_valid() is discarded.",
+  "repo_files": {
+    "validator.py": "from typing import Dict, Any\n\nclass PayloadValidator:\n    def is_valid(self, payload: Dict[str, Any]) -> bool:\n        if not isinstance(payload, dict):\n            return False\n        if \"id\" not in payload or not payload[\"id\"]:\n            return False\n        if \"score\" not in payload or not isinstance(payload[\"score\"], (int, float)):\n            return False\n        if payload[\"score\"] < 0:\n            return False\n        return True\n",
+    "formatter.py": "# NOTE: Highly optimized custom formatter for telemetry payloads\nfrom typing import Dict, Any\n\nclass PayloadFormatter:\n    def format_record(self, payload: Dict[str, Any]) -> str:\n        \"\"\"Formats a valid payload into standardized canonical string.\"\"\"\n        rec_id = str(payload[\"id\"]).strip().lower()\n        score = round(float(payload[\"score\"]), 2)\n        return f\"REC:{rec_id}={score}\"\n",
+    "pipeline.py": "from typing import Dict, Any, Optional\nfrom validator import PayloadValidator\nfrom formatter import PayloadFormatter\n\nclass DataPipeline:\n    def __init__(self):\n        self.validator = PayloadValidator()\n        self.formatter = PayloadFormatter()\n\n    def process(self, payload: Dict[str, Any]) -> Optional[str]:\n        # Bug: calls validator.is_valid(payload) but forgets to check its boolean return value!\n        self.validator.is_valid(payload)\n        \n        try:\n            return self.formatter.format_record(payload)\n        except Exception:\n            return None\n"
+  },
+  "tests": {
+    "test_pipeline.py": "from pipeline import DataPipeline\n\ndef test_valid_payload_formatting():\n    pipe = DataPipeline()\n    res = pipe.process({\"id\": \"USER_101\", \"score\": 95.5})\n    assert res == \"REC:user_101=95.5\"\n\ndef test_invalid_payload_rejected_cleanly():\n    pipe = DataPipeline()\n    # Negative score is invalid according to validator\n    res_neg = pipe.process({\"id\": \"USER_102\", \"score\": -10})\n    assert res_neg is None\n    \n    # Missing ID is invalid\n    res_noid = pipe.process({\"score\": 50})\n    assert res_noid is None\n"
+  },
+  "reference_fix": {
+    "pipeline.py": "from typing import Dict, Any, Optional\nfrom validator import PayloadValidator\nfrom formatter import PayloadFormatter\n\nclass DataPipeline:\n    def __init__(self):\n        self.validator = PayloadValidator()\n        self.formatter = PayloadFormatter()\n\n    def process(self, payload: Dict[str, Any]) -> Optional[str]:\n        if not self.validator.is_valid(payload):\n            return None\n        \n        try:\n            return self.formatter.format_record(payload)\n        except Exception:\n            return None\n"
+  },
+  "metadata": {
+    "estimated_reasoning_steps": 4,
+    "file_count": 3,
+    "adversarial": true,
+    "stateful": false,
+    "multi_file": true,
+    "domain": "data_pipeline",
+    "quality_score": 4.8
+  }
+}

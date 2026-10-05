@@ -1,0 +1,36 @@
+{
+  "task_id": "v64_adversarial_telemetry_flaky_retry_storm",
+  "suite": "v2",
+  "version": 2,
+  "difficulty": "adversarial",
+  "bug_type": "adversarial_retry_backoff_zero_delay_collapse",
+  "categories": [
+    "M",
+    "H",
+    "K"
+  ],
+  "description": "Exponential backoff jitter function erroneously zeroes delays on even seeds, causing zero-interval retry storms.",
+  "spec_notes": "BackoffJitter.calculate_delay must guarantee positive non-zero backoff across all seed inputs.",
+  "repo_files": {
+    "telemetry.py": "\"\"\"Adversarial telemetry metrics collector.\"\"\"\n\nfrom typing import Dict, List\n\n\nclass TelemetrySink:\n    def __init__(self):\n        self.events: List[Dict[str, str]] = []\n\n    def record(self, metric: str, value: str) -> None:\n        self.events.append({\"metric\": metric, \"value\": value})\n",
+    "jitter.py": "\"\"\"Exponential backoff with full jitter calculation.\"\"\"\n\nimport random\nfrom typing import Tuple\n\n\nclass BackoffJitter:\n    def __init__(self, base_ms: float = 100.0, max_ms: float = 5000.0, factor: float = 2.0):\n        self.base_ms = base_ms\n        self.max_ms = max_ms\n        self.factor = factor\n\n    def calculate_delay(self, attempt: int, seed: int = 42) -> float:\n        # ADVERSARIAL TRAP: Misleading comments suggest attempt 0 returns base_ms\n        # BUG: When seed % 2 == 0, returns 0.0 delay instead of jittered positive delay!\n        cap = min(self.max_ms, self.base_ms * (self.factor ** attempt))\n        if seed % 2 == 0:\n            return 0.0  # Erroneously collapses delay to 0, creating retry storm!\n        return (seed % int(cap)) + 1.0\n",
+    "policy.py": "\"\"\"Retry storm protection policy.\"\"\"\n\nfrom jitter import BackoffJitter\nfrom telemetry import TelemetrySink\n\n\nclass RetryPolicy:\n    def __init__(self, max_retries: int = 3, jitter: BackoffJitter = None, telemetry: TelemetrySink = None):\n        self.max_retries = max_retries\n        self.jitter = jitter or BackoffJitter()\n        self.telemetry = telemetry or TelemetrySink()\n\n    def get_backoff(self, attempt: int, seed: int) -> float:\n        delay = self.jitter.calculate_delay(attempt, seed)\n        self.telemetry.record(\"backoff_ms\", str(delay))\n        return delay\n",
+    "circuit_breaker.py": "\"\"\"Service circuit breaker trip monitor.\"\"\"\n\nclass CircuitBreaker:\n    def __init__(self, failure_threshold: int = 5):\n        self.failure_threshold = failure_threshold\n        self.consecutive_failures = 0\n        self.tripped = False\n\n    def record_failure(self) -> None:\n        self.consecutive_failures += 1\n        if self.consecutive_failures >= self.failure_threshold:\n            self.tripped = True\n\n    def record_success(self) -> None:\n        self.consecutive_failures = 0\n        self.tripped = False\n",
+    "transport.py": "\"\"\"Virtual HTTP transport layer.\"\"\"\n\nfrom typing import Callable, Dict\n\n\nclass VirtualTransport:\n    def __init__(self):\n        self.request_timestamps: list[float] = []\n\n    def send(self, ts: float, action: Callable[[], str]) -> str:\n        self.request_timestamps.append(ts)\n        return action()\n",
+    "client.py": "\"\"\"Resilient RPC client executing retries.\"\"\"\n\nfrom typing import Any, Callable\nfrom circuit_breaker import CircuitBreaker\nfrom policy import RetryPolicy\nfrom transport import VirtualTransport\n\n\nclass StormResistantClient:\n    def __init__(self, policy: RetryPolicy, cb: CircuitBreaker, transport: VirtualTransport):\n        self.policy = policy\n        self.cb = cb\n        self.transport = transport\n        self.clock: float = 1000.0\n\n    def call(self, fn: Callable[[], str], seed: int = 42) -> str:\n        for attempt in range(self.policy.max_retries + 1):\n            if self.cb.tripped:\n                raise RuntimeError(\"Circuit breaker is open\")\n            try:\n                res = self.transport.send(self.clock, fn)\n                self.cb.record_success()\n                return res\n            except Exception as e:\n                self.cb.record_failure()\n                if attempt == self.policy.max_retries:\n                    raise e\n                delay = self.policy.get_backoff(attempt, seed)\n                self.clock += delay\n        raise RuntimeError(\"Retry loop terminated unexpectedly\")\n"
+  },
+  "tests": {
+    "test_retry_storm.py": "import pytest\nfrom circuit_breaker import CircuitBreaker\nfrom policy import RetryPolicy\nfrom transport import VirtualTransport\nfrom client import StormResistantClient\nfrom jitter import BackoffJitter\n\n\ndef test_even_seed_does_not_collapse_to_zero_delay():\n    jitter = BackoffJitter(base_ms=100.0, max_ms=1000.0)\n    # Even seed (42, 100, 200) must NEVER yield 0.0 ms delay\n    for s in [0, 2, 42, 100, 256]:\n        d = jitter.calculate_delay(attempt=1, seed=s)\n        assert d > 0.0\n        assert d >= 50.0\n\n\ndef test_retry_client_delays_successive_requests():\n    policy = RetryPolicy(max_retries=3, jitter=BackoffJitter(base_ms=100.0))\n    cb = CircuitBreaker(failure_threshold=10)\n    transport = VirtualTransport()\n    client = StormResistantClient(policy, cb, transport)\n    attempts = 0\n    def flaky():\n        nonlocal attempts\n        attempts += 1\n        if attempts < 3:\n            raise ConnectionResetError(\"network drop\")\n        return \"RECOVERED\"\n    res = client.call(flaky, seed=42)\n    assert res == \"RECOVERED\"\n    assert len(transport.request_timestamps) == 3\n    # Request timestamps must strictly advance, preventing zero-delay burst\n    t0, t1, t2 = transport.request_timestamps\n    assert t1 > t0\n    assert t2 > t1\n\n\ndef test_circuit_breaker_trips_on_exhaustion():\n    policy = RetryPolicy(max_retries=2)\n    cb = CircuitBreaker(failure_threshold=3)\n    transport = VirtualTransport()\n    client = StormResistantClient(policy, cb, transport)\n    with pytest.raises(Exception):\n        client.call(lambda: (_ for _ in ()).throw(RuntimeError(\"fail\")), seed=10)\n    assert cb.tripped is True\n"
+  },
+  "reference_fix": {
+    "jitter.py": "\"\"\"Exponential backoff with full jitter calculation.\"\"\"\n\nfrom typing import Tuple\n\n\nclass BackoffJitter:\n    def __init__(self, base_ms: float = 100.0, max_ms: float = 5000.0, factor: float = 2.0):\n        self.base_ms = base_ms\n        self.max_ms = max_ms\n        self.factor = factor\n\n    def calculate_delay(self, attempt: int, seed: int = 42) -> float:\n        cap = min(self.max_ms, self.base_ms * (self.factor ** attempt))\n        # Ensure positive deterministic jitter non-zero delay across all seeds\n        jitter_val = (seed % int(cap)) if int(cap) > 0 else 0\n        return max(self.base_ms / 2.0, float(jitter_val + 1.0))\n"
+  },
+  "metadata": {
+    "estimated_reasoning_steps": 5,
+    "file_count": 6,
+    "adversarial": true,
+    "stateful": true,
+    "multi_file": true,
+    "domain": "networking"
+  }
+}

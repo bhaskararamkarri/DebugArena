@@ -1,0 +1,34 @@
+{
+  "task_id": "v50_websocket_heartbeat_reconnect_fsm",
+  "suite": "v2",
+  "version": 2,
+  "difficulty": "hard",
+  "bug_type": "websocket_fsm_unauthenticated_state_transition_bypass",
+  "categories": [
+    "D",
+    "L",
+    "G"
+  ],
+  "description": "WebSocket session state machine accepts text payload frames during CONNECTING state before authentication verification.",
+  "spec_notes": "WSSession.handle_frame must strictly require state == WSState.AUTHENTICATED for TEXT opcode.",
+  "repo_files": {
+    "frames.py": "\"\"\"WebSocket frame representation.\"\"\"\n\nfrom dataclasses import dataclass\nfrom typing import Optional\n\n\n@dataclass\nclass WSFrame:\n    opcode: str  # \"CONNECT\", \"AUTH\", \"TEXT\", \"PING\", \"PONG\", \"CLOSE\"\n    payload: str\n    auth_token: Optional[str] = None\n",
+    "fsm.py": "\"\"\"WebSocket connection protocol finite state machine.\"\"\"\n\nclass WSState:\n    DISCONNECTED = \"DISCONNECTED\"\n    CONNECTING = \"CONNECTING\"\n    AUTHENTICATED = \"AUTHENTICATED\"\n    CLOSING = \"CLOSING\"\n    CLOSED = \"CLOSED\"\n",
+    "session.py": "\"\"\"WebSocket client session tracking protocol state.\"\"\"\n\nfrom frames import WSFrame\nfrom fsm import WSState\n\n\nclass WSSession:\n    def __init__(self, session_id: str):\n        self.session_id = session_id\n        self.state: str = WSState.DISCONNECTED\n        self.messages_received: list[str] = []\n\n    def handle_frame(self, frame: WSFrame) -> bool:\n        if frame.opcode == \"CONNECT\":\n            if self.state != WSState.DISCONNECTED:\n                return False\n            self.state = WSState.CONNECTING\n            return True\n\n        elif frame.opcode == \"AUTH\":\n            if self.state != WSState.CONNECTING:\n                return False\n            if frame.auth_token == \"valid_token\":\n                self.state = WSState.AUTHENTICATED\n                return True\n            return False\n\n        elif frame.opcode == \"TEXT\":\n            # BUG: Allows TEXT frames in CONNECTING state before authentication succeeds!\n            if self.state not in (WSState.CONNECTING, WSState.AUTHENTICATED):\n                return False\n            self.messages_received.append(frame.payload)\n            return True\n\n        elif frame.opcode == \"CLOSE\":\n            self.state = WSState.CLOSED\n            return True\n\n        return False\n",
+    "connection_pool.py": "\"\"\"Managed pool of active WebSocket client sessions.\"\"\"\n\nfrom typing import Dict, Optional\nfrom fsm import WSState\nfrom session import WSSession\n\n\nclass WSPool:\n    def __init__(self):\n        self.sessions: Dict[str, WSSession] = {}\n\n    def create_session(self, session_id: str) -> WSSession:\n        sess = WSSession(session_id)\n        self.sessions[session_id] = sess\n        return sess\n\n    def get_authenticated_count(self) -> int:\n        return sum(1 for s in self.sessions.values() if s.state == WSState.AUTHENTICATED)\n"
+  },
+  "tests": {
+    "test_websocket_fsm.py": "from frames import WSFrame\nfrom fsm import WSState\nfrom session import WSSession\nfrom connection_pool import WSPool\n\n\ndef test_valid_handshake_and_auth_flow():\n    sess = WSSession(\"s1\")\n    assert sess.handle_frame(WSFrame(\"CONNECT\", \"\")) is True\n    assert sess.state == WSState.CONNECTING\n    assert sess.handle_frame(WSFrame(\"AUTH\", \"\", auth_token=\"valid_token\")) is True\n    assert sess.state == WSState.AUTHENTICATED\n    assert sess.handle_frame(WSFrame(\"TEXT\", \"hello world\")) is True\n    assert sess.messages_received == [\"hello world\"]\n\n\ndef test_unauthenticated_text_frame_rejected():\n    sess = WSSession(\"s2\")\n    sess.handle_frame(WSFrame(\"CONNECT\", \"\"))\n    # Attempting to send TEXT frame while in CONNECTING state must be rejected\n    assert sess.handle_frame(WSFrame(\"TEXT\", \"unauthorized message\")) is False\n    assert len(sess.messages_received) == 0\n\n\ndef test_invalid_auth_token_stays_unauthenticated():\n    sess = WSSession(\"s3\")\n    sess.handle_frame(WSFrame(\"CONNECT\", \"\"))\n    assert sess.handle_frame(WSFrame(\"AUTH\", \"\", auth_token=\"bad_token\")) is False\n    assert sess.state == WSState.CONNECTING\n    assert sess.handle_frame(WSFrame(\"TEXT\", \"payload\")) is False\n\n\ndef test_close_transition():\n    sess = WSSession(\"s4\")\n    sess.handle_frame(WSFrame(\"CONNECT\", \"\"))\n    sess.handle_frame(WSFrame(\"AUTH\", \"\", auth_token=\"valid_token\"))\n    assert sess.handle_frame(WSFrame(\"CLOSE\", \"\")) is True\n    assert sess.state == WSState.CLOSED\n    assert sess.handle_frame(WSFrame(\"TEXT\", \"post-close\")) is False\n\n\ndef test_pool_authenticated_count():\n    pool = WSPool()\n    s1 = pool.create_session(\"u1\")\n    s2 = pool.create_session(\"u2\")\n    s1.handle_frame(WSFrame(\"CONNECT\", \"\"))\n    s1.handle_frame(WSFrame(\"AUTH\", \"\", auth_token=\"valid_token\"))\n    s2.handle_frame(WSFrame(\"CONNECT\", \"\"))\n    assert pool.get_authenticated_count() == 1\n"
+  },
+  "reference_fix": {
+    "session.py": "\"\"\"WebSocket client session tracking protocol state.\"\"\"\n\nfrom frames import WSFrame\nfrom fsm import WSState\n\n\nclass WSSession:\n    def __init__(self, session_id: str):\n        self.session_id = session_id\n        self.state: str = WSState.DISCONNECTED\n        self.messages_received: list[str] = []\n\n    def handle_frame(self, frame: WSFrame) -> bool:\n        if frame.opcode == \"CONNECT\":\n            if self.state != WSState.DISCONNECTED:\n                return False\n            self.state = WSState.CONNECTING\n            return True\n\n        elif frame.opcode == \"AUTH\":\n            if self.state != WSState.CONNECTING:\n                return False\n            if frame.auth_token == \"valid_token\":\n                self.state = WSState.AUTHENTICATED\n                return True\n            return False\n\n        elif frame.opcode == \"TEXT\":\n            # Strictly require AUTHENTICATED state for message ingestion\n            if self.state != WSState.AUTHENTICATED:\n                return False\n            self.messages_received.append(frame.payload)\n            return True\n\n        elif frame.opcode == \"CLOSE\":\n            self.state = WSState.CLOSED\n            return True\n\n        return False\n"
+  },
+  "metadata": {
+    "estimated_reasoning_steps": 4,
+    "file_count": 4,
+    "adversarial": false,
+    "stateful": true,
+    "multi_file": true,
+    "domain": "networking"
+  }
+}

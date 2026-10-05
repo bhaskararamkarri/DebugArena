@@ -1,0 +1,33 @@
+{
+  "task_id": "v51_hierarchical_rate_limiter_burst_leak",
+  "suite": "v2",
+  "version": 2,
+  "difficulty": "hard",
+  "bug_type": "hierarchical_rate_limiter_ancestor_token_leak",
+  "categories": [
+    "J",
+    "G",
+    "H"
+  ],
+  "description": "Hierarchical multi-tier rate limiter only deducts tokens from target child leaf, allowing tenants to collectively exceed parent capacity.",
+  "spec_notes": "HierarchicalRateLimiter.allow_request must deduct consumed tokens across all ancestors along the tree path.",
+  "repo_files": {
+    "token_bucket.py": "\"\"\"Atomic token bucket implementation.\"\"\"\n\nimport time\nfrom dataclasses import dataclass\n\n\n@dataclass\nclass TokenBucket:\n    capacity: float\n    refill_rate_per_sec: float\n    tokens: float\n    last_refill_ts: float\n\n    @classmethod\n    def create(cls, capacity: float, refill_rate_per_sec: float) -> \"TokenBucket\":\n        return cls(capacity, refill_rate_per_sec, capacity, 0.0)\n\n    def refill(self, now: float) -> None:\n        if self.last_refill_ts == 0.0:\n            self.last_refill_ts = now\n            return\n        delta = max(0.0, now - self.last_refill_ts)\n        self.tokens = min(self.capacity, self.tokens + delta * self.refill_rate_per_sec)\n        self.last_refill_ts = now\n\n    def try_consume(self, amount: float, now: float) -> bool:\n        self.refill(now)\n        if self.tokens >= amount:\n            self.tokens -= amount\n            return True\n        return False\n",
+    "hierarchy.py": "\"\"\"Tiered hierarchy nodes for rate limiting.\"\"\"\n\nfrom typing import Dict, Optional\nfrom token_bucket import TokenBucket\n\n\nclass HierarchyNode:\n    def __init__(self, name: str, bucket: TokenBucket, parent: Optional[\"HierarchyNode\"] = None):\n        self.name = name\n        self.bucket = bucket\n        self.parent = parent\n        self.children: Dict[str, \"HierarchyNode\"] = {}\n\n    def add_child(self, child: \"HierarchyNode\") -> None:\n        self.children[child.name] = child\n        child.parent = self\n",
+    "limiter.py": "\"\"\"Hierarchical multi-tier rate limiter.\"\"\"\n\nfrom typing import List, Optional\nfrom hierarchy import HierarchyNode\nfrom token_bucket import TokenBucket\n\n\nclass HierarchicalRateLimiter:\n    def __init__(self, root: HierarchyNode):\n        self.root = root\n\n    def _get_path_to_node(self, node: HierarchyNode) -> List[HierarchyNode]:\n        path = []\n        curr: Optional[HierarchyNode] = node\n        while curr:\n            path.append(curr)\n            curr = curr.parent\n        return list(reversed(path))\n\n    def allow_request(self, target_node: HierarchyNode, amount: float, now: float) -> bool:\n        path = self._get_path_to_node(target_node)\n        # BUG: Checks each bucket independently without 2-phase reserve or rollback\n        # If root fails after child consumed, child tokens are lost!\n        # AND child consumes without guaranteeing all ancestors can satisfy amount.\n        for n in path:\n            n.bucket.refill(now)\n            if n.bucket.tokens < amount:\n                return False\n        # Consume from child only instead of all tiers up the hierarchy!\n        target_node.bucket.tokens -= amount\n        return True\n"
+  },
+  "tests": {
+    "test_hierarchical_rate_limiter.py": "from token_bucket import TokenBucket\nfrom hierarchy import HierarchyNode\nfrom limiter import HierarchicalRateLimiter\n\n\ndef test_hierarchical_consumption_at_all_tiers():\n    # Global: cap=10, refill=1/s\n    root = HierarchyNode(\"global\", TokenBucket.create(10, 1))\n    # Tenant 1: cap=5, refill=1/s\n    tenant1 = HierarchyNode(\"t1\", TokenBucket.create(5, 1))\n    # Tenant 2: cap=5, refill=1/s\n    tenant2 = HierarchyNode(\"t2\", TokenBucket.create(5, 1))\n    root.add_child(tenant1)\n    root.add_child(tenant2)\n    limiter = HierarchicalRateLimiter(root)\n    t = 100.0\n    # Consume 4 from tenant1 -> root should have 6 remaining\n    assert limiter.allow_request(tenant1, 4, t) is True\n    # Consume 4 from tenant2 -> root should have 2 remaining\n    assert limiter.allow_request(tenant2, 4, t) is True\n    # Tenant2 still has 1 token left, but root only has 2 tokens left. Requesting 3 on t2 must FAIL at root!\n    assert limiter.allow_request(tenant2, 3, t) is False\n\n\ndef test_tenant_burst_does_not_exceed_global_capacity():\n    root = HierarchyNode(\"global\", TokenBucket.create(10, 0))\n    t1 = HierarchyNode(\"t1\", TokenBucket.create(10, 0))\n    t2 = HierarchyNode(\"t2\", TokenBucket.create(10, 0))\n    root.add_child(t1)\n    root.add_child(t2)\n    limiter = HierarchicalRateLimiter(root)\n    t = 100.0\n    # Exhaust root via t1\n    assert limiter.allow_request(t1, 10, t) is True\n    # t2 has 10 initial tokens, but root has 0 -> must be blocked\n    assert limiter.allow_request(t2, 1, t) is False\n\n\ndef test_child_failure_does_not_leak_parent_tokens():\n    root = HierarchyNode(\"global\", TokenBucket.create(10, 0))\n    t1 = HierarchyNode(\"t1\", TokenBucket.create(2, 0))\n    root.add_child(t1)\n    limiter = HierarchicalRateLimiter(root)\n    t = 100.0\n    # Request 5 tokens from t1 (t1 has only 2) -> rejected\n    assert limiter.allow_request(t1, 5, t) is False\n    # Root must still retain all 10 tokens!\n    assert root.bucket.tokens == 10.0\n"
+  },
+  "reference_fix": {
+    "limiter.py": "\"\"\"Hierarchical multi-tier rate limiter.\"\"\"\n\nfrom typing import List, Optional\nfrom hierarchy import HierarchyNode\nfrom token_bucket import TokenBucket\n\n\nclass HierarchicalRateLimiter:\n    def __init__(self, root: HierarchyNode):\n        self.root = root\n\n    def _get_path_to_node(self, node: HierarchyNode) -> List[HierarchyNode]:\n        path = []\n        curr: Optional[HierarchyNode] = node\n        while curr:\n            path.append(curr)\n            curr = curr.parent\n        return list(reversed(path))\n\n    def allow_request(self, target_node: HierarchyNode, amount: float, now: float) -> bool:\n        path = self._get_path_to_node(target_node)\n        for n in path:\n            n.bucket.refill(now)\n            if n.bucket.tokens < amount:\n                return False\n        for n in path:\n            n.bucket.tokens -= amount\n        return True\n"
+  },
+  "metadata": {
+    "estimated_reasoning_steps": 4,
+    "file_count": 3,
+    "adversarial": false,
+    "stateful": true,
+    "multi_file": true,
+    "domain": "rate-limiting"
+  }
+}

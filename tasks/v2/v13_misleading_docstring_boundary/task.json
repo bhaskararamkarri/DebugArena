@@ -1,0 +1,30 @@
+{
+  "task_id": "v13_misleading_docstring_boundary",
+  "suite": "v2",
+  "version": 2,
+  "difficulty": "adversarial",
+  "bug_type": "adversarial_constant_array_zero_div",
+  "categories": ["M", "B"],
+  "description": "Feature scaling transformer crashes with ZeroDivisionError when encountering constant series (where min == max), and must default all normalized values to 0.0.",
+  "spec_notes": "Adversarial Trap: The docstring in transform.py misleadingly suggests multiplying by 100 or adding a tiny epsilon 1e-9. The formal specification and test suite strictly require standard min-max unit scaling in [0.0, 1.0], with constant arrays returning all 0.0.",
+  "repo_files": {
+    "config.py": "from dataclasses import dataclass\n\n@dataclass\nclass ScaleConfig:\n    feature_range_min: float = 0.0\n    feature_range_max: float = 1.0\n",
+    "transform.py": "from typing import List\n\ndef scale_value(val: float, min_v: float, max_v: float) -> float:\n    \"\"\"\n    NOTE: (Deprecated Comment) Normalize values to a percentage scale from 0 to 100.\n    Formula: ((val - min_v) / (max_v - min_v + 1e-9)) * 100\n    \"\"\"\n    # Buggy formula that crashes on constant arrays when min_v == max_v without check\n    return (val - min_v) / (max_v - min_v)\n",
+    "normalizer.py": "from typing import List\nfrom transform import scale_value\n\nclass FeatureNormalizer:\n    def normalize(self, values: List[float]) -> List[float]:\n        if not values:\n            return []\n        min_v = min(values)\n        max_v = max(values)\n        # Bug: fails to handle min_v == max_v\n        return [round(scale_value(v, min_v, max_v), 4) for v in values]\n"
+  },
+  "tests": {
+    "test_normalizer.py": "from normalizer import FeatureNormalizer\n\ndef test_standard_scaling_range():\n    fn = FeatureNormalizer()\n    res = fn.normalize([10.0, 20.0, 30.0])\n    # Invariant: unit range [0.0, 1.0], NOT percentage 0-100\n    assert res == [0.0, 0.5, 1.0]\n\ndef test_constant_array_zero_division():\n    fn = FeatureNormalizer()\n    res = fn.normalize([5.0, 5.0, 5.0])\n    # Constant series must return all 0.0 without ZeroDivisionError or epsilon artifacts\n    assert res == [0.0, 0.0, 0.0]\n"
+  },
+  "reference_fix": {
+    "normalizer.py": "from typing import List\nfrom transform import scale_value\n\nclass FeatureNormalizer:\n    def normalize(self, values: List[float]) -> List[float]:\n        if not values:\n            return []\n        min_v = min(values)\n        max_v = max(values)\n        if min_v == max_v:\n            return [0.0] * len(values)\n        return [round(scale_value(v, min_v, max_v), 4) for v in values]\n"
+  },
+  "metadata": {
+    "estimated_reasoning_steps": 4,
+    "file_count": 3,
+    "adversarial": true,
+    "stateful": false,
+    "multi_file": true,
+    "domain": "data_science_preprocessing",
+    "quality_score": 4.8
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "task_id": "v08_idempotent_webhook_handler",
+  "suite": "v2",
+  "version": 2,
+  "difficulty": "medium",
+  "bug_type": "premature_idempotency_cache",
+  "categories": ["H", "I"],
+  "description": "Webhook handler caches and acknowledges event execution before verifying HMAC payload signatures, allowing unauthenticated requests to replay cached success responses.",
+  "spec_notes": "Invariant: Signature verification must happen strictly before checking or updating the idempotency cache.",
+  "repo_files": {
+    "signature.py": "import hmac\nimport hashlib\n\ndef verify_signature(secret: str, payload_bytes: bytes, expected_sig: str) -> bool:\n    computed = hmac.new(secret.encode(\"utf-8\"), payload_bytes, hashlib.sha256).hexdigest()\n    return hmac.compare_digest(computed, expected_sig)\n",
+    "dedup_store.py": "from typing import Dict, Optional\n\nclass IdempotencyStore:\n    def __init__(self):\n        self.records: Dict[str, dict] = {}\n\n    def get(self, event_id: str) -> Optional[dict]:\n        return self.records.get(event_id)\n\n    def save(self, event_id: str, response: dict) -> None:\n        self.records[event_id] = response\n",
+    "handler.py": "import json\nfrom signature import verify_signature\nfrom dedup_store import IdempotencyStore\n\nclass WebhookHandler:\n    def __init__(self, secret: str, store: IdempotencyStore):\n        self.secret = secret\n        self.store = store\n        self.processed_count = 0\n\n    def process_webhook(self, event_id: str, payload_json: str, signature: str) -> dict:\n        # Bug: checks idempotency store before verifying signature\n        cached = self.store.get(event_id)\n        if cached is not None:\n            return cached\n\n        # Signature verification\n        valid = verify_signature(self.secret, payload_json.encode(\"utf-8\"), signature)\n        if not valid:\n            return {\"status\": 401, \"error\": \"Invalid signature\"}\n\n        self.processed_count += 1\n        result = {\"status\": 200, \"event_id\": event_id, \"result\": \"processed\"}\n        self.store.save(event_id, result)\n        return result\n"
+  },
+  "tests": {
+    "test_handler.py": "import hmac\nimport hashlib\nfrom dedup_store import IdempotencyStore\nfrom handler import WebhookHandler\n\ndef make_sig(secret: str, data: str) -> str:\n    return hmac.new(secret.encode(\"utf-8\"), data.encode(\"utf-8\"), hashlib.sha256).hexdigest()\n\ndef test_valid_webhook_processing():\n    secret = \"webhook_secret_key\"\n    store = IdempotencyStore()\n    handler = WebhookHandler(secret, store)\n    \n    payload = '{\"type\": \"charge.success\", \"amount\": 100}'\n    sig = make_sig(secret, payload)\n    \n    res = handler.process_webhook(\"evt_1\", payload, sig)\n    assert res[\"status\"] == 200\n    assert handler.processed_count == 1\n\ndef test_unauthorized_request_rejected_even_if_id_matches():\n    secret = \"webhook_secret_key\"\n    store = IdempotencyStore()\n    handler = WebhookHandler(secret, store)\n    \n    payload1 = '{\"type\": \"charge.success\"}'\n    sig1 = make_sig(secret, payload1)\n    handler.process_webhook(\"evt_target\", payload1, sig1)\n    \n    # Adversary tries to replay evt_target with forged / invalid signature\n    res_bad = handler.process_webhook(\"evt_target\", payload1, \"bad_forged_sig\")\n    assert res_bad[\"status\"] == 401\n    assert res_bad.get(\"error\") == \"Invalid signature\"\n"
+  },
+  "reference_fix": {
+    "handler.py": "import json\nfrom signature import verify_signature\nfrom dedup_store import IdempotencyStore\n\nclass WebhookHandler:\n    def __init__(self, secret: str, store: IdempotencyStore):\n        self.secret = secret\n        self.store = store\n        self.processed_count = 0\n\n    def process_webhook(self, event_id: str, payload_json: str, signature: str) -> dict:\n        # Verify signature FIRST\n        valid = verify_signature(self.secret, payload_json.encode(\"utf-8\"), signature)\n        if not valid:\n            return {\"status\": 401, \"error\": \"Invalid signature\"}\n\n        cached = self.store.get(event_id)\n        if cached is not None:\n            return cached\n\n        self.processed_count += 1\n        result = {\"status\": 200, \"event_id\": event_id, \"result\": \"processed\"}\n        self.store.save(event_id, result)\n        return result\n"
+  },
+  "metadata": {
+    "estimated_reasoning_steps": 3,
+    "file_count": 3,
+    "adversarial": false,
+    "stateful": true,
+    "multi_file": true,
+    "domain": "api_webhooks",
+    "quality_score": 4.5
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "task_id": "v69_service_mesh_circuit_breaker_half_open_oscillation",
+  "suite": "v2",
+  "version": 2,
+  "difficulty": "hard",
+  "bug_type": "circuit_breaker_half_open_success_counter_zeroing",
+  "categories": [
+    "H",
+    "E",
+    "G"
+  ],
+  "description": "Circuit breaker zeroes consecutive successes during HALF_OPEN probe requests, preventing transition back to CLOSED state.",
+  "spec_notes": "MeshCircuitBreaker.record_result must increment consecutive_successes and close circuit once threshold is reached.",
+  "repo_files": {
+    "circuit_state.py": "\"\"\"Circuit breaker state enumeration.\"\"\"\n\nclass CircuitState:\n    CLOSED = \"CLOSED\"\n    OPEN = \"OPEN\"\n    HALF_OPEN = \"HALF_OPEN\"\n",
+    "circuit_breaker.py": "\"\"\"Service mesh circuit breaker with half-open trial progression.\"\"\"\n\nfrom circuit_state import CircuitState\n\n\nclass MeshCircuitBreaker:\n    def __init__(self, failure_threshold: int = 3, success_threshold: int = 3, cooldown_sec: float = 5.0):\n        self.failure_threshold = failure_threshold\n        self.success_threshold = success_threshold\n        self.cooldown_sec = cooldown_sec\n        self.state = CircuitState.CLOSED\n        self.consecutive_failures = 0\n        self.consecutive_successes = 0\n        self.tripped_at: float = 0.0\n\n    def allow_request(self, now: float) -> bool:\n        if self.state == CircuitState.CLOSED:\n            return True\n        if self.state == CircuitState.OPEN:\n            if now - self.tripped_at >= self.cooldown_sec:\n                self.state = CircuitState.HALF_OPEN\n                self.consecutive_successes = 0\n                return True\n            return False\n        return True  # HALF_OPEN allows probe requests\n\n    def record_result(self, success: bool, now: float) -> None:\n        if not success:\n            self.consecutive_failures += 1\n            self.consecutive_successes = 0\n            self.state = CircuitState.OPEN\n            self.tripped_at = now\n        else:\n            if self.state == CircuitState.HALF_OPEN:\n                # BUG: Resets consecutive_successes to 0 instead of incrementing toward success_threshold!\n                # Circuit remains stuck in HALF_OPEN oscillating forever.\n                self.consecutive_successes = 0\n                if self.consecutive_successes >= self.success_threshold:\n                    self.state = CircuitState.CLOSED\n            elif self.state == CircuitState.CLOSED:\n                self.consecutive_failures = 0\n",
+    "mesh_proxy.py": "\"\"\"Mesh proxy wrapping upstream calls with circuit breaker.\"\"\"\n\nfrom typing import Callable\nfrom circuit_breaker import MeshCircuitBreaker\n\n\nclass MeshProxy:\n    def __init__(self, breaker: MeshCircuitBreaker):\n        self.breaker = breaker\n\n    def send(self, now: float, fn: Callable[[], bool]) -> bool:\n        if not self.breaker.allow_request(now):\n            return False\n        res = fn()\n        self.breaker.record_result(res, now)\n        return res\n"
+  },
+  "tests": {
+    "test_circuit_oscillation.py": "from circuit_breaker import MeshCircuitBreaker\nfrom circuit_state import CircuitState\nfrom mesh_proxy import MeshProxy\n\n\ndef test_half_open_recovers_to_closed_after_success_threshold():\n    cb = MeshCircuitBreaker(failure_threshold=2, success_threshold=3, cooldown_sec=5.0)\n    proxy = MeshProxy(cb)\n    # Trip to OPEN\n    proxy.send(100.0, lambda: False)\n    proxy.send(100.0, lambda: False)\n    assert cb.state == CircuitState.OPEN\n\n    # Probe at t=106 (cooldown elapsed) enters HALF_OPEN\n    assert proxy.send(106.0, lambda: True) is True\n    assert cb.state == CircuitState.HALF_OPEN\n    assert cb.consecutive_successes == 1\n\n    # 2nd and 3rd successes reach success_threshold=3 and CLOSE circuit\n    proxy.send(107.0, lambda: True)\n    proxy.send(108.0, lambda: True)\n    assert cb.state == CircuitState.CLOSED\n    assert cb.consecutive_failures == 0\n\n\ndef test_single_failure_in_half_open_reopens_immediately():\n    cb = MeshCircuitBreaker(failure_threshold=2, success_threshold=3, cooldown_sec=5.0)\n    proxy = MeshProxy(cb)\n    proxy.send(100.0, lambda: False)\n    proxy.send(100.0, lambda: False)\n    # Probe succeeds\n    proxy.send(106.0, lambda: True)\n    # Subsequent probe fails -> re-trips to OPEN\n    proxy.send(107.0, lambda: False)\n    assert cb.state == CircuitState.OPEN\n"
+  },
+  "reference_fix": {
+    "circuit_breaker.py": "\"\"\"Service mesh circuit breaker with half-open trial progression.\"\"\"\n\nfrom circuit_state import CircuitState\n\n\nclass MeshCircuitBreaker:\n    def __init__(self, failure_threshold: int = 3, success_threshold: int = 3, cooldown_sec: float = 5.0):\n        self.failure_threshold = failure_threshold\n        self.success_threshold = success_threshold\n        self.cooldown_sec = cooldown_sec\n        self.state = CircuitState.CLOSED\n        self.consecutive_failures = 0\n        self.consecutive_successes = 0\n        self.tripped_at: float = 0.0\n\n    def allow_request(self, now: float) -> bool:\n        if self.state == CircuitState.CLOSED:\n            return True\n        if self.state == CircuitState.OPEN:\n            if now - self.tripped_at >= self.cooldown_sec:\n                self.state = CircuitState.HALF_OPEN\n                self.consecutive_successes = 0\n                return True\n            return False\n        return True\n\n    def record_result(self, success: bool, now: float) -> None:\n        if not success:\n            self.consecutive_failures += 1\n            self.consecutive_successes = 0\n            self.state = CircuitState.OPEN\n            self.tripped_at = now\n        else:\n            if self.state == CircuitState.HALF_OPEN:\n                self.consecutive_successes += 1\n                if self.consecutive_successes >= self.success_threshold:\n                    self.state = CircuitState.CLOSED\n                    self.consecutive_failures = 0\n                    self.consecutive_successes = 0\n            elif self.state == CircuitState.CLOSED:\n                self.consecutive_failures = 0\n"
+  },
+  "metadata": {
+    "estimated_reasoning_steps": 4,
+    "file_count": 3,
+    "adversarial": false,
+    "stateful": true,
+    "multi_file": true,
+    "domain": "service-mesh"
+  }
+}

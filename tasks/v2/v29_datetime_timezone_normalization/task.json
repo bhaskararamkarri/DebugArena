@@ -1,0 +1,31 @@
+{
+  "task_id": "v29_datetime_timezone_normalization",
+  "suite": "v2",
+  "version": 2,
+  "difficulty": "easy",
+  "bug_type": "timezone_offset_sign_subtraction_error",
+  "categories": [
+    "A",
+    "F"
+  ],
+  "description": "ISO timestamp parser subtracts minutes incorrectly when parsing negative timezone offsets.",
+  "spec_notes": "parse_iso_timestamp must calculate negative offset as -(hours * 60 + minutes).",
+  "repo_files": {
+    "tz_parser.py": "\"\"\"ISO-8601 timestamp and timezone offset parser.\"\"\"\n\nimport re\nfrom dataclasses import dataclass\nfrom typing import Optional\n\n\n@dataclass\nclass ParsedTimestamp:\n    year: int\n    month: int\n    day: int\n    hour: int\n    minute: int\n    second: int\n    offset_minutes: int\n\n\nISO_REGEX = re.compile(\n    r\"^(\\d{4})-(\\d{2})-(\\d{2})T(\\d{2}):(\\d{2}):(\\d{2})(?:Z|([+-])(\\d{2}):(\\d{2}))?$\"\n)\n\n\ndef parse_iso_timestamp(ts_str: str) -> Optional[ParsedTimestamp]:\n    match = ISO_REGEX.match(ts_str.strip())\n    if not match:\n        return None\n    y, m, d, hh, mm, ss = map(int, match.groups()[:6])\n    sign = match.group(7)\n    if sign:\n        off_h = int(match.group(8))\n        off_m = int(match.group(9))\n        # BUG: Fails to invert offset for negative sign properly\n        offset = (off_h * 60 + off_m) if sign == \"+\" else (off_h * 60 - off_m)\n    else:\n        offset = 0\n    return ParsedTimestamp(y, m, d, hh, mm, ss, offset)\n",
+    "formatter.py": "\"\"\"Timestamp UTC normalizer and epoch converter.\"\"\"\n\nfrom tz_parser import ParsedTimestamp, parse_iso_timestamp\n\n\nclass TimestampNormalizer:\n    @staticmethod\n    def to_utc_minutes_of_day(ts_str: str) -> int:\n        pt = parse_iso_timestamp(ts_str)\n        if not pt:\n            raise ValueError(f\"Invalid timestamp: {ts_str}\")\n        local_minutes = pt.hour * 60 + pt.minute\n        # Normalizing to UTC: utc = local - offset_minutes\n        # BUG: Modulo 1440 does not handle negative hour wrap-around correctly without +1440\n        utc_minutes = (local_minutes - pt.offset_minutes) % 1440\n        return utc_minutes\n"
+  },
+  "tests": {
+    "test_timezone_norm.py": "import pytest\nfrom tz_parser import parse_iso_timestamp\nfrom formatter import TimestampNormalizer\n\n\ndef test_utc_zulu_timestamp():\n    pt = parse_iso_timestamp(\"2026-05-10T14:30:00Z\")\n    assert pt is not None\n    assert pt.offset_minutes == 0\n    assert TimestampNormalizer.to_utc_minutes_of_day(\"2026-05-10T14:30:00Z\") == 14 * 60 + 30\n\n\ndef test_positive_offset_normalization():\n    # UTC+05:30 -> 10:30 local is 05:00 UTC (300 minutes)\n    pt = parse_iso_timestamp(\"2026-05-10T10:30:00+05:30\")\n    assert pt is not None\n    assert pt.offset_minutes == 330\n    assert TimestampNormalizer.to_utc_minutes_of_day(\"2026-05-10T10:30:00+05:30\") == 300\n\n\ndef test_negative_offset_normalization():\n    # UTC-08:00 (PST) -> 12:00 local is 20:00 UTC (1200 minutes)\n    pt = parse_iso_timestamp(\"2026-05-10T12:00:00-08:00\")\n    assert pt is not None\n    assert pt.offset_minutes == -480\n    assert TimestampNormalizer.to_utc_minutes_of_day(\"2026-05-10T12:00:00-08:00\") == 1200\n\n\ndef test_negative_offset_with_minutes():\n    # UTC-03:30 (Newfoundland) -> offset must be -210, not -150!\n    pt = parse_iso_timestamp(\"2026-05-10T12:00:00-03:30\")\n    assert pt is not None\n    assert pt.offset_minutes == -210\n\n\ndef test_invalid_string_raises_value_error():\n    with pytest.raises(ValueError):\n        TimestampNormalizer.to_utc_minutes_of_day(\"not-a-date\")\n"
+  },
+  "reference_fix": {
+    "tz_parser.py": "\"\"\"ISO-8601 timestamp and timezone offset parser.\"\"\"\n\nimport re\nfrom dataclasses import dataclass\nfrom typing import Optional\n\n\n@dataclass\nclass ParsedTimestamp:\n    year: int\n    month: int\n    day: int\n    hour: int\n    minute: int\n    second: int\n    offset_minutes: int\n\n\nISO_REGEX = re.compile(\n    r\"^(\\d{4})-(\\d{2})-(\\d{2})T(\\d{2}):(\\d{2}):(\\d{2})(?:Z|([+-])(\\d{2}):(\\d{2}))?$\"\n)\n\n\ndef parse_iso_timestamp(ts_str: str) -> Optional[ParsedTimestamp]:\n    match = ISO_REGEX.match(ts_str.strip())\n    if not match:\n        return None\n    y, m, d, hh, mm, ss = map(int, match.groups()[:6])\n    sign = match.group(7)\n    if sign:\n        off_h = int(match.group(8))\n        off_m = int(match.group(9))\n        total_m = off_h * 60 + off_m\n        offset = total_m if sign == \"+\" else -total_m\n    else:\n        offset = 0\n    return ParsedTimestamp(y, m, d, hh, mm, ss, offset)\n"
+  },
+  "metadata": {
+    "estimated_reasoning_steps": 2,
+    "file_count": 2,
+    "adversarial": false,
+    "stateful": false,
+    "multi_file": true,
+    "domain": "datetime"
+  }
+}

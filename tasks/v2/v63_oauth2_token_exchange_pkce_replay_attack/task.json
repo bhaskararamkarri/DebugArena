@@ -1,0 +1,34 @@
+{
+  "task_id": "v63_oauth2_token_exchange_pkce_replay_attack",
+  "suite": "v2",
+  "version": 2,
+  "difficulty": "hard",
+  "bug_type": "oauth_pkce_authorization_code_replay_leak",
+  "categories": [
+    "L",
+    "H",
+    "E"
+  ],
+  "description": "OAuth 2.0 PKCE token exchange handler fails to invalidate authorization codes upon use, allowing token replay attacks.",
+  "spec_notes": "TokenExchangeHandler must mark AuthCode.used = True and reject replayed codes.",
+  "repo_files": {
+    "auth_code.py": "\"\"\"Authorization code payload.\"\"\"\n\nfrom dataclasses import dataclass\nfrom typing import Optional\n\n\n@dataclass\nclass AuthCode:\n    code: str\n    client_id: str\n    user_id: str\n    code_challenge: str\n    code_challenge_method: str  # \"S256\" or \"plain\"\n    used: bool = False\n",
+    "pkce.py": "\"\"\"PKCE code challenge verification.\"\"\"\n\nimport base64\nimport hashlib\n\n\nclass PKCEVerifier:\n    @staticmethod\n    def verify(verifier: str, challenge: str, method: str) -> bool:\n        if method == \"plain\":\n            return verifier == challenge\n        elif method == \"S256\":\n            # Compute SHA-256 and base64url encoding without padding\n            digest = hashlib.sha256(verifier.encode(\"utf-8\")).digest()\n            encoded = base64.urlsafe_b64encode(digest).decode(\"utf-8\").rstrip(\"=\")\n            return encoded == challenge\n        return False\n",
+    "token_store.py": "\"\"\"Issued access and refresh token storage.\"\"\"\n\nimport uuid\nfrom typing import Dict\n\n\nclass TokenStore:\n    def __init__(self):\n        self.tokens: Dict[str, str] = {}\n\n    def issue(self, user_id: str, client_id: str) -> str:\n        tok = f\"access_{uuid.uuid4().hex}\"\n        self.tokens[tok] = user_id\n        return tok\n",
+    "exchange.py": "\"\"\"OAuth 2.0 Authorization code token exchange handler.\"\"\"\n\nfrom typing import Any, Dict, Optional\nfrom auth_code import AuthCode\nfrom pkce import PKCEVerifier\nfrom token_store import TokenStore\n\n\nclass TokenExchangeHandler:\n    def __init__(self, token_store: TokenStore):\n        self.codes: Dict[str, AuthCode] = {}\n        self.token_store = token_store\n\n    def register_code(self, auth_code: AuthCode) -> None:\n        self.codes[auth_code.code] = auth_code\n\n    def exchange(self, client_id: str, code_str: str, code_verifier: str) -> Dict[str, Any]:\n        code = self.codes.get(code_str)\n        if not code:\n            return {\"error\": \"invalid_grant\"}\n\n        if code.client_id != client_id:\n            return {\"error\": \"invalid_client\"}\n\n        # BUG: Fails to check code.used or mark code.used = True,\n        # allowing malicious attackers to replay authorization codes!\n        if not PKCEVerifier.verify(code_verifier, code.code_challenge, code.code_challenge_method):\n            return {\"error\": \"invalid_grant\"}\n\n        access_token = self.token_store.issue(code.user_id, client_id)\n        return {\"access_token\": access_token, \"token_type\": \"Bearer\"}\n"
+  },
+  "tests": {
+    "test_oauth_pkce.py": "from auth_code import AuthCode\nfrom exchange import TokenExchangeHandler\nfrom pkce import PKCEVerifier\nfrom token_store import TokenStore\n\n\ndef test_successful_pkce_s256_exchange():\n    verifier = \"dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk\"\n    # SHA-256 base64url of verifier\n    import base64, hashlib\n    digest = hashlib.sha256(verifier.encode()).digest()\n    challenge = base64.urlsafe_b64encode(digest).decode().rstrip(\"=\")\n    code = AuthCode(\"c1\", \"client_app\", \"user_100\", challenge, \"S256\")\n    store = TokenStore()\n    handler = TokenExchangeHandler(store)\n    handler.register_code(code)\n    res = handler.exchange(\"client_app\", \"c1\", verifier)\n    assert \"access_token\" in res\n    assert res[\"token_type\"] == \"Bearer\"\n\n\ndef test_authorization_code_replay_rejected():\n    verifier = \"plain_verifier_token\"\n    code = AuthCode(\"c2\", \"client_app\", \"user_200\", verifier, \"plain\")\n    store = TokenStore()\n    handler = TokenExchangeHandler(store)\n    handler.register_code(code)\n    # First exchange succeeds\n    res1 = handler.exchange(\"client_app\", \"c2\", verifier)\n    assert \"access_token\" in res1\n    # Replay attack with same code must be REJECTED with invalid_grant!\n    res2 = handler.exchange(\"client_app\", \"c2\", verifier)\n    assert res2.get(\"error\") == \"invalid_grant\"\n\n\ndef test_invalid_verifier_mismatch():\n    code = AuthCode(\"c3\", \"client_app\", \"user_300\", \"expected_challenge\", \"plain\")\n    store = TokenStore()\n    handler = TokenExchangeHandler(store)\n    handler.register_code(code)\n    res = handler.exchange(\"client_app\", \"c3\", \"wrong_verifier\")\n    assert res.get(\"error\") == \"invalid_grant\"\n"
+  },
+  "reference_fix": {
+    "exchange.py": "\"\"\"OAuth 2.0 Authorization code token exchange handler.\"\"\"\n\nfrom typing import Any, Dict, Optional\nfrom auth_code import AuthCode\nfrom pkce import PKCEVerifier\nfrom token_store import TokenStore\n\n\nclass TokenExchangeHandler:\n    def __init__(self, token_store: TokenStore):\n        self.codes: Dict[str, AuthCode] = {}\n        self.token_store = token_store\n\n    def register_code(self, auth_code: AuthCode) -> None:\n        self.codes[auth_code.code] = auth_code\n\n    def exchange(self, client_id: str, code_str: str, code_verifier: str) -> Dict[str, Any]:\n        code = self.codes.get(code_str)\n        if not code or code.used:\n            return {\"error\": \"invalid_grant\"}\n\n        if code.client_id != client_id:\n            return {\"error\": \"invalid_client\"}\n\n        # Invalidate code immediately upon first attempt\n        code.used = True\n\n        if not PKCEVerifier.verify(code_verifier, code.code_challenge, code.code_challenge_method):\n            return {\"error\": \"invalid_grant\"}\n\n        access_token = self.token_store.issue(code.user_id, client_id)\n        return {\"access_token\": access_token, \"token_type\": \"Bearer\"}\n"
+  },
+  "metadata": {
+    "estimated_reasoning_steps": 4,
+    "file_count": 4,
+    "adversarial": false,
+    "stateful": true,
+    "multi_file": true,
+    "domain": "security"
+  }
+}

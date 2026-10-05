@@ -1,0 +1,34 @@
+{
+  "task_id": "v56_compensating_transaction_failure_recovery",
+  "suite": "v2",
+  "version": 2,
+  "difficulty": "hard",
+  "bug_type": "compensating_transaction_fifo_rollback_inversion",
+  "categories": [
+    "D",
+    "E"
+  ],
+  "description": "Compensating transaction stack executes compensations in FIFO queue order instead of LIFO reverse order on workflow abort.",
+  "spec_notes": "CompensatorEngine.compensate_all must pop actions using LIFO order (self._stack.pop()).",
+  "repo_files": {
+    "action.py": "\"\"\"Atomic workflow action unit.\"\"\"\n\nfrom dataclasses import dataclass\nfrom typing import Callable, Optional\n\n\n@dataclass\nclass ActionUnit:\n    name: str\n    execute_fn: Callable[[], bool]\n    compensate_fn: Callable[[], None]\n",
+    "step.py": "\"\"\"Workflow composite execution step.\"\"\"\n\nfrom dataclasses import dataclass\nfrom typing import List\nfrom action import ActionUnit\n\n\n@dataclass\nclass WorkflowStep:\n    step_id: str\n    actions: List[ActionUnit]\n",
+    "context.py": "\"\"\"Workflow execution context telemetry.\"\"\"\n\nfrom dataclasses import dataclass, field\nfrom typing import List\n\n\n@dataclass\nclass WorkflowContext:\n    workflow_id: str\n    executed_actions: List[str] = field(default_factory=list)\n    compensated_actions: List[str] = field(default_factory=list)\n    success: bool = False\n",
+    "compensator.py": "\"\"\"Compensating transaction stack orchestrator.\"\"\"\n\nfrom typing import List\nfrom action import ActionUnit\nfrom context import WorkflowContext\n\n\nclass CompensatorEngine:\n    def __init__(self):\n        self._stack: List[ActionUnit] = []\n\n    def register_executed(self, action: ActionUnit) -> None:\n        self._stack.append(action)\n\n    def compensate_all(self, ctx: WorkflowContext) -> None:\n        # BUG: Compensates in FIFO insertion order instead of LIFO reverse stack order!\n        while self._stack:\n            action = self._stack.pop(0)  # BUG: pop(0) instead of pop()\n            action.compensate_fn()\n            ctx.compensated_actions.append(action.name)\n",
+    "workflow.py": "\"\"\"Nested workflow executor.\"\"\"\n\nfrom typing import List\nfrom action import ActionUnit\nfrom compensator import CompensatorEngine\nfrom context import WorkflowContext\nfrom step import WorkflowStep\n\n\nclass NestedWorkflowExecutor:\n    def __init__(self):\n        self.compensator = CompensatorEngine()\n\n    def run_workflow(self, workflow_id: str, steps: List[WorkflowStep]) -> WorkflowContext:\n        ctx = WorkflowContext(workflow_id=workflow_id)\n        for step in steps:\n            for action in step.actions:\n                ok = action.execute_fn()\n                if not ok:\n                    self.compensator.compensate_all(ctx)\n                    ctx.success = False\n                    return ctx\n                self.compensator.register_executed(action)\n                ctx.executed_actions.append(action.name)\n        ctx.success = True\n        return ctx\n"
+  },
+  "tests": {
+    "test_compensating_workflow.py": "from action import ActionUnit\nfrom step import WorkflowStep\nfrom workflow import NestedWorkflowExecutor\n\n\ndef test_happy_path_all_steps_succeed():\n    wf = NestedWorkflowExecutor()\n    a1 = ActionUnit(\"reserve_credit\", lambda: True, lambda: None)\n    a2 = ActionUnit(\"allocate_resource\", lambda: True, lambda: None)\n    step1 = WorkflowStep(\"step_1\", [a1, a2])\n    ctx = wf.run_workflow(\"wf_1\", [step1])\n    assert ctx.success is True\n    assert ctx.executed_actions == [\"reserve_credit\", \"allocate_resource\"]\n    assert len(ctx.compensated_actions) == 0\n\n\ndef test_lifo_reverse_compensation_on_failure():\n    wf = NestedWorkflowExecutor()\n    log: list[str] = []\n    a1 = ActionUnit(\"step_1\", lambda: True, lambda: log.append(\"rollback_1\"))\n    a2 = ActionUnit(\"step_2\", lambda: True, lambda: log.append(\"rollback_2\"))\n    a3 = ActionUnit(\"step_3\", lambda: False, lambda: log.append(\"rollback_3\"))  # Fails\n    step = WorkflowStep(\"all_steps\", [a1, a2, a3])\n    ctx = wf.run_workflow(\"wf_fail\", [step])\n    assert ctx.success is False\n    assert ctx.executed_actions == [\"step_1\", \"step_2\"]\n    # LIFO compensation order: rollback_2 must execute before rollback_1!\n    assert ctx.compensated_actions == [\"step_2\", \"step_1\"]\n    assert log == [\"rollback_2\", \"rollback_1\"]\n\n\ndef test_first_action_failure_no_compensations():\n    wf = NestedWorkflowExecutor()\n    a1 = ActionUnit(\"init\", lambda: False, lambda: None)\n    ctx = wf.run_workflow(\"wf_empty\", [WorkflowStep(\"s1\", [a1])])\n    assert ctx.success is False\n    assert len(ctx.executed_actions) == 0\n    assert len(ctx.compensated_actions) == 0\n\n\ndef test_multi_step_workflow_partial_rollback():\n    wf = NestedWorkflowExecutor()\n    calls: list[str] = []\n    s1_a1 = ActionUnit(\"db_insert\", lambda: True, lambda: calls.append(\"undo_db\"))\n    s1_a2 = ActionUnit(\"cache_set\", lambda: True, lambda: calls.append(\"undo_cache\"))\n    s2_a1 = ActionUnit(\"email_send\", lambda: True, lambda: calls.append(\"undo_email\"))\n    s2_a2 = ActionUnit(\"payment_charge\", lambda: False, lambda: calls.append(\"undo_pay\"))\n    steps = [WorkflowStep(\"s1\", [s1_a1, s1_a2]), WorkflowStep(\"s2\", [s2_a1, s2_a2])]\n    ctx = wf.run_workflow(\"wf_multi\", steps)\n    assert ctx.success is False\n    assert ctx.compensated_actions == [\"email_send\", \"cache_set\", \"db_insert\"]\n    assert calls == [\"undo_email\", \"undo_cache\", \"undo_db\"]\n\n\ndef test_empty_steps_list():\n    wf = NestedWorkflowExecutor()\n    ctx = wf.run_workflow(\"wf_zero\", [])\n    assert ctx.success is True\n"
+  },
+  "reference_fix": {
+    "compensator.py": "\"\"\"Compensating transaction stack orchestrator.\"\"\"\n\nfrom typing import List\nfrom action import ActionUnit\nfrom context import WorkflowContext\n\n\nclass CompensatorEngine:\n    def __init__(self):\n        self._stack: List[ActionUnit] = []\n\n    def register_executed(self, action: ActionUnit) -> None:\n        self._stack.append(action)\n\n    def compensate_all(self, ctx: WorkflowContext) -> None:\n        # LIFO reverse order compensation\n        while self._stack:\n            action = self._stack.pop()\n            action.compensate_fn()\n            ctx.compensated_actions.append(action.name)\n"
+  },
+  "metadata": {
+    "estimated_reasoning_steps": 4,
+    "file_count": 5,
+    "adversarial": false,
+    "stateful": true,
+    "multi_file": true,
+    "domain": "e-commerce"
+  }
+}

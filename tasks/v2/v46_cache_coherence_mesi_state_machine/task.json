@@ -1,0 +1,34 @@
+{
+  "task_id": "v46_cache_coherence_mesi_state_machine",
+  "suite": "v2",
+  "version": 2,
+  "difficulty": "hard",
+  "bug_type": "cache_coherence_stale_invalidation_version_check_omission",
+  "categories": [
+    "G",
+    "E",
+    "D"
+  ],
+  "description": "Distributed cache node applies invalidation messages without version checking, allowing stale messages to evict newer writes.",
+  "spec_notes": "CacheNode.on_invalidation must verify msg.version >= curr_ver before clearing cache entry.",
+  "repo_files": {
+    "message.py": "\"\"\"Inter-node cache invalidation protocol messages.\"\"\"\n\nfrom dataclasses import dataclass\nfrom typing import Any\n\n\n@dataclass\nclass InvalidationMessage:\n    sender_id: str\n    key: str\n    version: int\n",
+    "invalidation_bus.py": "\"\"\"Broadcast message bus distributing cache invalidations.\"\"\"\n\nfrom typing import List\nfrom message import InvalidationMessage\n\n\nclass InvalidationBus:\n    def __init__(self):\n        self.listeners = []\n\n    def register_node(self, node) -> None:\n        self.listeners.append(node)\n\n    def broadcast(self, msg: InvalidationMessage) -> None:\n        for node in self.listeners:\n            if node.node_id != msg.sender_id:\n                node.on_invalidation(msg)\n",
+    "cache_node.py": "\"\"\"Distributed cache node maintaining local key-value replica.\"\"\"\n\nfrom typing import Any, Dict, Optional\nfrom invalidation_bus import InvalidationBus\nfrom message import InvalidationMessage\n\n\nclass CacheNode:\n    def __init__(self, node_id: str, bus: InvalidationBus):\n        self.node_id = node_id\n        self.bus = bus\n        self.store: Dict[str, Any] = {}\n        self.versions: Dict[str, int] = {}\n        bus.register_node(self)\n\n    def put(self, key: str, val: Any, version: int) -> None:\n        # Write local update\n        self.store[key] = val\n        self.versions[key] = version\n        # Broadcast invalidation to peer nodes\n        self.bus.broadcast(InvalidationMessage(self.node_id, key, version))\n\n    def get(self, key: str) -> Optional[Any]:\n        return self.store.get(key)\n\n    def on_invalidation(self, msg: InvalidationMessage) -> None:\n        # BUG: Ignores message version and unconditionally deletes or fails to update local version,\n        # allowing stale older invalidation broadcasts to evict newer local writes!\n        curr_ver = self.versions.get(msg.key, 0)\n        self.store.pop(msg.key, None)\n        self.versions[msg.key] = msg.version  # Sets version to stale remote version!\n",
+    "cluster.py": "\"\"\"Distributed cluster orchestrator.\"\"\"\n\nfrom typing import List\nfrom cache_node import CacheNode\nfrom invalidation_bus import InvalidationBus\n\n\nclass CacheCluster:\n    def __init__(self, node_count: int = 3):\n        self.bus = InvalidationBus()\n        self.nodes = [CacheNode(f\"node_{i}\", self.bus) for i in range(node_count)]\n"
+  },
+  "tests": {
+    "test_cache_coherence.py": "from cluster import CacheCluster\nfrom message import InvalidationMessage\n\n\ndef test_peer_invalidation_broadcast():\n    cluster = CacheCluster(node_count=3)\n    n0, n1, n2 = cluster.nodes\n    # Pre-populate all nodes\n    n0.store[\"k1\"] = \"val0\"\n    n1.store[\"k1\"] = \"val0\"\n    n2.store[\"k1\"] = \"val0\"\n\n    # n0 updates k1 to version 2\n    n0.put(\"k1\", \"val_v2\", 2)\n    assert n0.get(\"k1\") == \"val_v2\"\n    # Peers n1 and n2 must have had k1 invalidated\n    assert n1.get(\"k1\") is None\n    assert n2.get(\"k1\") is None\n\n\ndef test_stale_invalidation_message_ignored():\n    cluster = CacheCluster(node_count=2)\n    n0, n1 = cluster.nodes\n    # n0 writes version 5\n    n0.put(\"k2\", \"fresh_data\", 5)\n    assert n0.get(\"k2\") == \"fresh_data\"\n    # Stale out-of-order broadcast from past version 3 arrives at n0\n    n0.on_invalidation(InvalidationMessage(\"n1\", \"k2\", version=3))\n    # Fresh data at version 5 MUST NOT be evicted by stale version 3 message!\n    assert n0.get(\"k2\") == \"fresh_data\"\n    assert n0.versions[\"k2\"] == 5\n\n\ndef test_equal_version_invalidation_applies():\n    cluster = CacheCluster(node_count=2)\n    n0, n1 = cluster.nodes\n    n0.store[\"x\"] = 100\n    n0.versions[\"x\"] = 2\n    n0.on_invalidation(InvalidationMessage(\"n1\", \"x\", version=2))\n    assert n0.get(\"x\") is None\n\n\ndef test_independent_keys_unaffected():\n    cluster = CacheCluster(node_count=2)\n    n0, n1 = cluster.nodes\n    n0.put(\"key_a\", \"A\", 1)\n    n0.put(\"key_b\", \"B\", 1)\n    n1.put(\"key_a\", \"A_updated\", 2)\n    assert n0.get(\"key_a\") is None\n    assert n0.get(\"key_b\") == \"B\"\n"
+  },
+  "reference_fix": {
+    "cache_node.py": "\"\"\"Distributed cache node maintaining local key-value replica.\"\"\"\n\nfrom typing import Any, Dict, Optional\nfrom invalidation_bus import InvalidationBus\nfrom message import InvalidationMessage\n\n\nclass CacheNode:\n    def __init__(self, node_id: str, bus: InvalidationBus):\n        self.node_id = node_id\n        self.bus = bus\n        self.store: Dict[str, Any] = {}\n        self.versions: Dict[str, int] = {}\n        bus.register_node(self)\n\n    def put(self, key: str, val: Any, version: int) -> None:\n        self.store[key] = val\n        self.versions[key] = version\n        self.bus.broadcast(InvalidationMessage(self.node_id, key, version))\n\n    def get(self, key: str) -> Optional[Any]:\n        return self.store.get(key)\n\n    def on_invalidation(self, msg: InvalidationMessage) -> None:\n        curr_ver = self.versions.get(msg.key, 0)\n        # Only invalidate if remote message has higher or equal version\n        if msg.version >= curr_ver:\n            self.store.pop(msg.key, None)\n            self.versions[msg.key] = msg.version\n"
+  },
+  "metadata": {
+    "estimated_reasoning_steps": 4,
+    "file_count": 4,
+    "adversarial": false,
+    "stateful": true,
+    "multi_file": true,
+    "domain": "concurrency"
+  }
+}

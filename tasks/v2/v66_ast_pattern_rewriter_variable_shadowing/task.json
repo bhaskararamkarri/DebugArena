@@ -1,0 +1,32 @@
+{
+  "task_id": "v66_ast_pattern_rewriter_variable_shadowing",
+  "suite": "v2",
+  "version": 2,
+  "difficulty": "hard",
+  "bug_type": "ast_rewriter_scope_shadowing_corruption",
+  "categories": [
+    "B",
+    "E"
+  ],
+  "description": "AST alpha-renamer mutates parent scope directly instead of creating nested child scopes, corrupting outer variable bindings.",
+  "spec_notes": "ASTAlphaRewriter.rewrite must instantiate a child Scope for FunctionDefNode.",
+  "repo_files": {
+    "ast_nodes.py": "\"\"\"AST node representations.\"\"\"\n\nfrom dataclasses import dataclass, field\nfrom typing import Any, List, Optional\n\n\n@dataclass\nclass ASTNode:\n    pass\n\n\n@dataclass\nclass VarNode(ASTNode):\n    name: str\n\n\n@dataclass\nclass AssignNode(ASTNode):\n    target: str\n    value: Any\n\n\n@dataclass\nclass FunctionDefNode(ASTNode):\n    fn_name: str\n    params: List[str]\n    body: List[ASTNode] = field(default_factory=list)\n",
+    "symbol_table.py": "\"\"\"Hierarchical lexical scope symbol table.\"\"\"\n\nfrom typing import Dict, Optional\n\n\nclass Scope:\n    def __init__(self, parent: Optional[\"Scope\"] = None):\n        self.parent = parent\n        self.bindings: Dict[str, str] = {}\n\n    def define(self, name: str, alias: str) -> None:\n        self.bindings[name] = alias\n\n    def lookup(self, name: str) -> Optional[str]:\n        if name in self.bindings:\n            return self.bindings[name]\n        if self.parent:\n            return self.parent.lookup(name)\n        return None\n",
+    "rewriter.py": "\"\"\"AST alpha-renaming rewriter.\"\"\"\n\nfrom typing import List\nfrom ast_nodes import ASTNode, AssignNode, FunctionDefNode, VarNode\nfrom symbol_table import Scope\n\n\nclass ASTAlphaRewriter:\n    def rewrite(self, node: ASTNode, current_scope: Scope) -> ASTNode:\n        if isinstance(node, VarNode):\n            mapped = current_scope.lookup(node.name)\n            return VarNode(mapped if mapped else node.name)\n\n        elif isinstance(node, AssignNode):\n            mapped = current_scope.lookup(node.target)\n            val = node.value\n            if isinstance(val, ASTNode):\n                val = self.rewrite(val, current_scope)\n            return AssignNode(mapped if mapped else node.target, val)\n\n        elif isinstance(node, FunctionDefNode):\n            # BUG: Reuses current_scope directly instead of creating a child Scope(parent=current_scope)\n            # Shadowed parameters overwrite parent bindings in current_scope!\n            for p in node.params:\n                current_scope.define(p, f\"{node.fn_name}_{p}\")\n            new_body = [self.rewrite(stmt, current_scope) for stmt in node.body]\n            return FunctionDefNode(node.fn_name, [f\"{node.fn_name}_{p}\" for p in node.params], new_body)\n\n        return node\n"
+  },
+  "tests": {
+    "test_ast_rewriter.py": "from ast_nodes import AssignNode, FunctionDefNode, VarNode\nfrom rewriter import ASTAlphaRewriter\nfrom symbol_table import Scope\n\n\ndef test_global_scope_renaming():\n    s = Scope()\n    s.define(\"x\", \"g_x\")\n    rewriter = ASTAlphaRewriter()\n    res = rewriter.rewrite(VarNode(\"x\"), s)\n    assert isinstance(res, VarNode)\n    assert res.name == \"g_x\"\n\n\ndef test_nested_shadowed_parameters_isolated():\n    outer = Scope()\n    outer.define(\"x\", \"outer_x\")\n    # Function with parameter x shadows outer x\n    fn = FunctionDefNode(\"inner\", [\"x\"], [AssignNode(\"x\", VarNode(\"x\"))])\n    rewriter = ASTAlphaRewriter()\n    rewritten_fn = rewriter.rewrite(fn, outer)\n    assert isinstance(rewritten_fn, FunctionDefNode)\n    assert rewritten_fn.params == [\"inner_x\"]\n    body_assign = rewritten_fn.body[0]\n    assert body_assign.target == \"inner_x\"\n    assert body_assign.value.name == \"inner_x\"\n    # Outer scope MUST NOT have its binding overwritten!\n    assert outer.lookup(\"x\") == \"outer_x\"\n\n\ndef test_unshadowed_outer_access_in_nested_fn():\n    outer = Scope()\n    outer.define(\"y\", \"global_y\")\n    fn = FunctionDefNode(\"compute\", [\"z\"], [VarNode(\"y\")])\n    rewriter = ASTAlphaRewriter()\n    res = rewriter.rewrite(fn, outer)\n    assert res.body[0].name == \"global_y\"\n"
+  },
+  "reference_fix": {
+    "rewriter.py": "\"\"\"AST alpha-renaming rewriter.\"\"\"\n\nfrom typing import List\nfrom ast_nodes import ASTNode, AssignNode, FunctionDefNode, VarNode\nfrom symbol_table import Scope\n\n\nclass ASTAlphaRewriter:\n    def rewrite(self, node: ASTNode, current_scope: Scope) -> ASTNode:\n        if isinstance(node, VarNode):\n            mapped = current_scope.lookup(node.name)\n            return VarNode(mapped if mapped else node.name)\n\n        elif isinstance(node, AssignNode):\n            mapped = current_scope.lookup(node.target)\n            val = node.value\n            if isinstance(val, ASTNode):\n                val = self.rewrite(val, current_scope)\n            return AssignNode(mapped if mapped else node.target, val)\n\n        elif isinstance(node, FunctionDefNode):\n            inner_scope = Scope(parent=current_scope)\n            for p in node.params:\n                inner_scope.define(p, f\"{node.fn_name}_{p}\")\n            new_body = [self.rewrite(stmt, inner_scope) for stmt in node.body]\n            return FunctionDefNode(node.fn_name, [f\"{node.fn_name}_{p}\" for p in node.params], new_body)\n\n        return node\n"
+  },
+  "metadata": {
+    "estimated_reasoning_steps": 4,
+    "file_count": 3,
+    "adversarial": false,
+    "stateful": false,
+    "multi_file": true,
+    "domain": "compilers"
+  }
+}

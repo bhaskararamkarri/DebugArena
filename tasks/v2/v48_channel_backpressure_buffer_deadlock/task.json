@@ -1,0 +1,32 @@
+{
+  "task_id": "v48_channel_backpressure_buffer_deadlock",
+  "suite": "v2",
+  "version": 2,
+  "difficulty": "hard",
+  "bug_type": "channel_backpressure_producer_condition_deadlock",
+  "categories": [
+    "G",
+    "E"
+  ],
+  "description": "Bounded channel close() fails to notify waiting full condition, deadlocking backpressured producer threads.",
+  "spec_notes": "BoundedChannel.close must call self.not_full.notify_all() in addition to not_empty.",
+  "repo_files": {
+    "channel.py": "\"\"\"Bounded producer-consumer channel.\"\"\"\n\nimport threading\nfrom typing import Any, Optional\n\n\nclass BoundedChannel:\n    def __init__(self, capacity: int = 2):\n        self.capacity = capacity\n        self.queue = []\n        self.lock = threading.Lock()\n        self.not_empty = threading.Condition(self.lock)\n        self.not_full = threading.Condition(self.lock)\n        self.closed = False\n\n    def put(self, item: Any, timeout: float = 0.5) -> bool:\n        with self.lock:\n            while len(self.queue) >= self.capacity and not self.closed:\n                if not self.not_full.wait(timeout=timeout):\n                    return False\n            if self.closed:\n                return False\n            self.queue.append(item)\n            self.not_empty.notify()\n            return True\n\n    def get(self, timeout: float = 0.5) -> Optional[Any]:\n        with self.lock:\n            while not self.queue and not self.closed:\n                if not self.not_empty.wait(timeout=timeout):\n                    return None\n            if self.queue:\n                item = self.queue.pop(0)\n                self.not_full.notify()\n                return item\n            return None\n\n    def close(self) -> None:\n        with self.lock:\n            self.closed = True\n            # BUG: Only notifies not_empty condition, forgetting not_full condition,\n            # deadlocking blocked producers on pipeline shutdown!\n            self.not_empty.notify_all()\n",
+    "worker.py": "\"\"\"Pipeline worker stage.\"\"\"\n\nfrom typing import Callable, List\nfrom channel import BoundedChannel\n\n\nclass StageWorker:\n    def __init__(self, in_ch: BoundedChannel, out_ch: BoundedChannel, transform_fn: Callable[[int], int]):\n        self.in_ch = in_ch\n        self.out_ch = out_ch\n        self.transform_fn = transform_fn\n\n    def process_batch(self, max_items: int = 10) -> int:\n        count = 0\n        for _ in range(max_items):\n            item = self.in_ch.get(timeout=0.05)\n            if item is None:\n                break\n            res = self.transform_fn(item)\n            if not self.out_ch.put(res, timeout=0.05):\n                break\n            count += 1\n        return count\n",
+    "pipeline.py": "\"\"\"Multi-stage processing pipeline.\"\"\"\n\nfrom channel import BoundedChannel\nfrom worker import StageWorker\n\n\nclass ProcessingPipeline:\n    def __init__(self, capacity: int = 2):\n        self.in_ch = BoundedChannel(capacity=capacity)\n        self.out_ch = BoundedChannel(capacity=capacity)\n        self.worker = StageWorker(self.in_ch, self.out_ch, lambda x: x * 2)\n\n    def stop(self) -> None:\n        self.in_ch.close()\n        self.out_ch.close()\n"
+  },
+  "tests": {
+    "test_pipeline_deadlock.py": "import threading\nimport time\nfrom channel import BoundedChannel\nfrom pipeline import ProcessingPipeline\n\n\ndef test_basic_pipeline_flow():\n    pipe = ProcessingPipeline(capacity=5)\n    pipe.in_ch.put(10)\n    pipe.in_ch.put(20)\n    processed = pipe.worker.process_batch(10)\n    assert processed == 2\n    assert pipe.out_ch.get() == 20\n    assert pipe.out_ch.get() == 40\n\n\ndef test_channel_close_unblocks_waiting_producers():\n    ch = BoundedChannel(capacity=1)\n    ch.put(\"item1\")  # Channel is full\n\n    blocked_flag = True\n    put_success = None\n    def blocked_producer():\n        nonlocal blocked_flag, put_success\n        put_success = ch.put(\"item2\", timeout=5.0)\n        blocked_flag = False\n\n    t = threading.Thread(target=blocked_producer)\n    t.start()\n    time.sleep(0.05)\n    assert blocked_flag is True\n\n    # Closing channel must immediately unblock producer thread\n    ch.close()\n    t.join(timeout=0.5)\n    assert blocked_flag is False\n    assert put_success is False\n\n\ndef test_channel_close_allows_draining_remaining_items():\n    ch = BoundedChannel(capacity=3)\n    ch.put(1)\n    ch.put(2)\n    ch.close()\n    assert ch.get() == 1\n    assert ch.get() == 2\n    assert ch.get() is None\n\n\ndef test_pipeline_shutdown():\n    pipe = ProcessingPipeline(capacity=1)\n    pipe.stop()\n    assert pipe.in_ch.closed is True\n    assert pipe.out_ch.closed is True\n"
+  },
+  "reference_fix": {
+    "channel.py": "\"\"\"Bounded producer-consumer channel.\"\"\"\n\nimport threading\nfrom typing import Any, Optional\n\n\nclass BoundedChannel:\n    def __init__(self, capacity: int = 2):\n        self.capacity = capacity\n        self.queue = []\n        self.lock = threading.Lock()\n        self.not_empty = threading.Condition(self.lock)\n        self.not_full = threading.Condition(self.lock)\n        self.closed = False\n\n    def put(self, item: Any, timeout: float = 0.5) -> bool:\n        with self.lock:\n            while len(self.queue) >= self.capacity and not self.closed:\n                if not self.not_full.wait(timeout=timeout):\n                    return False\n            if self.closed:\n                return False\n            self.queue.append(item)\n            self.not_empty.notify()\n            return True\n\n    def get(self, timeout: float = 0.5) -> Optional[Any]:\n        with self.lock:\n            while not self.queue and not self.closed:\n                if not self.not_empty.wait(timeout=timeout):\n                    return None\n            if self.queue:\n                item = self.queue.pop(0)\n                self.not_full.notify()\n                return item\n            return None\n\n    def close(self) -> None:\n        with self.lock:\n            self.closed = True\n            self.not_empty.notify_all()\n            self.not_full.notify_all()\n"
+  },
+  "metadata": {
+    "estimated_reasoning_steps": 4,
+    "file_count": 3,
+    "adversarial": false,
+    "stateful": true,
+    "multi_file": true,
+    "domain": "concurrency"
+  }
+}

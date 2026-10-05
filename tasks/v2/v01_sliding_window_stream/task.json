@@ -1,0 +1,30 @@
+{
+  "task_id": "v01_sliding_window_stream",
+  "suite": "v2",
+  "version": 2,
+  "difficulty": "medium",
+  "bug_type": "sliding_window_eviction",
+  "categories": ["B", "D"],
+  "description": "The real-time metric accumulator fails to evict stale samples on window slides, retaining old values in the sum and miscalculating sliding averages.",
+  "spec_notes": "Invariant: Window duration must be maintained strictly: samples older than (current_timestamp - window_duration) must be evicted.",
+  "repo_files": {
+    "models.py": "from dataclasses import dataclass\n\n@dataclass\nclass MetricSample:\n    timestamp: float\n    value: float\n",
+    "window.py": "from typing import List\nfrom models import MetricSample\n\nclass SlidingWindow:\n    def __init__(self, duration: float):\n        self.duration = duration\n        self.samples: List[MetricSample] = []\n        self.current_sum: float = 0.0\n\n    def add_sample(self, sample: MetricSample) -> None:\n        self.samples.append(sample)\n        self.current_sum += sample.value\n        self._evict_stale(sample.timestamp)\n\n    def _evict_stale(self, current_time: float) -> None:\n        cutoff = current_time - self.duration\n        # Bug: uses <= cutoff for retaining rather than evicting, and forgets to subtract evicted values from current_sum\n        while self.samples and self.samples[0].timestamp <= cutoff:\n            # Evicting sample\n            self.samples.pop(0)\n            # Missing: self.current_sum -= evicted.value\n\n    def get_sum(self) -> float:\n        return self.current_sum\n\n    def get_count(self) -> int:\n        return len(self.samples)\n",
+    "accumulator.py": "from models import MetricSample\nfrom window import SlidingWindow\n\nclass StreamAccumulator:\n    def __init__(self, window_duration: float):\n        self.window = SlidingWindow(window_duration)\n\n    def record(self, timestamp: float, value: float) -> None:\n        self.window.add_sample(MetricSample(timestamp, value))\n\n    def get_average(self) -> float:\n        count = self.window.get_count()\n        if count == 0:\n            return 0.0\n        return round(self.window.get_sum() / count, 4)\n"
+  },
+  "tests": {
+    "test_accumulator.py": "from accumulator import StreamAccumulator\n\ndef test_single_sample_average():\n    acc = StreamAccumulator(window_duration=10.0)\n    acc.record(100.0, 50.0)\n    assert acc.get_average() == 50.0\n\ndef test_sliding_window_eviction():\n    acc = StreamAccumulator(window_duration=10.0)\n    acc.record(100.0, 10.0)\n    acc.record(105.0, 20.0)\n    acc.record(112.0, 30.0) # 100.0 should be evicted (112 - 10 = 102 cutoff)\n    assert acc.window.get_count() == 2\n    assert acc.get_average() == 25.0 # (20 + 30) / 2 = 25.0\n\ndef test_empty_accumulator_average():\n    acc = StreamAccumulator(window_duration=5.0)\n    assert acc.get_average() == 0.0\n"
+  },
+  "reference_fix": {
+    "window.py": "from typing import List\nfrom models import MetricSample\n\nclass SlidingWindow:\n    def __init__(self, duration: float):\n        self.duration = duration\n        self.samples: List[MetricSample] = []\n        self.current_sum: float = 0.0\n\n    def add_sample(self, sample: MetricSample) -> None:\n        self.samples.append(sample)\n        self.current_sum += sample.value\n        self._evict_stale(sample.timestamp)\n\n    def _evict_stale(self, current_time: float) -> None:\n        cutoff = current_time - self.duration\n        while self.samples and self.samples[0].timestamp < cutoff:\n            evicted = self.samples.pop(0)\n            self.current_sum -= evicted.value\n\n    def get_sum(self) -> float:\n        return self.current_sum\n\n    def get_count(self) -> int:\n        return len(self.samples)\n"
+  },
+  "metadata": {
+    "estimated_reasoning_steps": 3,
+    "file_count": 3,
+    "adversarial": false,
+    "stateful": true,
+    "multi_file": true,
+    "domain": "telemetry_streaming",
+    "quality_score": 4.5
+  }
+}

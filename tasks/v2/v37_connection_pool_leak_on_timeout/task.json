@@ -1,0 +1,32 @@
+{
+  "task_id": "v37_connection_pool_leak_on_timeout",
+  "suite": "v2",
+  "version": 2,
+  "difficulty": "hard",
+  "bug_type": "connection_pool_leak_unhandled_exception_bypass",
+  "categories": [
+    "I",
+    "K"
+  ],
+  "description": "Database client does not use try/finally around query execution, permanently leaking connection leases upon timeouts or errors.",
+  "spec_notes": "DBClient.run_query must ensure pool.release(conn) is executed in a finally block.",
+  "repo_files": {
+    "errors.py": "\"\"\"Database query errors.\"\"\"\n\nclass QueryTimeoutException(Exception):\n    pass\n",
+    "pool.py": "\"\"\"Managed database connection pool.\"\"\"\n\nfrom typing import List, Optional\n\n\nclass ConnectionHandle:\n    def __init__(self, conn_id: int):\n        self.conn_id = conn_id\n        self.in_use: bool = False\n\n\nclass ConnectionPool:\n    def __init__(self, size: int = 3):\n        self.size = size\n        self.handles = [ConnectionHandle(i) for i in range(size)]\n\n    def acquire(self) -> Optional[ConnectionHandle]:\n        for h in self.handles:\n            if not h.in_use:\n                h.in_use = True\n                return h\n        return None\n\n    def release(self, handle: ConnectionHandle) -> None:\n        handle.in_use = False\n\n    @property\n    def available_count(self) -> int:\n        return sum(1 for h in self.handles if not h.in_use)\n",
+    "client.py": "\"\"\"Database client executing queries with connection leases.\"\"\"\n\nfrom typing import Any, Callable\nfrom errors import QueryTimeoutException\nfrom pool import ConnectionPool\n\n\nclass DBClient:\n    def __init__(self, pool: ConnectionPool):\n        self.pool = pool\n\n    def run_query(self, query_fn: Callable[[], Any]) -> Any:\n        conn = self.pool.acquire()\n        if not conn:\n            raise RuntimeError(\"Connection pool exhausted\")\n\n        # BUG: Missing try/finally block around query execution!\n        # When query_fn raises QueryTimeoutException or error, release() is bypassed!\n        res = query_fn()\n        self.pool.release(conn)\n        return res\n"
+  },
+  "tests": {
+    "test_pool_leak.py": "import pytest\nfrom pool import ConnectionPool\nfrom client import DBClient\nfrom errors import QueryTimeoutException\n\n\ndef test_successful_query_releases_connection():\n    pool = ConnectionPool(size=2)\n    client = DBClient(pool)\n    res = client.run_query(lambda: \"ROWS_OK\")\n    assert res == \"ROWS_OK\"\n    assert pool.available_count == 2\n\n\ndef test_timeout_exception_releases_connection():\n    pool = ConnectionPool(size=2)\n    client = DBClient(pool)\n    def timeout_query():\n        raise QueryTimeoutException(\"Query exceeded 30s\")\n\n    with pytest.raises(QueryTimeoutException):\n        client.run_query(timeout_query)\n\n    # Connection handle must be returned back to pool!\n    assert pool.available_count == 2\n\n\ndef test_consecutive_failing_queries_do_not_exhaust_pool():\n    pool = ConnectionPool(size=2)\n    client = DBClient(pool)\n    for _ in range(5):\n        try:\n            client.run_query(lambda: 1 / 0)\n        except ZeroDivisionError:\n            pass\n    assert pool.available_count == 2\n    # Subsequent query succeeds\n    assert client.run_query(lambda: 42) == 42\n\n\ndef test_pool_exhaustion_when_all_held():\n    pool = ConnectionPool(size=1)\n    client = DBClient(pool)\n    h = pool.acquire()\n    with pytest.raises(RuntimeError):\n        client.run_query(lambda: 1)\n    pool.release(h)\n    assert client.run_query(lambda: \"NOW_OK\") == \"NOW_OK\"\n\n\ndef test_custom_exception_propagation():\n    pool = ConnectionPool(size=3)\n    client = DBClient(pool)\n    class CustomDBError(Exception): pass\n    with pytest.raises(CustomDBError):\n        client.run_query(lambda: (_ for _ in ()).throw(CustomDBError(\"db lock\")))\n    assert pool.available_count == 3\n\n\ndef test_nested_pool_state_initialization():\n    pool = ConnectionPool(size=5)\n    assert pool.available_count == 5\n"
+  },
+  "reference_fix": {
+    "client.py": "\"\"\"Database client executing queries with connection leases.\"\"\"\n\nfrom typing import Any, Callable\nfrom errors import QueryTimeoutException\nfrom pool import ConnectionPool\n\n\nclass DBClient:\n    def __init__(self, pool: ConnectionPool):\n        self.pool = pool\n\n    def run_query(self, query_fn: Callable[[], Any]) -> Any:\n        conn = self.pool.acquire()\n        if not conn:\n            raise RuntimeError(\"Connection pool exhausted\")\n\n        try:\n            return query_fn()\n        finally:\n            self.pool.release(conn)\n"
+  },
+  "metadata": {
+    "estimated_reasoning_steps": 3,
+    "file_count": 3,
+    "adversarial": false,
+    "stateful": true,
+    "multi_file": true,
+    "domain": "database"
+  }
+}

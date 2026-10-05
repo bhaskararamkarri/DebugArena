@@ -1,0 +1,33 @@
+{
+  "task_id": "v70_zero_knowledge_merkle_membership_proof",
+  "suite": "v2",
+  "version": 2,
+  "difficulty": "hard",
+  "bug_type": "merkle_proof_sibling_ordering_hash_inversion",
+  "categories": [
+    "L",
+    "C"
+  ],
+  "description": "Merkle membership proof verifier ignores sibling side bit when combining hashes, failing inclusion proofs on right-hand leaves.",
+  "spec_notes": "MerkleProofVerifier.verify must concatenate left and right hashes according to is_sibling_right direction.",
+  "repo_files": {
+    "hash_util.py": "\"\"\"Cryptographic hashing utility.\"\"\"\n\nimport hashlib\n\n\ndef hash_leaf(data: str) -> str:\n    return hashlib.sha256(b\"\\x00\" + data.encode(\"utf-8\")).hexdigest()\n\n\ndef hash_pair(left: str, right: str) -> str:\n    return hashlib.sha256(b\"\\x01\" + bytes.fromhex(left) + bytes.fromhex(right)).hexdigest()\n",
+    "proof.py": "\"\"\"Merkle tree membership proof.\"\"\"\n\nfrom dataclasses import dataclass\nfrom typing import List, Tuple\n\n\n@dataclass\nclass MembershipProof:\n    leaf_data: str\n    leaf_index: int\n    # Each step is (sibling_hash, is_sibling_right)\n    audit_path: List[Tuple[str, bool]]\n",
+    "verifier.py": "\"\"\"Merkle membership proof verifier.\"\"\"\n\nfrom hash_util import hash_leaf, hash_pair\nfrom proof import MembershipProof\n\n\nclass MerkleProofVerifier:\n    @staticmethod\n    def verify(proof: MembershipProof, root_hash: str) -> bool:\n        curr = hash_leaf(proof.leaf_data)\n        for sibling, is_right in proof.audit_path:\n            # BUG: Always hashes curr as left and sibling as right,\n            # ignoring is_right boolean direction indicator!\n            curr = hash_pair(curr, sibling)\n        return curr == root_hash\n",
+    "merkle_tree.py": "\"\"\"Binary Merkle tree construction and proof generator.\"\"\"\n\nfrom typing import List\nfrom hash_util import hash_leaf, hash_pair\nfrom proof import MembershipProof\n\n\nclass MerkleTree:\n    def __init__(self, leaves: List[str]):\n        self.leaves = list(leaves)\n        self.layers: List[List[str]] = []\n        self._build()\n\n    def _build(self):\n        curr = [hash_leaf(l) for l in self.leaves]\n        self.layers.append(curr)\n        while len(curr) > 1:\n            if len(curr) % 2 != 0:\n                curr.append(curr[-1])\n            nxt = []\n            for i in range(0, len(curr), 2):\n                nxt.append(hash_pair(curr[i], curr[i + 1]))\n            self.layers.append(nxt)\n            curr = nxt\n\n    @property\n    def root(self) -> str:\n        return self.layers[-1][0] if self.layers and self.layers[-1] else \"\"\n\n    def generate_proof(self, index: int) -> MembershipProof:\n        path = []\n        idx = index\n        for layer in self.layers[:-1]:\n            is_right_child = (idx % 2 == 1)\n            sibling_idx = idx - 1 if is_right_child else idx + 1\n            if sibling_idx >= len(layer):\n                sibling_idx = idx\n            sibling_hash = layer[sibling_idx]\n            # is_sibling_right is True if sibling is on the right\n            path.append((sibling_hash, not is_right_child))\n            idx //= 2\n        return MembershipProof(self.leaves[index], index, path)\n"
+  },
+  "tests": {
+    "test_merkle_proof.py": "from merkle_tree import MerkleTree\nfrom verifier import MerkleProofVerifier\nfrom proof import MembershipProof\n\n\ndef test_valid_inclusion_proof_for_all_leaves():\n    leaves = [\"leaf_0\", \"leaf_1\", \"leaf_2\", \"leaf_3\", \"leaf_4\"]\n    tree = MerkleTree(leaves)\n    root = tree.root\n    for i in range(len(leaves)):\n        proof = tree.generate_proof(i)\n        assert MerkleProofVerifier.verify(proof, root) is True\n\n\ndef test_tampered_leaf_data_rejected():\n    leaves = [\"a\", \"b\", \"c\", \"d\"]\n    tree = MerkleTree(leaves)\n    proof = tree.generate_proof(1)\n    tampered = MembershipProof(\"tampered_data\", proof.leaf_index, proof.audit_path)\n    assert MerkleProofVerifier.verify(tampered, tree.root) is False\n\n\ndef test_wrong_root_rejected():\n    tree = MerkleTree([\"a\", \"b\"])\n    proof = tree.generate_proof(0)\n    assert MerkleProofVerifier.verify(proof, \"00\" * 32) is False\n"
+  },
+  "reference_fix": {
+    "verifier.py": "\"\"\"Merkle membership proof verifier.\"\"\"\n\nfrom hash_util import hash_leaf, hash_pair\nfrom proof import MembershipProof\n\n\nclass MerkleProofVerifier:\n    @staticmethod\n    def verify(proof: MembershipProof, root_hash: str) -> bool:\n        curr = hash_leaf(proof.leaf_data)\n        for sibling, is_right in proof.audit_path:\n            if is_right:\n                curr = hash_pair(curr, sibling)\n            else:\n                curr = hash_pair(sibling, curr)\n        return curr == root_hash\n"
+  },
+  "metadata": {
+    "estimated_reasoning_steps": 4,
+    "file_count": 4,
+    "adversarial": false,
+    "stateful": false,
+    "multi_file": true,
+    "domain": "cryptography"
+  }
+}

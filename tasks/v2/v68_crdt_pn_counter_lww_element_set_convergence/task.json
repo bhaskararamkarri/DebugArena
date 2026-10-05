@@ -1,0 +1,31 @@
+{
+  "task_id": "v68_crdt_pn_counter_lww_element_set_convergence",
+  "suite": "v2",
+  "version": 2,
+  "difficulty": "hard",
+  "bug_type": "crdt_lww_add_bias_tiebreaker_inversion",
+  "categories": [
+    "E",
+    "G"
+  ],
+  "description": "LWW-Element-Set CRDT implements strict > instead of >=, violating specified add-bias resolution on timestamp ties.",
+  "spec_notes": "LWWElementSet.lookup must evaluate add_ts >= rem_ts for add-bias tie breaking.",
+  "repo_files": {
+    "lww_element_set.py": "\"\"\"Last-Write-Wins Element Set (LWW-Element-Set) CRDT.\"\"\"\n\nfrom dataclasses import dataclass, field\nfrom typing import Any, Dict, Set\n\n\nclass LWWElementSet:\n    def __init__(self):\n        self.add_set: Dict[str, float] = {}     # element -> timestamp\n        self.remove_set: Dict[str, float] = {}  # element -> timestamp\n\n    def add(self, element: str, timestamp: float) -> None:\n        curr = self.add_set.get(element, 0.0)\n        if timestamp > curr:\n            self.add_set[element] = timestamp\n\n    def remove(self, element: str, timestamp: float) -> None:\n        curr = self.remove_set.get(element, 0.0)\n        if timestamp > curr:\n            self.remove_set[element] = timestamp\n\n    def lookup(self, element: str) -> bool:\n        add_ts = self.add_set.get(element)\n        if add_ts is None:\n            return False\n        rem_ts = self.remove_set.get(element)\n        if rem_ts is None:\n            return True\n        # LWW-Add-Bias Specification: When add_ts == rem_ts, addition wins (add_ts >= rem_ts)\n        # BUG: Uses strict > which favors removal on timestamp ties!\n        return add_ts > rem_ts\n\n    def merge(self, other: \"LWWElementSet\") -> None:\n        for el, ts in other.add_set.items():\n            self.add(el, ts)\n        for el, ts in other.remove_set.items():\n            self.remove(el, ts)\n",
+    "replica.py": "\"\"\"Distributed node replica storing CRDT sets.\"\"\"\n\nfrom lww_element_set import LWWElementSet\n\n\nclass ReplicaNode:\n    def __init__(self, node_id: str):\n        self.node_id = node_id\n        self.set_crdt = LWWElementSet()\n\n    def sync_with(self, peer: \"ReplicaNode\") -> None:\n        self.set_crdt.merge(peer.set_crdt)\n"
+  },
+  "tests": {
+    "test_crdt_convergence.py": "from replica import ReplicaNode\nfrom lww_element_set import LWWElementSet\n\n\ndef test_equal_timestamp_add_bias():\n    s = LWWElementSet()\n    t = 100.0\n    s.add(\"item_1\", t)\n    s.remove(\"item_1\", t)\n    # Add bias must return True on identical add and remove timestamps\n    assert s.lookup(\"item_1\") is True\n\n\ndef test_replica_convergence():\n    r1 = ReplicaNode(\"r1\")\n    r2 = ReplicaNode(\"r2\")\n    r1.set_crdt.add(\"x\", 50.0)\n    r2.set_crdt.remove(\"x\", 40.0)\n    # Synchronize\n    r1.sync_with(r2)\n    r2.sync_with(r1)\n    assert r1.set_crdt.lookup(\"x\") is True\n    assert r2.set_crdt.lookup(\"x\") is True\n"
+  },
+  "reference_fix": {
+    "lww_element_set.py": "\"\"\"Last-Write-Wins Element Set (LWW-Element-Set) CRDT.\"\"\"\n\nfrom typing import Any, Dict, Set\n\n\nclass LWWElementSet:\n    def __init__(self):\n        self.add_set: Dict[str, float] = {}\n        self.remove_set: Dict[str, float] = {}\n\n    def add(self, element: str, timestamp: float) -> None:\n        curr = self.add_set.get(element, 0.0)\n        if timestamp > curr:\n            self.add_set[element] = timestamp\n\n    def remove(self, element: str, timestamp: float) -> None:\n        curr = self.remove_set.get(element, 0.0)\n        if timestamp > curr:\n            self.remove_set[element] = timestamp\n\n    def lookup(self, element: str) -> bool:\n        add_ts = self.add_set.get(element)\n        if add_ts is None:\n            return False\n        rem_ts = self.remove_set.get(element)\n        if rem_ts is None:\n            return True\n        # LWW-Add-Bias: addition wins on equal timestamps\n        return add_ts >= rem_ts\n\n    def merge(self, other: \"LWWElementSet\") -> None:\n        for el, ts in other.add_set.items():\n            self.add(el, ts)\n        for el, ts in other.remove_set.items():\n            self.remove(el, ts)\n"
+  },
+  "metadata": {
+    "estimated_reasoning_steps": 3,
+    "file_count": 2,
+    "adversarial": false,
+    "stateful": true,
+    "multi_file": true,
+    "domain": "distributed-systems"
+  }
+}

@@ -39,27 +39,28 @@ def test_hidden_tests_unreadable_during_agent_run_command():
     """Proves an agent cannot inspect or read hidden tests via run commands."""
     from agentgym.env import BugFixEnv
 
-    env = BugFixEnv(tasks_dir="tasks", max_steps=5, sandbox_mode="docker")
+    mode = "docker" if Sandbox.is_docker_available() else "local"
+    env = BugFixEnv(tasks_dir="tasks", max_steps=5, sandbox_mode=mode)
     obs = env.reset(task_id="t01_off_by_one")
 
     # 1. Agent attempts to list files looking for test files
     obs, reward, done, info = env.step({
         "type": "run",
-        "cmd": 'python3 -c "import os; print([f for f in os.listdir(\'.\') if \'test\' in f])"',
+        "cmd": f'"{sys.executable}" -c "import os; print([f for f in os.listdir(\'.\') if \'test\' in f])"',
     })
     assert "[]" in obs["last_output"]
 
     # 2. Agent attempts to directly cat / open the hidden test file
     obs, reward, done, info = env.step({
         "type": "run",
-        "cmd": 'python3 -c "open(\'test_mathutils.py\').read()"',
+        "cmd": f'"{sys.executable}" -c "open(\'test_mathutils.py\').read()"',
     })
     assert "FileNotFoundError" in obs["last_output"] or "No such file" in obs["last_output"]
 
     # 3. Agent attempts to read /tests_hidden (which is not mounted during run commands)
     obs, reward, done, info = env.step({
         "type": "run",
-        "cmd": 'python3 -c "import os; print(os.path.exists(\'/tests_hidden\'))"',
+        "cmd": f'"{sys.executable}" -c "import os; print(os.path.exists(\'/tests_hidden\'))"',
     })
     assert "False" in obs["last_output"]
 

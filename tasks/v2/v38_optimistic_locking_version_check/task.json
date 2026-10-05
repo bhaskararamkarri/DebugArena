@@ -1,0 +1,32 @@
+{
+  "task_id": "v38_optimistic_locking_version_check",
+  "suite": "v2",
+  "version": 2,
+  "difficulty": "hard",
+  "bug_type": "optimistic_locking_dirty_write_before_version_check",
+  "categories": [
+    "I",
+    "D"
+  ],
+  "description": "Optimistic store mutates record data before validating expected version, corrupting shared data when conflicts occur.",
+  "spec_notes": "OptimisticStore.update must verify curr.version == expected_version prior to applying data mutations.",
+  "repo_files": {
+    "record.py": "\"\"\"Entity record with version identifier.\"\"\"\n\nfrom dataclasses import dataclass\nfrom typing import Any, Dict\n\n\n@dataclass\nclass VersionedRecord:\n    record_id: str\n    data: Dict[str, Any]\n    version: int\n",
+    "storage.py": "\"\"\"Optimistic locking document store.\"\"\"\n\nfrom typing import Any, Dict, Optional\nfrom record import VersionedRecord\n\n\nclass OptimisticStore:\n    def __init__(self):\n        self._store: Dict[str, VersionedRecord] = {}\n\n    def insert(self, record_id: str, data: Dict[str, Any]) -> VersionedRecord:\n        rec = VersionedRecord(record_id, dict(data), version=1)\n        self._store[record_id] = rec\n        return rec\n\n    def get(self, record_id: str) -> Optional[VersionedRecord]:\n        rec = self._store.get(record_id)\n        if rec:\n            return VersionedRecord(rec.record_id, dict(rec.data), rec.version)\n        return None\n\n    def update(self, record_id: str, new_data: Dict[str, Any], expected_version: int) -> bool:\n        curr = self._store.get(record_id)\n        if not curr:\n            return False\n\n        # BUG: Overwrites curr.data immediately BEFORE checking version!\n        curr.data = dict(new_data)\n        if curr.version != expected_version:\n            return False\n\n        curr.version += 1\n        return True\n",
+    "session.py": "\"\"\"Data session worker updating shared records.\"\"\"\n\nfrom typing import Any, Dict\nfrom storage import OptimisticStore\n\n\nclass DocumentSession:\n    def __init__(self, store: OptimisticStore):\n        self.store = store\n\n    def patch_document(self, record_id: str, field_updates: Dict[str, Any]) -> bool:\n        rec = self.store.get(record_id)\n        if not rec:\n            return False\n        merged = dict(rec.data)\n        merged.update(field_updates)\n        return self.store.update(record_id, merged, rec.version)\n"
+  },
+  "tests": {
+    "test_optimistic_locking.py": "from storage import OptimisticStore\nfrom session import DocumentSession\n\n\ndef test_sequential_updates():\n    store = OptimisticStore()\n    store.insert(\"doc_1\", {\"title\": \"Draft\", \"views\": 0})\n    s1 = DocumentSession(store)\n    res1 = s1.patch_document(\"doc_1\", {\"title\": \"Published\"})\n    assert res1 is True\n    rec = store.get(\"doc_1\")\n    assert rec.version == 2\n    assert rec.data[\"title\"] == \"Published\"\n\n\ndef test_concurrent_conflict_rejected_without_corrupting_data():\n    store = OptimisticStore()\n    store.insert(\"doc_2\", {\"balance\": 100})\n    # Worker 1 and Worker 2 both read version 1\n    s1 = DocumentSession(store)\n    s2 = DocumentSession(store)\n    rec1 = store.get(\"doc_2\")\n    rec2 = store.get(\"doc_2\")\n    assert rec1.version == 1 and rec2.version == 1\n\n    # Worker 1 commits update to balance 150 (version becomes 2)\n    assert store.update(\"doc_2\", {\"balance\": 150}, expected_version=1) is True\n    assert store.get(\"doc_2\").version == 2\n\n    # Worker 2 tries to commit stale update to balance 200 using expected_version=1\n    assert store.update(\"doc_2\", {\"balance\": 200}, expected_version=1) is False\n    # CRITICAL: Document data MUST retain Worker 1 update (150), NOT be corrupted with 200!\n    assert store.get(\"doc_2\").data[\"balance\"] == 150\n    assert store.get(\"doc_2\").version == 2\n\n\ndef test_update_missing_record():\n    store = OptimisticStore()\n    assert store.update(\"missing\", {\"k\": 1}, 1) is False\n\n\ndef test_version_increments_monotonically():\n    store = OptimisticStore()\n    store.insert(\"d\", {\"v\": 0})\n    for i in range(1, 6):\n        assert store.update(\"d\", {\"v\": i}, expected_version=i) is True\n    assert store.get(\"d\").version == 6\n    assert store.get(\"d\").data[\"v\"] == 5\n\n\ndef test_patch_document_missing():\n    store = OptimisticStore()\n    s = DocumentSession(store)\n    assert s.patch_document(\"ghost\", {\"a\": 1}) is False\n\n\ndef test_record_snapshot_immutability():\n    store = OptimisticStore()\n    store.insert(\"d1\", {\"meta\": \"original\"})\n    snap = store.get(\"d1\")\n    snap.data[\"meta\"] = \"tampered\"\n    assert store.get(\"d1\").data[\"meta\"] == \"original\"\n"
+  },
+  "reference_fix": {
+    "storage.py": "\"\"\"Optimistic locking document store.\"\"\"\n\nfrom typing import Any, Dict, Optional\nfrom record import VersionedRecord\n\n\nclass OptimisticStore:\n    def __init__(self):\n        self._store: Dict[str, VersionedRecord] = {}\n\n    def insert(self, record_id: str, data: Dict[str, Any]) -> VersionedRecord:\n        rec = VersionedRecord(record_id, dict(data), version=1)\n        self._store[record_id] = rec\n        return rec\n\n    def get(self, record_id: str) -> Optional[VersionedRecord]:\n        rec = self._store.get(record_id)\n        if rec:\n            return VersionedRecord(rec.record_id, dict(rec.data), rec.version)\n        return None\n\n    def update(self, record_id: str, new_data: Dict[str, Any], expected_version: int) -> bool:\n        curr = self._store.get(record_id)\n        if not curr:\n            return False\n\n        if curr.version != expected_version:\n            return False\n\n        curr.data = dict(new_data)\n        curr.version += 1\n        return True\n"
+  },
+  "metadata": {
+    "estimated_reasoning_steps": 4,
+    "file_count": 3,
+    "adversarial": false,
+    "stateful": true,
+    "multi_file": true,
+    "domain": "database"
+  }
+}

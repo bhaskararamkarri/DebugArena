@@ -1,0 +1,32 @@
+{
+  "task_id": "v55_leader_election_lease_renewal_split_brain",
+  "suite": "v2",
+  "version": 2,
+  "difficulty": "hard",
+  "bug_type": "leader_election_lease_renewal_return_value_inversion",
+  "categories": [
+    "G",
+    "D"
+  ],
+  "description": "Leader election coordinator returns False on successful leader lease renewals, causing leader nodes to believe they lost leadership.",
+  "spec_notes": "ElectionCoordinator.acquire_or_renew must return True when the active leader successfully extends its lease.",
+  "repo_files": {
+    "lease.py": "\"\"\"Leader election lease contract.\"\"\"\n\nfrom dataclasses import dataclass\n\n\n@dataclass\nclass LeaderLease:\n    leader_id: str\n    expires_at: float\n\n    def is_expired(self, now: float) -> bool:\n        return now >= self.expires_at\n",
+    "election_fsm.py": "\"\"\"Raft/Paxos-style leader election coordinator.\"\"\"\n\nfrom typing import Optional\nfrom lease import LeaderLease\n\n\nclass ElectionCoordinator:\n    def __init__(self, lease_duration: float = 10.0):\n        self.lease_duration = lease_duration\n        self.current_lease: Optional[LeaderLease] = None\n\n    def acquire_or_renew(self, candidate_id: str, now: float) -> bool:\n        if not self.current_lease or self.current_lease.is_expired(now):\n            self.current_lease = LeaderLease(candidate_id, now + self.lease_duration)\n            return True\n        # Existing active leader renewing\n        if self.current_lease.leader_id == candidate_id:\n            # BUG: Renews lease by adding duration to now instead of extending, but fails to return True!\n            self.current_lease = LeaderLease(candidate_id, now + self.lease_duration)\n            return False  # BUG: Returns False on renewal!\n        return False\n\n    def get_current_leader(self, now: float) -> Optional[str]:\n        if self.current_lease and not self.current_lease.is_expired(now):\n            return self.current_lease.leader_id\n        return None\n",
+    "cluster.py": "\"\"\"Cluster node participating in leader election.\"\"\"\n\nfrom election_fsm import ElectionCoordinator\n\n\nclass ClusterNode:\n    def __init__(self, node_id: str, coord: ElectionCoordinator):\n        self.node_id = node_id\n        self.coord = coord\n\n    def heartbeat(self, now: float) -> bool:\n        return self.coord.acquire_or_renew(self.node_id, now)\n"
+  },
+  "tests": {
+    "test_leader_election.py": "from election_fsm import ElectionCoordinator\nfrom cluster import ClusterNode\n\n\ndef test_initial_leader_acquisition():\n    coord = ElectionCoordinator(lease_duration=10.0)\n    n1 = ClusterNode(\"node_1\", coord)\n    assert n1.heartbeat(now=100.0) is True\n    assert coord.get_current_leader(now=100.0) == \"node_1\"\n\n\ndef test_competing_node_rejected_during_active_lease():\n    coord = ElectionCoordinator(lease_duration=10.0)\n    n1 = ClusterNode(\"node_1\", coord)\n    n2 = ClusterNode(\"node_2\", coord)\n    n1.heartbeat(now=100.0)\n    # n2 tries to take leadership at t=105 while n1 lease expires at 110\n    assert n2.heartbeat(now=105.0) is False\n    assert coord.get_current_leader(now=105.0) == \"node_1\"\n\n\ndef test_leader_lease_renewal():\n    coord = ElectionCoordinator(lease_duration=10.0)\n    n1 = ClusterNode(\"node_1\", coord)\n    n1.heartbeat(now=100.0)\n    # n1 renews at t=105 (new expiration 115)\n    assert n1.heartbeat(now=105.0) is True\n    assert coord.get_current_leader(now=112.0) == \"node_1\"\n\n\ndef test_expired_lease_allows_new_leader():\n    coord = ElectionCoordinator(lease_duration=5.0)\n    n1 = ClusterNode(\"node_1\", coord)\n    n2 = ClusterNode(\"node_2\", coord)\n    n1.heartbeat(now=50.0)  # expires at 55.0\n    # At t=60, n2 acquires leadership\n    assert n2.heartbeat(now=60.0) is True\n    assert coord.get_current_leader(now=60.0) == \"node_2\"\n"
+  },
+  "reference_fix": {
+    "election_fsm.py": "\"\"\"Raft/Paxos-style leader election coordinator.\"\"\"\n\nfrom typing import Optional\nfrom lease import LeaderLease\n\n\nclass ElectionCoordinator:\n    def __init__(self, lease_duration: float = 10.0):\n        self.lease_duration = lease_duration\n        self.current_lease: Optional[LeaderLease] = None\n\n    def acquire_or_renew(self, candidate_id: str, now: float) -> bool:\n        if not self.current_lease or self.current_lease.is_expired(now):\n            self.current_lease = LeaderLease(candidate_id, now + self.lease_duration)\n            return True\n        if self.current_lease.leader_id == candidate_id:\n            self.current_lease = LeaderLease(candidate_id, now + self.lease_duration)\n            return True\n        return False\n\n    def get_current_leader(self, now: float) -> Optional[str]:\n        if self.current_lease and not self.current_lease.is_expired(now):\n            return self.current_lease.leader_id\n        return None\n"
+  },
+  "metadata": {
+    "estimated_reasoning_steps": 3,
+    "file_count": 3,
+    "adversarial": false,
+    "stateful": true,
+    "multi_file": true,
+    "domain": "concurrency"
+  }
+}
