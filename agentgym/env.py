@@ -72,6 +72,11 @@ class BugFixEnv:
         if not target_path.exists():
             target_path = self.tasks_dir / f"{task_id}.json"
         if not target_path.exists():
+            # Check dedicated custom_tasks directory
+            custom_p = Path("custom_tasks") / task_id / "task.json"
+            if custom_p.exists():
+                target_path = custom_p
+        if not target_path.exists():
             for p in self.tasks_dir.rglob("task.json"):
                 if p.parent.name == task_id or p.parent.name.startswith(f"{task_id}_"):
                     target_path = p
@@ -142,13 +147,20 @@ class BugFixEnv:
         # Write repository files
         self.sandbox.write_files(self.current_task.get("repo_files", {}))
 
-        # Run hidden tests to establish baseline
+        # Run hidden tests to establish baseline if tests exist
         tests = self.current_task.get("tests", {})
-        baseline_res = self.sandbox.run_tests(tests, timeout=self.timeout)
-        self.baseline_pass_rate = self.reward_calc.reset(
-            initial_passed_tests=baseline_res.passed_tests,
-            initial_total_tests=baseline_res.total_tests,
-        )
+        if tests:
+            baseline_res = self.sandbox.run_tests(tests, timeout=self.timeout)
+            self.baseline_pass_rate = self.reward_calc.reset(
+                initial_passed_tests=baseline_res.passed_tests,
+                initial_total_tests=baseline_res.total_tests,
+            )
+        else:
+            self.baseline_pass_rate = 0.0
+            self.reward_calc.reset(
+                initial_passed_tests=set(),
+                initial_total_tests=0,
+            )
 
         return self._get_observation()
 
@@ -206,17 +218,32 @@ class BugFixEnv:
         else:
             self.last_output = f"Invalid action type: '{action_type}'. Valid types are 'edit', 'run', 'submit'."
 
-        # Hidden tests are executed to evaluate the new state
+        # Hidden tests are executed to evaluate the new state if oracle provided
         tests = self.current_task.get("tests", {})
-        test_res = self.sandbox.run_tests(tests, timeout=self.timeout)
+        if tests:
+            test_res = self.sandbox.run_tests(tests, timeout=self.timeout)
+            step_reward, regression_flag, breakdown = self.reward_calc.compute_step_reward(
+                current_passed_tests=test_res.passed_tests,
+                total_tests=test_res.total_tests,
+            )
+            all_tests_passed = (test_res.pass_rate >= 1.0)
+            pass_rate = test_res.pass_rate
+            passed_tests_list = sorted(list(test_res.passed_tests))
+            failed_tests_list = sorted(list(test_res.failed_tests))
+            tests_passed_count = len(test_res.passed_tests)
+            tests_total_count = test_res.total_tests
+        else:
+            # Solve-only mode (no automated test oracle)
+            step_reward = -self.step_cost
+            regression_flag = False
+            all_tests_passed = False
+            pass_rate = 0.0
+            passed_tests_list = []
+            failed_tests_list = []
+            tests_passed_count = 0
+            tests_total_count = 0
+            breakdown = {"delta": 0.0, "step_cost": -self.step_cost, "regression": 0.0}
 
-        # Reward computation
-        step_reward, regression_flag, breakdown = self.reward_calc.compute_step_reward(
-            current_passed_tests=test_res.passed_tests,
-            total_tests=test_res.total_tests,
-        )
-
-        all_tests_passed = (test_res.pass_rate >= 1.0)
         ran_out_of_steps = (self.steps_left <= 0)
         done = all_tests_passed or submitted or ran_out_of_steps
 
@@ -224,11 +251,11 @@ class BugFixEnv:
             "task_id": self.task_id,
             "step": self.current_step,
             "action": action,
-            "pass_rate": test_res.pass_rate,
-            "tests_passed": len(test_res.passed_tests),
-            "tests_total": test_res.total_tests,
-            "passed_tests": sorted(list(test_res.passed_tests)),
-            "failed_tests": sorted(list(test_res.failed_tests)),
+            "pass_rate": pass_rate,
+            "tests_passed": tests_passed_count,
+            "tests_total": tests_total_count,
+            "passed_tests": passed_tests_list,
+            "failed_tests": failed_tests_list,
             "regression": regression_flag,
             "step_reward": step_reward,
             "cumulative_return": self.reward_calc.cumulative_return,
@@ -236,6 +263,7 @@ class BugFixEnv:
             "all_tests_passed": all_tests_passed,
             "submitted": submitted,
             "ran_out_of_steps": ran_out_of_steps,
+            "has_oracle": bool(tests),
         }
 
         observable_reward = self.feedback_adapter.filter_reward(step_reward, done, raw_info)

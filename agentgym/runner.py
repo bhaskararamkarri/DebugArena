@@ -8,7 +8,7 @@ import os
 import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TimeElapsedColumn
@@ -49,13 +49,30 @@ class EpisodeRunner:
         agent: Optional[Agent] = None,
         max_steps: int = 10,
         sandbox_mode: str = "auto",
+        feedback_mode: Optional[str] = None,
+        cancel_event: Optional[threading.Event] = None,
+        on_step: Optional[Callable[[Dict[str, Any]], None]] = None,
     ) -> Dict[str, Any]:
         """Runs one full episode on a single task."""
+        if cancel_event and cancel_event.is_set():
+            return {
+                "episode_id": episode_id,
+                "task_id": task_id,
+                "model": model_name,
+                "success": False,
+                "final_pass_rate": 0.0,
+                "steps": 0,
+                "return": 0.0,
+                "judge_score": None,
+                "canceled": True,
+            }
+
         env = BugFixEnv(
             tasks_dir=self.tasks_dir,
             max_steps=max_steps,
             config_path=self.config_path,
             sandbox_mode=sandbox_mode,
+            feedback_mode=feedback_mode,
         )
 
         obs = env.reset(task_id)
@@ -86,6 +103,10 @@ class EpisodeRunner:
         final_info: Dict[str, Any] = {}
 
         while not done:
+            if cancel_event and cancel_event.is_set():
+                done = True
+                break
+
             step_idx += 1
             # Agent decides action
             act_res = agent.act(obs)
@@ -151,6 +172,13 @@ class EpisodeRunner:
             with self.file_lock:
                 with open(trajectory_file, "a", encoding="utf-8") as f:
                     f.write(json.dumps(record) + "\n")
+                    f.flush()
+
+            if on_step is not None:
+                try:
+                    on_step(record)
+                except Exception:
+                    pass
 
             obs = next_obs
 
@@ -169,13 +197,17 @@ class EpisodeRunner:
 
         any_extraction = any(r.get("extraction_needed", False) for r in step_records)
         invalid_json_count = sum(1 for r in step_records if r.get("action", {}).get("type") == "run" and "echo 'Invalid JSON action'" in r.get("action", {}).get("cmd", ""))
+        has_oracle = final_info.get("has_oracle", True)
 
         summary = {
             "episode_id": episode_id,
             "task_id": task_id,
             "model": model_name,
-            "success": success,
+            "success": success if has_oracle else None,
+            "status": "SOLVE_ONLY" if not has_oracle else ("SOLVED" if success else "FAILED"),
             "final_pass_rate": final_info.get("pass_rate", 0.0),
+            "has_oracle": has_oracle,
+            "solve_only": not has_oracle,
             "steps": step_idx,
             "return": cumulative_return,
             "judge_score": judge_score,
@@ -195,13 +227,24 @@ class EpisodeRunner:
         workers: int = 4,
         max_steps: int = 10,
         sandbox_mode: str = "auto",
+        feedback_mode: Optional[str] = None,
         use_mock_solver: bool = False,
         use_noop_solver: bool = False,
+        cancel_event: Optional[threading.Event] = None,
+        show_progress: bool = True,
+        on_step: Optional[Callable[[Dict[str, Any]], None]] = None,
+        on_episode_start: Optional[Callable[[str, str], None]] = None,
+        on_episode_end: Optional[Callable[[Dict[str, Any]], None]] = None,
+        on_run_progress: Optional[Callable[[int, int, Dict[str, Any]], None]] = None,
     ) -> List[Dict[str, Any]]:
-        """Runs a batch of tasks in parallel using a thread pool."""
+        """Runs a batch of tasks in parallel using a thread pool with cancellation and callbacks."""
         results: List[Dict[str, Any]] = []
         run_folder = self.runs_dir / run_id
         run_folder.mkdir(parents=True, exist_ok=True)
+
+        if cancel_event and cancel_event.is_set():
+            console.print(f"[yellow]Run '{run_id}' canceled before execution began.[/yellow]")
+            return results
 
         # Check existing completed episodes for resumability
         completed_task_ids = set()
@@ -241,57 +284,74 @@ class EpisodeRunner:
             console.print("[green]All requested tasks already completed in this run![/green]")
             return results
 
-        with Progress(
-            SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
-            BarColumn(),
-            TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
-            TimeElapsedColumn(),
-            console=console,
-        ) as progress:
-            task_bar = progress.add_task("[green]Evaluating...", total=len(tasks_to_run))
+        with ThreadPoolExecutor(max_workers=workers) as executor:
+            futures = {}
+            for tid, ep_id in tasks_to_run:
+                if cancel_event and cancel_event.is_set():
+                    break
 
-            with ThreadPoolExecutor(max_workers=workers) as executor:
-                futures = {}
-                for tid, ep_id in tasks_to_run:
-                    if use_noop_solver:
-                        agent = MockAgent(mode="noop_submit")
-                    elif use_mock_solver:
-                        agent = MockAgent(mode="solver")
-                    else:
-                        agent = None
-                    fut = executor.submit(
-                        self.run_episode,
-                        task_id=tid,
-                        model_name=model_name,
-                        run_id=run_id,
-                        episode_id=ep_id,
-                        agent=agent,
-                        max_steps=max_steps,
-                        sandbox_mode=sandbox_mode,
-                    )
-                    futures[fut] = (tid, ep_id)
-
-                for fut in as_completed(futures):
-                    tid, ep_id = futures[fut]
+                if on_episode_start is not None:
                     try:
-                        res = fut.result()
+                        on_episode_start(tid, ep_id)
+                    except Exception:
+                        pass
+
+                if use_noop_solver:
+                    agent = MockAgent(mode="noop_submit")
+                elif use_mock_solver:
+                    agent = MockAgent(mode="solver")
+                else:
+                    agent = None
+                fut = executor.submit(
+                    self.run_episode,
+                    task_id=tid,
+                    model_name=model_name,
+                    run_id=run_id,
+                    episode_id=ep_id,
+                    agent=agent,
+                    max_steps=max_steps,
+                    sandbox_mode=sandbox_mode,
+                    feedback_mode=feedback_mode,
+                    cancel_event=cancel_event,
+                    on_step=on_step,
+                )
+                futures[fut] = (tid, ep_id)
+
+            for fut in as_completed(futures):
+                tid, ep_id = futures[fut]
+                try:
+                    res = fut.result()
+                    if not res.get("canceled"):
                         results.append(res)
-                    except Exception as e:
-                        console.print(f"[red]Error on task {tid}: {e}[/red]")
-                        results.append({
-                            "episode_id": ep_id,
-                            "task_id": tid,
-                            "model": model_name,
-                            "success": False,
-                            "final_pass_rate": 0.0,
-                            "steps": 0,
-                            "return": -1.0,
-                            "judge_score": 1,
-                            "error": str(e),
-                        })
-                    finally:
-                        progress.advance(task_bar)
+                    if on_episode_end is not None:
+                        try:
+                            on_episode_end(res)
+                        except Exception:
+                            pass
+                    if on_run_progress is not None:
+                        try:
+                            on_run_progress(len(results), len(tasks_to_run) + len(completed_task_ids), res)
+                        except Exception:
+                            pass
+                except Exception as e:
+                    console.print(f"[red]Error on task {tid}: {e}[/red]")
+                    err_res = {
+                        "episode_id": ep_id,
+                        "task_id": tid,
+                        "model": model_name,
+                        "success": False,
+                        "final_pass_rate": 0.0,
+                        "steps": 0,
+                        "return": -1.0,
+                        "judge_score": 1,
+                        "error": str(e),
+                    }
+                    results.append(err_res)
+                    if on_episode_end is not None:
+                        try:
+                            on_episode_end(err_res)
+                        except Exception:
+                            pass
 
         # Write overall summary JSON
         summary_file = run_folder / "summary.json"
