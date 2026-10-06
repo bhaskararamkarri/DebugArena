@@ -1,0 +1,2040 @@
+{
+  "schema_version": "2.0",
+  "title": "DebugArena Task Registry & Lifecycle Manifest",
+  "total_tasks": 100,
+  "full_task_corpus_hash": "b41e631ee10b7aa7b1edf70eadac5158ff5363d495b110837ac555eda2701af3",
+  "official_task_manifest_hash": "016fa52aa64aa6875ebf1615663c49eecbd7d4b2616167f02732145f418cad9f",
+  "summary": {
+    "official_count": 30,
+    "core_20_count": 20,
+    "hard_10_count": 10,
+    "v2_experimental_count": 70,
+    "total_verified": 100
+  },
+  "historical_milestones": {
+    "v1_official_benchmark": {
+      "count": 30,
+      "description": "Authoritative 30-task benchmark evaluated in canonical Protocol v2 Docker run (Core-20 + Hard-10).",
+      "suites": [
+        "Core-20",
+        "Hard-10"
+      ]
+    },
+    "v2_pre_scale_pilot": {
+      "count": 44,
+      "description": "Historical pre-scale development milestone comprising 30 V1 tasks + 14 V2 pilot tasks (v01-v14).",
+      "suites": [
+        "Core-20",
+        "Hard-10",
+        "V2-Pilot-14"
+      ]
+    },
+    "v2_scaled_corpus": {
+      "count": 100,
+      "description": "Full scaled corpus comprising 30 official tasks + 70 generated V2 tasks across Categories A-M.",
+      "suites": [
+        "Core-20",
+        "Hard-10",
+        "V2-70"
+      ]
+    }
+  },
+  "tasks": {
+    "t01_off_by_one": {
+      "task_id": "t01_off_by_one",
+      "suite": "Core-20",
+      "path": "tasks/t01_off_by_one",
+      "difficulty": "easy",
+      "categories": [
+        "A"
+      ],
+      "description": "sum_range(a, b) should return the sum of all integers from a to b inclusive, but it currently excludes b.",
+      "file_count": 1,
+      "test_count": 1,
+      "generated": true,
+      "validated": true,
+      "deterministic_verified": true,
+      "reference_verified": true,
+      "official": true,
+      "evaluated": true,
+      "content_hash": "e8882778ac89b5b65f9b4976eabc43ba15f95992b13f6ecb1234cf5e57abafe1"
+    },
+    "t02_wrong_operator": {
+      "task_id": "t02_wrong_operator",
+      "suite": "Core-20",
+      "path": "tasks/t02_wrong_operator",
+      "difficulty": "easy",
+      "categories": [
+        "A"
+      ],
+      "description": "filter_passing_scores(scores, threshold) should return all scores that are greater than or equal to threshold, but it strictly filters out scores equal to threshold.",
+      "file_count": 1,
+      "test_count": 1,
+      "generated": true,
+      "validated": true,
+      "deterministic_verified": true,
+      "reference_verified": true,
+      "official": true,
+      "evaluated": true,
+      "content_hash": "0596302fd9fb82e6a5f0149743402e164c135a60c5e8b99333fbd1de07f6d9ad"
+    },
+    "t03_wrong_return": {
+      "task_id": "t03_wrong_return",
+      "suite": "Core-20",
+      "path": "tasks/t03_wrong_return",
+      "difficulty": "easy",
+      "categories": [
+        "A"
+      ],
+      "description": "factorial(n) returns 0 for n == 0 instead of 1.",
+      "file_count": 1,
+      "test_count": 1,
+      "generated": true,
+      "validated": true,
+      "deterministic_verified": true,
+      "reference_verified": true,
+      "official": true,
+      "evaluated": true,
+      "content_hash": "9ffec6f06492d78254c0df07fb9face3c26acde5f1f78100b3a96fe5e3ebfb2f"
+    },
+    "t04_variable_typo": {
+      "task_id": "t04_variable_typo",
+      "suite": "Core-20",
+      "path": "tasks/t04_variable_typo",
+      "difficulty": "easy",
+      "categories": [
+        "A"
+      ],
+      "description": "calculate_variance(nums) contains a NameError typo referencing `sum_diffs` as `sum_diff`.",
+      "file_count": 1,
+      "test_count": 1,
+      "generated": true,
+      "validated": true,
+      "deterministic_verified": true,
+      "reference_verified": true,
+      "official": true,
+      "evaluated": true,
+      "content_hash": "c8a120fe5cddeee75b9a3f383b6b9db3a5e8ab8bb92971c956a118882faad066"
+    },
+    "t05_string_reverse_words": {
+      "task_id": "t05_string_reverse_words",
+      "suite": "Core-20",
+      "path": "tasks/t05_string_reverse_words",
+      "difficulty": "easy",
+      "categories": [
+        "A"
+      ],
+      "description": "reverse_words(sentence) reverses every character in the string instead of reversing the order of words.",
+      "file_count": 1,
+      "test_count": 1,
+      "generated": true,
+      "validated": true,
+      "deterministic_verified": true,
+      "reference_verified": true,
+      "official": true,
+      "evaluated": true,
+      "content_hash": "54442d0b3a544d16d0c65b8ec5a87da7c5b0defb24953ef81abe3c9ce2bc78de"
+    },
+    "t06_clamp_boundary": {
+      "task_id": "t06_clamp_boundary",
+      "suite": "Core-20",
+      "path": "tasks/t06_clamp_boundary",
+      "difficulty": "easy",
+      "categories": [
+        "A"
+      ],
+      "description": "clamp(val, low, high) swapped the min and max boundary logic.",
+      "file_count": 1,
+      "test_count": 1,
+      "generated": true,
+      "validated": true,
+      "deterministic_verified": true,
+      "reference_verified": true,
+      "official": true,
+      "evaluated": true,
+      "content_hash": "8354cac01aab5c875c123606716fd079d0a09fc41e20ec5ff141d20cffd4f1f4"
+    },
+    "t07_discount_calc": {
+      "task_id": "t07_discount_calc",
+      "suite": "Core-20",
+      "path": "tasks/t07_discount_calc",
+      "difficulty": "easy",
+      "categories": [
+        "A"
+      ],
+      "description": "apply_discount(price, discount_pct) treats discount_pct as a whole number deduction rather than a percentage reduction.",
+      "file_count": 1,
+      "test_count": 1,
+      "generated": true,
+      "validated": true,
+      "deterministic_verified": true,
+      "reference_verified": true,
+      "official": true,
+      "evaluated": true,
+      "content_hash": "4329b6a1fd474d7a0e45f742354e9872a8c5c611b41065980392935465b39ab2"
+    },
+    "t08_empty_list_edge_case": {
+      "task_id": "t08_empty_list_edge_case",
+      "suite": "Core-20",
+      "path": "tasks/t08_empty_list_edge_case",
+      "difficulty": "medium",
+      "categories": [
+        "A"
+      ],
+      "description": "calculate_mean(values, default=0.0) crashes with ZeroDivisionError when passed an empty list.",
+      "file_count": 1,
+      "test_count": 1,
+      "generated": true,
+      "validated": true,
+      "deterministic_verified": true,
+      "reference_verified": true,
+      "official": true,
+      "evaluated": true,
+      "content_hash": "3002b1e835f2666464dc3e72e7e0b7f4f0eb41940c59af66907215b8598db552"
+    },
+    "t09_mutable_default_arg": {
+      "task_id": "t09_mutable_default_arg",
+      "suite": "Core-20",
+      "path": "tasks/t09_mutable_default_arg",
+      "difficulty": "medium",
+      "categories": [
+        "A"
+      ],
+      "description": "add_item(item, basket=[]) uses a mutable default argument, retaining items across independent calls.",
+      "file_count": 1,
+      "test_count": 1,
+      "generated": true,
+      "validated": true,
+      "deterministic_verified": true,
+      "reference_verified": true,
+      "official": true,
+      "evaluated": true,
+      "content_hash": "218c03f76da1b554e43a07552d58838855cc832a3affa77734ebb02af5711b09"
+    },
+    "t10_wrong_slicing": {
+      "task_id": "t10_wrong_slicing",
+      "suite": "Core-20",
+      "path": "tasks/t10_wrong_slicing",
+      "difficulty": "medium",
+      "categories": [
+        "A"
+      ],
+      "description": "extract_domain(email) extracts the domain between @ and .com/etc, but slicing misses the first character after @.",
+      "file_count": 1,
+      "test_count": 1,
+      "generated": true,
+      "validated": true,
+      "deterministic_verified": true,
+      "reference_verified": true,
+      "official": true,
+      "evaluated": true,
+      "content_hash": "4210e0cd75187f4597f5b0500fe4a1961aa4c543538378323a6245760d690fb7"
+    },
+    "t11_int_vs_float_div": {
+      "task_id": "t11_int_vs_float_div",
+      "suite": "Core-20",
+      "path": "tasks/t11_int_vs_float_div",
+      "difficulty": "medium",
+      "categories": [
+        "A"
+      ],
+      "description": "calculate_aspect_ratio(width, height) uses integer division // causing truncation instead of true floating point ratio.",
+      "file_count": 1,
+      "test_count": 1,
+      "generated": true,
+      "validated": true,
+      "deterministic_verified": true,
+      "reference_verified": true,
+      "official": true,
+      "evaluated": true,
+      "content_hash": "5b8526f30b0a1ebf3aa3d11f5f102f585a24faf36947a6ea5283fb3f31bab7ac"
+    },
+    "t12_dict_key_handling": {
+      "task_id": "t12_dict_key_handling",
+      "suite": "Core-20",
+      "path": "tasks/t12_dict_key_handling",
+      "difficulty": "medium",
+      "categories": [
+        "A"
+      ],
+      "description": "get_user_role(users_dict, user_id, default='guest') raises KeyError if user_id is missing or profile has no 'role'.",
+      "file_count": 1,
+      "test_count": 1,
+      "generated": true,
+      "validated": true,
+      "deterministic_verified": true,
+      "reference_verified": true,
+      "official": true,
+      "evaluated": true,
+      "content_hash": "902f88ae4810acb465ec2ff70ccb86099dad8cc239a31402a16a45c658ee3694"
+    },
+    "t13_flatten_nested": {
+      "task_id": "t13_flatten_nested",
+      "suite": "Core-20",
+      "path": "tasks/t13_flatten_nested",
+      "difficulty": "medium",
+      "categories": [
+        "A"
+      ],
+      "description": "flatten(lst) only unpacks 1 level of nesting and fails on deeply nested lists.",
+      "file_count": 1,
+      "test_count": 1,
+      "generated": true,
+      "validated": true,
+      "deterministic_verified": true,
+      "reference_verified": true,
+      "official": true,
+      "evaluated": true,
+      "content_hash": "aa5c9a1cdad6f6c55d7e4269ea6da6b3a6a5301868501e990d7270a22a63ddb1"
+    },
+    "t14_moving_average": {
+      "task_id": "t14_moving_average",
+      "suite": "Core-20",
+      "path": "tasks/t14_moving_average",
+      "difficulty": "medium",
+      "categories": [
+        "A"
+      ],
+      "description": "moving_average(series, window) computes averages with index offset i instead of sliding window range.",
+      "file_count": 1,
+      "test_count": 1,
+      "generated": true,
+      "validated": true,
+      "deterministic_verified": true,
+      "reference_verified": true,
+      "official": true,
+      "evaluated": true,
+      "content_hash": "e3d5daa189eff84f2c058a419d571209dcea70fc928d5047579f51f209970ed6"
+    },
+    "t15_matrix_transpose": {
+      "task_id": "t15_matrix_transpose",
+      "suite": "Core-20",
+      "path": "tasks/t15_matrix_transpose",
+      "difficulty": "medium",
+      "categories": [
+        "A"
+      ],
+      "description": "transpose(matrix) works for square matrices but crashes or produces wrong dimension for non-square rectangular matrices.",
+      "file_count": 1,
+      "test_count": 1,
+      "generated": true,
+      "validated": true,
+      "deterministic_verified": true,
+      "reference_verified": true,
+      "official": true,
+      "evaluated": true,
+      "content_hash": "f4296ac9dda3f72d93505c45ebce91cda037d0e730fdc763e9969c0a28abbbd6"
+    },
+    "t16_lru_cache_eviction": {
+      "task_id": "t16_lru_cache_eviction",
+      "suite": "Core-20",
+      "path": "tasks/t16_lru_cache_eviction",
+      "difficulty": "medium",
+      "categories": [
+        "A"
+      ],
+      "description": "LRUCache get(key) retrieves value but does not move key to the most-recently-used position.",
+      "file_count": 1,
+      "test_count": 1,
+      "generated": true,
+      "validated": true,
+      "deterministic_verified": true,
+      "reference_verified": true,
+      "official": true,
+      "evaluated": true,
+      "content_hash": "59005436b5c279c928d51c7d7edbf5ebd180dc181fdbad99a4a995a838bb5601"
+    },
+    "t17_two_file_import_bug": {
+      "task_id": "t17_two_file_import_bug",
+      "suite": "Core-20",
+      "path": "tasks/t17_two_file_import_bug",
+      "difficulty": "hard",
+      "categories": [
+        "A"
+      ],
+      "description": "Multi-file task: `data_loader.py` parses record rows, but `pipeline.py` calls it with incompatible key names causing a KeyError.",
+      "file_count": 2,
+      "test_count": 1,
+      "generated": true,
+      "validated": true,
+      "deterministic_verified": true,
+      "reference_verified": true,
+      "official": true,
+      "evaluated": true,
+      "content_hash": "3f53c0150bf6b7f63b6f32e8c0b45e548dbb0bcc3f51929f0332421ca770ed51"
+    },
+    "t18_stateful_quote_lexer": {
+      "task_id": "t18_stateful_quote_lexer",
+      "suite": "Core-20",
+      "path": "tasks/t18_stateful_quote_lexer",
+      "difficulty": "hard",
+      "categories": [
+        "A"
+      ],
+      "description": "tokenize_quoted_string(text) splits words by space except inside double quotes, but fails to handle escaped double quotes `\\\"`.",
+      "file_count": 1,
+      "test_count": 1,
+      "generated": true,
+      "validated": true,
+      "deterministic_verified": true,
+      "reference_verified": true,
+      "official": true,
+      "evaluated": true,
+      "content_hash": "122fb5310ef53c4839bd022f0e718ea9b412eb8ccdeb5575e6344feffe7e2528"
+    },
+    "t19_custom_sort_priority": {
+      "task_id": "t19_custom_sort_priority",
+      "suite": "Core-20",
+      "path": "tasks/t19_custom_sort_priority",
+      "difficulty": "hard",
+      "categories": [
+        "A"
+      ],
+      "description": "sort_tasks(tasks) should sort items by priority (high > medium > low) then deadline ascending, but inverted priority values cause low priority to be sorted first.",
+      "file_count": 1,
+      "test_count": 1,
+      "generated": true,
+      "validated": true,
+      "deterministic_verified": true,
+      "reference_verified": true,
+      "official": true,
+      "evaluated": true,
+      "content_hash": "c88ab376dde5232d528f5f8c4ca8443345104c821a87ef099bdd4a1eb103d8b1"
+    },
+    "t20_retry_decorator": {
+      "task_id": "t20_retry_decorator",
+      "suite": "Core-20",
+      "path": "tasks/t20_retry_decorator",
+      "difficulty": "hard",
+      "categories": [
+        "A"
+      ],
+      "description": "retry(max_attempts=3) decorator catches exceptions and retries, but does not decrement or track remaining attempts, retrying infinitely or failing immediately.",
+      "file_count": 1,
+      "test_count": 1,
+      "generated": true,
+      "validated": true,
+      "deterministic_verified": true,
+      "reference_verified": true,
+      "official": true,
+      "evaluated": true,
+      "content_hash": "b8b3912671fe78dd4c41c3fdb43ece5fa2e2b2fa2c9448d70636befff6bb3ce6"
+    },
+    "h01": {
+      "task_id": "h01",
+      "suite": "Hard-10",
+      "path": "tasks/hard/h01",
+      "difficulty": "hard",
+      "categories": [
+        "B"
+      ],
+      "description": "The scheduling engine fails to combine overlapping and touching time windows, sometimes truncating earlier ranges or leaving adjacent slots unmerged.",
+      "file_count": 3,
+      "test_count": 1,
+      "generated": true,
+      "validated": true,
+      "deterministic_verified": true,
+      "reference_verified": true,
+      "official": true,
+      "evaluated": true,
+      "content_hash": "5fa861f0ff9649b65322df372fff3521e36284af920c0d754b0753854d50f9c2"
+    },
+    "h02": {
+      "task_id": "h02",
+      "suite": "Hard-10",
+      "path": "tasks/hard/h02",
+      "difficulty": "hard",
+      "categories": [
+        "B"
+      ],
+      "description": "Search queries for target values in sorted arrays produce incorrect boundary indices or return count 0 when values exist multiple times at array edges.",
+      "file_count": 3,
+      "test_count": 1,
+      "generated": true,
+      "validated": true,
+      "deterministic_verified": true,
+      "reference_verified": true,
+      "official": true,
+      "evaluated": true,
+      "content_hash": "18e17101cf14b80de9c197ca15c2e31d1368dfdb2d7bac771b38caf28293b118"
+    },
+    "h03": {
+      "task_id": "h03",
+      "suite": "Hard-10",
+      "path": "tasks/hard/h03",
+      "difficulty": "hard",
+      "categories": [
+        "B"
+      ],
+      "description": "The build orchestrator executes tasks in an unstable sequence when multiple tasks are ready, and fails to abort with an error when circular references exist between components.",
+      "file_count": 3,
+      "test_count": 1,
+      "generated": true,
+      "validated": true,
+      "deterministic_verified": true,
+      "reference_verified": true,
+      "official": true,
+      "evaluated": true,
+      "content_hash": "078eb652cfc2f61aaae98bc13a411533a043eb49ed83f1958abe8cff41c02d12"
+    },
+    "h04": {
+      "task_id": "h04",
+      "suite": "Hard-10",
+      "path": "tasks/hard/h04",
+      "difficulty": "hard",
+      "categories": [
+        "B"
+      ],
+      "description": "Exported tabular text is corrupted: records containing commas inside quotation marks or escaped double quotes lose trailing columns or fail to preserve internal quotes.",
+      "file_count": 3,
+      "test_count": 1,
+      "generated": true,
+      "validated": true,
+      "deterministic_verified": true,
+      "reference_verified": true,
+      "official": true,
+      "evaluated": true,
+      "content_hash": "9420939ed8d93e84601d20525fd9c3d4b2dab7b8defb739173a5b1676105d0b7"
+    },
+    "h05": {
+      "task_id": "h05",
+      "suite": "Hard-10",
+      "path": "tasks/hard/h05",
+      "difficulty": "hard",
+      "categories": [
+        "B"
+      ],
+      "description": "The API rate limiter incorrectly records timestamps for rejected requests, causing clients to remain throttled even after earlier accepted requests have expired from the sliding window.",
+      "file_count": 2,
+      "test_count": 1,
+      "generated": true,
+      "validated": true,
+      "deterministic_verified": true,
+      "reference_verified": true,
+      "official": true,
+      "evaluated": true,
+      "content_hash": "d18c15dfaa309bf8562042ef719cbf5d7c5e75f4921792cbcef342990e23c224"
+    },
+    "h06": {
+      "task_id": "h06",
+      "suite": "Hard-10",
+      "path": "tasks/hard/h06",
+      "difficulty": "hard",
+      "categories": [
+        "B"
+      ],
+      "description": "Financial allocations among stakeholders frequently lose or gain pennies due to independent rounding, causing the sum of distributed shares to not equal the original ledger amount.",
+      "file_count": 3,
+      "test_count": 1,
+      "generated": true,
+      "validated": true,
+      "deterministic_verified": true,
+      "reference_verified": true,
+      "official": true,
+      "evaluated": true,
+      "content_hash": "7b1936af147ce6c3d6eb932b091ee24a949cd38dd0cae2b38bd911cd77ce74e1"
+    },
+    "h07": {
+      "task_id": "h07",
+      "suite": "Hard-10",
+      "path": "tasks/hard/h07",
+      "difficulty": "hard",
+      "categories": [
+        "B"
+      ],
+      "description": "Formatted document printing hangs or crashes on unusually long identifiers that exceed column limits, and leaves ragged whitespace at line margins.",
+      "file_count": 3,
+      "test_count": 1,
+      "generated": true,
+      "validated": true,
+      "deterministic_verified": true,
+      "reference_verified": true,
+      "official": true,
+      "evaluated": true,
+      "content_hash": "fe15ca5fe3a78990d45a6f4e4464d48657be8858a0580cc19d9148b1ad8e8de3"
+    },
+    "h08": {
+      "task_id": "h08",
+      "suite": "Hard-10",
+      "path": "tasks/hard/h08",
+      "difficulty": "hard",
+      "categories": [
+        "B"
+      ],
+      "description": "Delivery date calculations produce weekend delivery dates when requests originate on Sundays, and miscount deadlines when adjusting backwards before bank holidays.",
+      "file_count": 3,
+      "test_count": 1,
+      "generated": true,
+      "validated": true,
+      "deterministic_verified": true,
+      "reference_verified": true,
+      "official": true,
+      "evaluated": true,
+      "content_hash": "ebbabbffff6619beda22deb5da76ff15e170e22f577981c026052530c1efc9bf"
+    },
+    "h09": {
+      "task_id": "h09",
+      "suite": "Hard-10",
+      "path": "tasks/hard/h09",
+      "difficulty": "hard",
+      "categories": [
+        "B"
+      ],
+      "description": "The routing optimizer crashes with type comparison errors on alternative paths of equal distance, or outputs non-deterministic routes depending on internal insertion order.",
+      "file_count": 3,
+      "test_count": 1,
+      "generated": true,
+      "validated": true,
+      "deterministic_verified": true,
+      "reference_verified": true,
+      "official": true,
+      "evaluated": true,
+      "content_hash": "38688d40aa36c09db1b2e7c8ada13141d4ef1676d700a550f5e8d44f9d6203d7"
+    },
+    "h10": {
+      "task_id": "h10",
+      "suite": "Hard-10",
+      "path": "tasks/hard/h10",
+      "difficulty": "hard",
+      "categories": [
+        "B"
+      ],
+      "description": "Application startup settings ignore command-line flags when environment variables are set, and wipe out sibling configuration keys when overriding nested settings.",
+      "file_count": 3,
+      "test_count": 1,
+      "generated": true,
+      "validated": true,
+      "deterministic_verified": true,
+      "reference_verified": true,
+      "official": true,
+      "evaluated": true,
+      "content_hash": "ddfb2412f14f11061a17f30dbd601c49c7d72308596d6baa3ed031d5ca0660c4"
+    },
+    "v01_sliding_window_stream": {
+      "task_id": "v01_sliding_window_stream",
+      "suite": "V2-70",
+      "path": "tasks/v2/v01_sliding_window_stream",
+      "difficulty": "medium",
+      "categories": [
+        "B",
+        "D"
+      ],
+      "description": "The real-time metric accumulator fails to evict stale samples on window slides, retaining old values in the sum and miscalculating sliding averages.",
+      "file_count": 3,
+      "test_count": 1,
+      "generated": true,
+      "validated": true,
+      "deterministic_verified": true,
+      "reference_verified": true,
+      "official": false,
+      "evaluated": false,
+      "content_hash": "6997f0292db91d4a87446b9f65a07e358871515da82a49222f12555d491c20a8"
+    },
+    "v02_dp_token_bucket": {
+      "task_id": "v02_dp_token_bucket",
+      "suite": "V2-70",
+      "path": "tasks/v2/v02_dp_token_bucket",
+      "difficulty": "medium",
+      "categories": [
+        "B",
+        "H"
+      ],
+      "description": "The rate limiter token bucket refill logic truncates fractional tokens using integer division, causing gradual token refill to stall for low rate intervals.",
+      "file_count": 3,
+      "test_count": 1,
+      "generated": true,
+      "validated": true,
+      "deterministic_verified": true,
+      "reference_verified": true,
+      "official": false,
+      "evaluated": false,
+      "content_hash": "e4fbfb355d57e52ae8c6204e7913cc45a1cffc5494c9d112d4915285137cfd49"
+    },
+    "v03_service_repo_contract": {
+      "task_id": "v03_service_repo_contract",
+      "suite": "V2-70",
+      "path": "tasks/v2/v03_service_repo_contract",
+      "difficulty": "medium",
+      "categories": [
+        "E",
+        "H"
+      ],
+      "description": "The checkout service encounters KeyError crashes when communicating with the inventory repository due to mismatched data dictionary key conventions.",
+      "file_count": 3,
+      "test_count": 1,
+      "generated": true,
+      "validated": true,
+      "deterministic_verified": true,
+      "reference_verified": true,
+      "official": false,
+      "evaluated": false,
+      "content_hash": "c67c33c2bc5a78b47899067f9c908a9ddd587d4d296d04b905e4cbc7a236c631"
+    },
+    "v04_event_bus_middleware": {
+      "task_id": "v04_event_bus_middleware",
+      "suite": "V2-70",
+      "path": "tasks/v2/v04_event_bus_middleware",
+      "difficulty": "medium",
+      "categories": [
+        "E",
+        "D"
+      ],
+      "description": "Event bus middleware pipeline fails to propagate event transformations across sequential middleware handlers, causing downstream subscribers to receive un-sanitized events.",
+      "file_count": 3,
+      "test_count": 1,
+      "generated": true,
+      "validated": true,
+      "deterministic_verified": true,
+      "reference_verified": true,
+      "official": false,
+      "evaluated": false,
+      "content_hash": "11055ed6b9e54fa7a2b9f6e4d5c8ea546063d87bc0535d803b47b2bfaf45f168"
+    },
+    "v05_circuit_breaker_fsm": {
+      "task_id": "v05_circuit_breaker_fsm",
+      "suite": "V2-70",
+      "path": "tasks/v2/v05_circuit_breaker_fsm",
+      "difficulty": "medium",
+      "categories": [
+        "D",
+        "H"
+      ],
+      "description": "Circuit breaker finite state machine fails to transition back from HALF_OPEN to CLOSED state upon meeting the required success probe threshold.",
+      "file_count": 3,
+      "test_count": 1,
+      "generated": true,
+      "validated": true,
+      "deterministic_verified": true,
+      "reference_verified": true,
+      "official": false,
+      "evaluated": false,
+      "content_hash": "e868c33bebf568b9ff87f7a2f94679492c1aab25ea016a13b632152a7021f098"
+    },
+    "v06_saga_coordinator_state": {
+      "task_id": "v06_saga_coordinator_state",
+      "suite": "V2-70",
+      "path": "tasks/v2/v06_saga_coordinator_state",
+      "difficulty": "medium",
+      "categories": [
+        "D",
+        "I"
+      ],
+      "description": "Distributed saga transaction coordinator executes compensation rollback steps in forward FIFO order instead of reverse LIFO order, breaking transaction consistency.",
+      "file_count": 3,
+      "test_count": 1,
+      "generated": true,
+      "validated": true,
+      "deterministic_verified": true,
+      "reference_verified": true,
+      "official": false,
+      "evaluated": false,
+      "content_hash": "4d32b91ebc6543763891950b29b49409ecf071651c0742bba9c20d942c6aa266"
+    },
+    "v07_cursor_pagination_api": {
+      "task_id": "v07_cursor_pagination_api",
+      "suite": "V2-70",
+      "path": "tasks/v2/v07_cursor_pagination_api",
+      "difficulty": "medium",
+      "categories": [
+        "H",
+        "B"
+      ],
+      "description": "Cursor-based pagination API returns duplicate records across pages due to an off-by-one slicing error when seeking past the decoded cursor identifier.",
+      "file_count": 3,
+      "test_count": 1,
+      "generated": true,
+      "validated": true,
+      "deterministic_verified": true,
+      "reference_verified": true,
+      "official": false,
+      "evaluated": false,
+      "content_hash": "21c88d1c6a3681fe1cbdd0f0c013f0929dbee6b5823d5af48ec6fb6fd7ee21bb"
+    },
+    "v08_idempotent_webhook_handler": {
+      "task_id": "v08_idempotent_webhook_handler",
+      "suite": "V2-70",
+      "path": "tasks/v2/v08_idempotent_webhook_handler",
+      "difficulty": "medium",
+      "categories": [
+        "H",
+        "I"
+      ],
+      "description": "Webhook handler caches and acknowledges event execution before verifying HMAC payload signatures, allowing unauthenticated requests to replay cached success responses.",
+      "file_count": 3,
+      "test_count": 1,
+      "generated": true,
+      "validated": true,
+      "deterministic_verified": true,
+      "reference_verified": true,
+      "official": false,
+      "evaluated": false,
+      "content_hash": "2cdc39ca0bd3598ee688bc03bc432bf8d3fb95ecef76508bc5e24b66b11230e8"
+    },
+    "v09_json_path_evaluator": {
+      "task_id": "v09_json_path_evaluator",
+      "suite": "V2-70",
+      "path": "tasks/v2/v09_json_path_evaluator",
+      "difficulty": "medium",
+      "categories": [
+        "F",
+        "B"
+      ],
+      "description": "JSONPath query evaluator returns dictionary keys instead of values when evaluating wildcard `*` selectors on nested objects, and fails on negative array indices.",
+      "file_count": 3,
+      "test_count": 1,
+      "generated": true,
+      "validated": true,
+      "deterministic_verified": true,
+      "reference_verified": true,
+      "official": false,
+      "evaluated": false,
+      "content_hash": "41ca6f8b59eb5d1a4ed1968f1b045af44e16794df7e68b34ea33c24113ebbbec"
+    },
+    "v10_nested_markdown_table": {
+      "task_id": "v10_nested_markdown_table",
+      "suite": "V2-70",
+      "path": "tasks/v2/v10_nested_markdown_table",
+      "difficulty": "medium",
+      "categories": [
+        "F",
+        "B"
+      ],
+      "description": "Markdown table parser corrupts columns and splits cells prematurely when cells contain escaped pipe characters `\\|`.",
+      "file_count": 3,
+      "test_count": 1,
+      "generated": true,
+      "validated": true,
+      "deterministic_verified": true,
+      "reference_verified": true,
+      "official": false,
+      "evaluated": false,
+      "content_hash": "42320ddb2bd118256b709f93bb42b4f45a6773660ac8c252cc1671b7790e75b6"
+    },
+    "v11_async_worker_pool_deadlock": {
+      "task_id": "v11_async_worker_pool_deadlock",
+      "suite": "V2-70",
+      "path": "tasks/v2/v11_async_worker_pool_deadlock",
+      "difficulty": "hard",
+      "categories": [
+        "G",
+        "D"
+      ],
+      "description": "Thread worker pool fails to release capacity tokens when a job raises an unhandled exception, causing the pool to permanently deadlock on subsequent job submissions.",
+      "file_count": 3,
+      "test_count": 1,
+      "generated": true,
+      "validated": true,
+      "deterministic_verified": true,
+      "reference_verified": true,
+      "official": false,
+      "evaluated": false,
+      "content_hash": "6986ae1acb725f308c142303e3d1d2f1b0da423212566430b5a3aa2a09f057dd"
+    },
+    "v12_threadsafe_lru_locking": {
+      "task_id": "v12_threadsafe_lru_locking",
+      "suite": "V2-70",
+      "path": "tasks/v2/v12_threadsafe_lru_locking",
+      "difficulty": "hard",
+      "categories": [
+        "G",
+        "C"
+      ],
+      "description": "Thread-safe LRU cache attempts to perform linked-list node movement under a shared read lock during `get()` calls, violating write exclusivity during node recency mutations.",
+      "file_count": 3,
+      "test_count": 1,
+      "generated": true,
+      "validated": true,
+      "deterministic_verified": true,
+      "reference_verified": true,
+      "official": false,
+      "evaluated": false,
+      "content_hash": "970b487a15c1cc832411056fbed83cd59516c6709a242f97143dd11114502bd9"
+    },
+    "v13_misleading_docstring_boundary": {
+      "task_id": "v13_misleading_docstring_boundary",
+      "suite": "V2-70",
+      "path": "tasks/v2/v13_misleading_docstring_boundary",
+      "difficulty": "adversarial",
+      "categories": [
+        "M",
+        "B"
+      ],
+      "description": "Feature scaling transformer crashes with ZeroDivisionError when encountering constant series (where min == max), and must default all normalized values to 0.0.",
+      "file_count": 3,
+      "test_count": 1,
+      "generated": true,
+      "validated": true,
+      "deterministic_verified": true,
+      "reference_verified": true,
+      "official": false,
+      "evaluated": false,
+      "content_hash": "4d981c9112992d35d2815f7e44735b6a733ab7ed568b30c99f562603e0cd515c"
+    },
+    "v14_distractor_module_contract": {
+      "task_id": "v14_distractor_module_contract",
+      "suite": "V2-70",
+      "path": "tasks/v2/v14_distractor_module_contract",
+      "difficulty": "adversarial",
+      "categories": [
+        "M",
+        "E"
+      ],
+      "description": "Data processing pipeline fails to reject corrupted records, attempting to format and export invalid payloads despite validator checks.",
+      "file_count": 3,
+      "test_count": 1,
+      "generated": true,
+      "validated": true,
+      "deterministic_verified": true,
+      "reference_verified": true,
+      "official": false,
+      "evaluated": false,
+      "content_hash": "fce707a4224bf7e9915bf019e41f2f0c7a60b31f49d0ac74a12d9e0e6a1a3518"
+    },
+    "v15_hierarchical_config_precedence": {
+      "task_id": "v15_hierarchical_config_precedence",
+      "suite": "V2-70",
+      "path": "tasks/v2/v15_hierarchical_config_precedence",
+      "difficulty": "medium",
+      "categories": [
+        "J",
+        "E"
+      ],
+      "description": "Hierarchical configuration loader shallow-merges section overrides, dropping unmentioned default properties.",
+      "file_count": 3,
+      "test_count": 1,
+      "generated": true,
+      "validated": true,
+      "deterministic_verified": true,
+      "reference_verified": true,
+      "official": false,
+      "evaluated": false,
+      "content_hash": "aab349042f5efc40af433d2097cfb54d71d86667a05b4b695d9e5ce58498c997"
+    },
+    "v16_env_interpolation_deep_merge": {
+      "task_id": "v16_env_interpolation_deep_merge",
+      "suite": "V2-70",
+      "path": "tasks/v2/v16_env_interpolation_deep_merge",
+      "difficulty": "hard",
+      "categories": [
+        "J",
+        "E",
+        "F"
+      ],
+      "description": "Environment variable interpolator fails on chained fallback expressions and nested array structures.",
+      "file_count": 4,
+      "test_count": 1,
+      "generated": true,
+      "validated": true,
+      "deterministic_verified": true,
+      "reference_verified": true,
+      "official": false,
+      "evaluated": false,
+      "content_hash": "328f795f20c3ad61f1c0738ec2ecbad8889a60ea50d2fb650c2cc24e33d74e87"
+    },
+    "v17_memory_leak_bounded_cache": {
+      "task_id": "v17_memory_leak_bounded_cache",
+      "suite": "V2-70",
+      "path": "tasks/v2/v17_memory_leak_bounded_cache",
+      "difficulty": "medium",
+      "categories": [
+        "K",
+        "D",
+        "E"
+      ],
+      "description": "Bounded cache store fails to invoke eviction listeners on explicit removal and clear, leaking session handles in memory.",
+      "file_count": 3,
+      "test_count": 1,
+      "generated": true,
+      "validated": true,
+      "deterministic_verified": true,
+      "reference_verified": true,
+      "official": false,
+      "evaluated": false,
+      "content_hash": "9c3937056a401bfaccc8ba78b8c763c79b508283ae789a4136ed1bad6b75bc1b"
+    },
+    "v18_quadratic_event_dedup_pipeline": {
+      "task_id": "v18_quadratic_event_dedup_pipeline",
+      "suite": "V2-70",
+      "path": "tasks/v2/v18_quadratic_event_dedup_pipeline",
+      "difficulty": "hard",
+      "categories": [
+        "K",
+        "B",
+        "E"
+      ],
+      "description": "Event deduplication pipeline uses O(N) list membership checks and array shifting, causing quadratic slowdown under high volume.",
+      "file_count": 4,
+      "test_count": 1,
+      "generated": true,
+      "validated": true,
+      "deterministic_verified": true,
+      "reference_verified": true,
+      "official": false,
+      "evaluated": false,
+      "content_hash": "261b2d3c3f14720e864a8fd55980c0d307a88d279e0879f4c4b34de43684577a"
+    },
+    "v19_path_traversal_sanitizer": {
+      "task_id": "v19_path_traversal_sanitizer",
+      "suite": "V2-70",
+      "path": "tasks/v2/v19_path_traversal_sanitizer",
+      "difficulty": "hard",
+      "categories": [
+        "L",
+        "E",
+        "F"
+      ],
+      "description": "Path sanitizer uses a single-pass string replacement, allowing nested and double-encoded traversal sequences to escape the root directory.",
+      "file_count": 3,
+      "test_count": 1,
+      "generated": true,
+      "validated": true,
+      "deterministic_verified": true,
+      "reference_verified": true,
+      "official": false,
+      "evaluated": false,
+      "content_hash": "742c0ea95b7c11023ec1d8c53a04532c35121cbf10ae8277d52e315c4d973645"
+    },
+    "v20_payload_boundary_validator": {
+      "task_id": "v20_payload_boundary_validator",
+      "suite": "V2-70",
+      "path": "tasks/v2/v20_payload_boundary_validator",
+      "difficulty": "medium",
+      "categories": [
+        "L",
+        "F"
+      ],
+      "description": "Payload validator allows prototype/dunder key injection and fails to enforce recursion depth bounds on nested structures.",
+      "file_count": 3,
+      "test_count": 1,
+      "generated": true,
+      "validated": true,
+      "deterministic_verified": true,
+      "reference_verified": true,
+      "official": false,
+      "evaluated": false,
+      "content_hash": "315e8ad30f58cb5af65446d348010e21dd646d4b23fcfdbd70d1c33950b9762b"
+    },
+    "v21_misleading_retry_budget": {
+      "task_id": "v21_misleading_retry_budget",
+      "suite": "V2-70",
+      "path": "tasks/v2/v21_misleading_retry_budget",
+      "difficulty": "adversarial",
+      "categories": [
+        "M",
+        "H",
+        "D",
+        "E"
+      ],
+      "description": "Retry budget contains misleading docstrings asserting tokens replenish on all attempts, masking a retry-storm token leak.",
+      "file_count": 3,
+      "test_count": 1,
+      "generated": true,
+      "validated": true,
+      "deterministic_verified": true,
+      "reference_verified": true,
+      "official": false,
+      "evaluated": false,
+      "content_hash": "ff9ef2bde3983d3372216d09dfbca89c3108ae1c4147dd2aecef68f4c276d3ac"
+    },
+    "v22_distractor_middleware_auth": {
+      "task_id": "v22_distractor_middleware_auth",
+      "suite": "V2-70",
+      "path": "tasks/v2/v22_distractor_middleware_auth",
+      "difficulty": "adversarial",
+      "categories": [
+        "M",
+        "E",
+        "L"
+      ],
+      "description": "API pipeline contains distractor audit middleware, while the real bug is in AuthGuard lowercase bearer and fallback token handling.",
+      "file_count": 4,
+      "test_count": 1,
+      "generated": true,
+      "validated": true,
+      "deterministic_verified": true,
+      "reference_verified": true,
+      "official": false,
+      "evaluated": false,
+      "content_hash": "b9a1937a44d8274e567e5490cefd99ffe4a09fc2dff95e77cf1fd23a15a71010"
+    },
+    "v23_deceptive_boundary_invariant": {
+      "task_id": "v23_deceptive_boundary_invariant",
+      "suite": "V2-70",
+      "path": "tasks/v2/v23_deceptive_boundary_invariant",
+      "difficulty": "adversarial",
+      "categories": [
+        "M",
+        "B",
+        "D"
+      ],
+      "description": "Sliding window aggregator prematurely evicts samples at the exact duration cutoff due to <= operator instead of <.",
+      "file_count": 3,
+      "test_count": 1,
+      "generated": true,
+      "validated": true,
+      "deterministic_verified": true,
+      "reference_verified": true,
+      "official": false,
+      "evaluated": false,
+      "content_hash": "d8bcf5dad1cc2821105f57e6062e908b60e01d73394801d6dd76829233ef5596"
+    },
+    "v24_order_processing_saga_rollback": {
+      "task_id": "v24_order_processing_saga_rollback",
+      "suite": "V2-70",
+      "path": "tasks/v2/v24_order_processing_saga_rollback",
+      "difficulty": "hard",
+      "categories": [
+        "D",
+        "E",
+        "I"
+      ],
+      "description": "Distributed saga coordinator fails to execute reverse compensation steps on shipping failure, leaving inventory and payment inconsistent.",
+      "file_count": 5,
+      "test_count": 1,
+      "generated": true,
+      "validated": true,
+      "deterministic_verified": true,
+      "reference_verified": true,
+      "official": false,
+      "evaluated": false,
+      "content_hash": "701745084b69aaef9e3971bdf73e432af1ca6c0c98cbb9968a607893f9c9db0e"
+    },
+    "v25_service_data_contract_propagation": {
+      "task_id": "v25_service_data_contract_propagation",
+      "suite": "V2-70",
+      "path": "tasks/v2/v25_service_data_contract_propagation",
+      "difficulty": "hard",
+      "categories": [
+        "E",
+        "H"
+      ],
+      "description": "Cross-module schema mismatch between repository persistence key and wire serializer drops timestamp field.",
+      "file_count": 4,
+      "test_count": 1,
+      "generated": true,
+      "validated": true,
+      "deterministic_verified": true,
+      "reference_verified": true,
+      "official": false,
+      "evaluated": false,
+      "content_hash": "ab444cfde56b6e4bc203c3ff3558c9e75c6bc0a9dff1bd058f89e7ccb0cdc28d"
+    },
+    "v26_async_task_executor_cancellation": {
+      "task_id": "v26_async_task_executor_cancellation",
+      "suite": "V2-70",
+      "path": "tasks/v2/v26_async_task_executor_cancellation",
+      "difficulty": "hard",
+      "categories": [
+        "G",
+        "D"
+      ],
+      "description": "Task queue pop_next ignores cancellation flags set during queue residency, causing cancelled jobs to execute.",
+      "file_count": 3,
+      "test_count": 1,
+      "generated": true,
+      "validated": true,
+      "deterministic_verified": true,
+      "reference_verified": true,
+      "official": false,
+      "evaluated": false,
+      "content_hash": "0902bf79942dff5d37711ef6eeefde3ccd8d3ce4c4d6c2e2b701574e7c984d53"
+    },
+    "v27_cursor_time_pagination_drift": {
+      "task_id": "v27_cursor_time_pagination_drift",
+      "suite": "V2-70",
+      "path": "tasks/v2/v27_cursor_time_pagination_drift",
+      "difficulty": "medium",
+      "categories": [
+        "H",
+        "I",
+        "B"
+      ],
+      "description": "Cursor paginator only checks timestamp > cursor_timestamp, dropping sibling records with identical timestamps.",
+      "file_count": 3,
+      "test_count": 1,
+      "generated": true,
+      "validated": true,
+      "deterministic_verified": true,
+      "reference_verified": true,
+      "official": false,
+      "evaluated": false,
+      "content_hash": "62353a491272dae1289011e6e313cfd414c2833a99d55fae794785e41b3ab9aa"
+    },
+    "v28_streaming_csv_escaped_state": {
+      "task_id": "v28_streaming_csv_escaped_state",
+      "suite": "V2-70",
+      "path": "tasks/v2/v28_streaming_csv_escaped_state",
+      "difficulty": "medium",
+      "categories": [
+        "F",
+        "D"
+      ],
+      "description": "Streaming CSV parser misinterprets double-quote escape sequences as closing quotes, corrupting multiline fields.",
+      "file_count": 2,
+      "test_count": 1,
+      "generated": true,
+      "validated": true,
+      "deterministic_verified": true,
+      "reference_verified": true,
+      "official": false,
+      "evaluated": false,
+      "content_hash": "9eaa5f0f6e12f7947620fd7ffc636e89f40b16bb97c184173e60967c99e79c83"
+    },
+    "v29_datetime_timezone_normalization": {
+      "task_id": "v29_datetime_timezone_normalization",
+      "suite": "V2-70",
+      "path": "tasks/v2/v29_datetime_timezone_normalization",
+      "difficulty": "easy",
+      "categories": [
+        "A",
+        "F"
+      ],
+      "description": "ISO timestamp parser subtracts minutes incorrectly when parsing negative timezone offsets.",
+      "file_count": 2,
+      "test_count": 1,
+      "generated": true,
+      "validated": true,
+      "deterministic_verified": true,
+      "reference_verified": true,
+      "official": false,
+      "evaluated": false,
+      "content_hash": "1b08f7f557eb585d595679782633efc0844349e09ff0fcffb31bcbf7bc12ce80"
+    },
+    "v30_semver_comparator_precedence": {
+      "task_id": "v30_semver_comparator_precedence",
+      "suite": "V2-70",
+      "path": "tasks/v2/v30_semver_comparator_precedence",
+      "difficulty": "easy",
+      "categories": [
+        "A",
+        "B"
+      ],
+      "description": "SemVer comparator inverts pre-release precedence rule, rating pre-releases higher than normal releases.",
+      "file_count": 2,
+      "test_count": 1,
+      "generated": true,
+      "validated": true,
+      "deterministic_verified": true,
+      "reference_verified": true,
+      "official": false,
+      "evaluated": false,
+      "content_hash": "fafe198d53a0549f80c6e4f1bdb0de35129deb38a4c88ce772f0cfb2e3b04834"
+    },
+    "v31_binary_search_rotated_pivot": {
+      "task_id": "v31_binary_search_rotated_pivot",
+      "suite": "V2-70",
+      "path": "tasks/v2/v31_binary_search_rotated_pivot",
+      "difficulty": "easy",
+      "categories": [
+        "A",
+        "B"
+      ],
+      "description": "Rotated binary search indexer compares mid against left element instead of right boundary, failing on unrotated and rotated arrays.",
+      "file_count": 2,
+      "test_count": 1,
+      "generated": true,
+      "validated": true,
+      "deterministic_verified": true,
+      "reference_verified": true,
+      "official": false,
+      "evaluated": false,
+      "content_hash": "96c30c8cce539b3af1f0b59f685b4165b7ac081fe2eecb3df3680332a7e10aa6"
+    },
+    "v32_red_black_tree_color_inversion": {
+      "task_id": "v32_red_black_tree_color_inversion",
+      "suite": "V2-70",
+      "path": "tasks/v2/v32_red_black_tree_color_inversion",
+      "difficulty": "medium",
+      "categories": [
+        "C",
+        "B"
+      ],
+      "description": "Red-Black Tree insertion balancing terminates recoloring loop early without updating z to grandparent, violating RB invariants.",
+      "file_count": 3,
+      "test_count": 1,
+      "generated": true,
+      "validated": true,
+      "deterministic_verified": true,
+      "reference_verified": true,
+      "official": false,
+      "evaluated": false,
+      "content_hash": "67a3e43ec28eb2d4d88919b2dc1284789779eea1b884a7f3ef7fcf53578a1893"
+    },
+    "v33_min_heap_decrease_key_bubble": {
+      "task_id": "v33_min_heap_decrease_key_bubble",
+      "suite": "V2-70",
+      "path": "tasks/v2/v33_min_heap_decrease_key_bubble",
+      "difficulty": "medium",
+      "categories": [
+        "C",
+        "B"
+      ],
+      "description": "Indexed min heap fails to update internal position map during sift-up swaps, corrupting subsequent decrease-key operations.",
+      "file_count": 2,
+      "test_count": 1,
+      "generated": true,
+      "validated": true,
+      "deterministic_verified": true,
+      "reference_verified": true,
+      "official": false,
+      "evaluated": false,
+      "content_hash": "218ca731f499a330841a9cf38807ab45324ed7bf04a5842dd8baea56b7ce01c5"
+    },
+    "v34_trie_prefix_deletion_prune": {
+      "task_id": "v34_trie_prefix_deletion_prune",
+      "suite": "V2-70",
+      "path": "tasks/v2/v34_trie_prefix_deletion_prune",
+      "difficulty": "medium",
+      "categories": [
+        "C",
+        "B"
+      ],
+      "description": "Prefix trie deletion only unsets terminal flags without pruning dead branch nodes, causing ghost prefix matches in autocomplete.",
+      "file_count": 3,
+      "test_count": 1,
+      "generated": true,
+      "validated": true,
+      "deterministic_verified": true,
+      "reference_verified": true,
+      "official": false,
+      "evaluated": false,
+      "content_hash": "eee2328fd019b01f2e7b4639d2bc0030002129fcdfb625d2ec14a75b974ce4d6"
+    },
+    "v35_disjoint_set_union_rank": {
+      "task_id": "v35_disjoint_set_union_rank",
+      "suite": "V2-70",
+      "path": "tasks/v2/v35_disjoint_set_union_rank",
+      "difficulty": "medium",
+      "categories": [
+        "C",
+        "B"
+      ],
+      "description": "Disjoint Set Union unconditionally increments tree rank on unequal unions, violating logarithmic tree depth bounds.",
+      "file_count": 2,
+      "test_count": 1,
+      "generated": true,
+      "validated": true,
+      "deterministic_verified": true,
+      "reference_verified": true,
+      "official": false,
+      "evaluated": false,
+      "content_hash": "b0720a865f6c74b5046c7130c56cfa5784138ea033427f835578a8ffcfd6798f"
+    },
+    "v36_db_transaction_isolation_savepoint": {
+      "task_id": "v36_db_transaction_isolation_savepoint",
+      "suite": "V2-70",
+      "path": "tasks/v2/v36_db_transaction_isolation_savepoint",
+      "difficulty": "hard",
+      "categories": [
+        "I",
+        "D",
+        "E"
+      ],
+      "description": "Database transaction session fails to truncate subsequent savepoints when rolling back to an ancestor savepoint, violating SQL-92 isolation.",
+      "file_count": 4,
+      "test_count": 1,
+      "generated": true,
+      "validated": true,
+      "deterministic_verified": true,
+      "reference_verified": true,
+      "official": false,
+      "evaluated": false,
+      "content_hash": "95ed27728d503b864262946db20b589854e3e9f122ce280a773e8d91bb7863b1"
+    },
+    "v37_connection_pool_leak_on_timeout": {
+      "task_id": "v37_connection_pool_leak_on_timeout",
+      "suite": "V2-70",
+      "path": "tasks/v2/v37_connection_pool_leak_on_timeout",
+      "difficulty": "hard",
+      "categories": [
+        "I",
+        "K"
+      ],
+      "description": "Database client does not use try/finally around query execution, permanently leaking connection leases upon timeouts or errors.",
+      "file_count": 3,
+      "test_count": 1,
+      "generated": true,
+      "validated": true,
+      "deterministic_verified": true,
+      "reference_verified": true,
+      "official": false,
+      "evaluated": false,
+      "content_hash": "b3677c05aeb08533203143329bb02646f9f0d643d5e4a8e38e0763cfe059054e"
+    },
+    "v38_optimistic_locking_version_check": {
+      "task_id": "v38_optimistic_locking_version_check",
+      "suite": "V2-70",
+      "path": "tasks/v2/v38_optimistic_locking_version_check",
+      "difficulty": "hard",
+      "categories": [
+        "I",
+        "D"
+      ],
+      "description": "Optimistic store mutates record data before validating expected version, corrupting shared data when conflicts occur.",
+      "file_count": 3,
+      "test_count": 1,
+      "generated": true,
+      "validated": true,
+      "deterministic_verified": true,
+      "reference_verified": true,
+      "official": false,
+      "evaluated": false,
+      "content_hash": "75be835cbe6c7403adf21ed9f4592526577e8e77927d25dafe3b28bf3c6bc560"
+    },
+    "v39_wal_replay_checkpoint_recovery": {
+      "task_id": "v39_wal_replay_checkpoint_recovery",
+      "suite": "V2-70",
+      "path": "tasks/v2/v39_wal_replay_checkpoint_recovery",
+      "difficulty": "hard",
+      "categories": [
+        "I",
+        "D",
+        "E"
+      ],
+      "description": "WAL log reader includes the checkpoint LSN itself during replay (>= instead of >), re-applying pre-checkpoint state mutations.",
+      "file_count": 4,
+      "test_count": 1,
+      "generated": true,
+      "validated": true,
+      "deterministic_verified": true,
+      "reference_verified": true,
+      "official": false,
+      "evaluated": false,
+      "content_hash": "099428f72def2f640b9d9f1968b9d260e962e805a7cd80d59ab51ca7812076c1"
+    },
+    "v40_layered_feature_flag_evaluator": {
+      "task_id": "v40_layered_feature_flag_evaluator",
+      "suite": "V2-70",
+      "path": "tasks/v2/v40_layered_feature_flag_evaluator",
+      "difficulty": "medium",
+      "categories": [
+        "J",
+        "H"
+      ],
+      "description": "Feature flag percentage rollout comparator inverts bucket calculation (> instead of <), causing 0% rollouts to enable flags for majority of users.",
+      "file_count": 3,
+      "test_count": 1,
+      "generated": true,
+      "validated": true,
+      "deterministic_verified": true,
+      "reference_verified": true,
+      "official": false,
+      "evaluated": false,
+      "content_hash": "aaa6457c79ec6c0e64241e2e5a7d306dc6c8ee46e2449b98c96c6e755c248905"
+    },
+    "v41_circular_buffer_overwrite_overflow": {
+      "task_id": "v41_circular_buffer_overwrite_overflow",
+      "suite": "V2-70",
+      "path": "tasks/v2/v41_circular_buffer_overwrite_overflow",
+      "difficulty": "medium",
+      "categories": [
+        "K",
+        "C",
+        "D"
+      ],
+      "description": "Circular ring buffer overwriting old items on overflow fails to advance tail read pointer, corrupting FIFO read order.",
+      "file_count": 3,
+      "test_count": 1,
+      "generated": true,
+      "validated": true,
+      "deterministic_verified": true,
+      "reference_verified": true,
+      "official": false,
+      "evaluated": false,
+      "content_hash": "ee86fb7a3443897d488fbd8074902e27231bf3690b4a2d86e5740f45dde35b99"
+    },
+    "v42_ssrf_url_whitelist_validator": {
+      "task_id": "v42_ssrf_url_whitelist_validator",
+      "suite": "V2-70",
+      "path": "tasks/v2/v42_ssrf_url_whitelist_validator",
+      "difficulty": "hard",
+      "categories": [
+        "L",
+        "H"
+      ],
+      "description": "SSRF guard uses naive string prefix checks, allowing decimal IP representations and 172.16.0.0/12 private addresses to bypass firewall.",
+      "file_count": 3,
+      "test_count": 1,
+      "generated": true,
+      "validated": true,
+      "deterministic_verified": true,
+      "reference_verified": true,
+      "official": false,
+      "evaluated": false,
+      "content_hash": "3d3678cf2115da9469ce4fe0f6a92b833ed7997ede39e7b2232f6883dacb3a2f"
+    },
+    "v43_saga_distributed_orchestrator": {
+      "task_id": "v43_saga_distributed_orchestrator",
+      "suite": "V2-70",
+      "path": "tasks/v2/v43_saga_distributed_orchestrator",
+      "difficulty": "hard",
+      "categories": [
+        "E",
+        "I",
+        "D"
+      ],
+      "description": "Distributed cloud saga orchestrator fails to compensate VPC network allocation upon DNS step failure, leaking CIDR leases.",
+      "file_count": 5,
+      "test_count": 1,
+      "generated": true,
+      "validated": true,
+      "deterministic_verified": true,
+      "reference_verified": true,
+      "official": false,
+      "evaluated": false,
+      "content_hash": "575d40ce8a038fb3d2f96127286a629429e678951e039632782510e3a25f50be"
+    },
+    "v44_event_sourcing_aggregate_rehydrate": {
+      "task_id": "v44_event_sourcing_aggregate_rehydrate",
+      "suite": "V2-70",
+      "path": "tasks/v2/v44_event_sourcing_aggregate_rehydrate",
+      "difficulty": "hard",
+      "categories": [
+        "D",
+        "E",
+        "I"
+      ],
+      "description": "Event store rehydration queries events using >= snapshot_version instead of >, causing duplicate event application on snapshot restore.",
+      "file_count": 5,
+      "test_count": 1,
+      "generated": true,
+      "validated": true,
+      "deterministic_verified": true,
+      "reference_verified": true,
+      "official": false,
+      "evaluated": false,
+      "content_hash": "aa718df78629b20743c098bb9bc080e4bdbc4cc6deb448128bdb09381f707dd2"
+    },
+    "v45_schema_evolution_field_migrator": {
+      "task_id": "v45_schema_evolution_field_migrator",
+      "suite": "V2-70",
+      "path": "tasks/v2/v45_schema_evolution_field_migrator",
+      "difficulty": "hard",
+      "categories": [
+        "J",
+        "E",
+        "F"
+      ],
+      "description": "Multi-hop schema evolution migrator inadvertently overwrites explicit falsy values (0, False) with default fallbacks.",
+      "file_count": 4,
+      "test_count": 1,
+      "generated": true,
+      "validated": true,
+      "deterministic_verified": true,
+      "reference_verified": true,
+      "official": false,
+      "evaluated": false,
+      "content_hash": "52ec5c3336e463268f5f15838e4e525fd68aaa6c2ff8ee1044bd2ac3085f2aca"
+    },
+    "v46_cache_coherence_mesi_state_machine": {
+      "task_id": "v46_cache_coherence_mesi_state_machine",
+      "suite": "V2-70",
+      "path": "tasks/v2/v46_cache_coherence_mesi_state_machine",
+      "difficulty": "hard",
+      "categories": [
+        "G",
+        "E",
+        "D"
+      ],
+      "description": "Distributed cache node applies invalidation messages without version checking, allowing stale messages to evict newer writes.",
+      "file_count": 4,
+      "test_count": 1,
+      "generated": true,
+      "validated": true,
+      "deterministic_verified": true,
+      "reference_verified": true,
+      "official": false,
+      "evaluated": false,
+      "content_hash": "67234213dc40d6c445dc4f7e06aa940f5a88d97c9d15fa00ba33162e93257138"
+    },
+    "v47_graphql_dataloader_batch_dedup": {
+      "task_id": "v47_graphql_dataloader_batch_dedup",
+      "suite": "V2-70",
+      "path": "tasks/v2/v47_graphql_dataloader_batch_dedup",
+      "difficulty": "hard",
+      "categories": [
+        "H",
+        "K",
+        "E"
+      ],
+      "description": "GraphQL DataLoader fails to cache null/missing entity keys, triggering repeated round-trips and corrupting batch resolution.",
+      "file_count": 4,
+      "test_count": 1,
+      "generated": true,
+      "validated": true,
+      "deterministic_verified": true,
+      "reference_verified": true,
+      "official": false,
+      "evaluated": false,
+      "content_hash": "db96e8e7b1c43f2e95d97978b14e05f14489487b09a672129f24e065ea1d432a"
+    },
+    "v48_channel_backpressure_buffer_deadlock": {
+      "task_id": "v48_channel_backpressure_buffer_deadlock",
+      "suite": "V2-70",
+      "path": "tasks/v2/v48_channel_backpressure_buffer_deadlock",
+      "difficulty": "hard",
+      "categories": [
+        "G",
+        "E"
+      ],
+      "description": "Bounded channel close() fails to notify waiting full condition, deadlocking backpressured producer threads.",
+      "file_count": 3,
+      "test_count": 1,
+      "generated": true,
+      "validated": true,
+      "deterministic_verified": true,
+      "reference_verified": true,
+      "official": false,
+      "evaluated": false,
+      "content_hash": "b97a35ba680c9966eae926c71f4a328a551218dac4b803dd57e83832fe712187"
+    },
+    "v49_database_migration_dependency_rollback": {
+      "task_id": "v49_database_migration_dependency_rollback",
+      "suite": "V2-70",
+      "path": "tasks/v2/v49_database_migration_dependency_rollback",
+      "difficulty": "hard",
+      "categories": [
+        "I",
+        "E",
+        "D"
+      ],
+      "description": "Migration DAG planner fails to cascade rollbacks to downstream dependents, causing foreign key conflicts when rolling back parent tables.",
+      "file_count": 4,
+      "test_count": 1,
+      "generated": true,
+      "validated": true,
+      "deterministic_verified": true,
+      "reference_verified": true,
+      "official": false,
+      "evaluated": false,
+      "content_hash": "7f4a6b99f9ed413f37de4433ebf697bc4aba3a7102caf71d0911063b5a830693"
+    },
+    "v50_websocket_heartbeat_reconnect_fsm": {
+      "task_id": "v50_websocket_heartbeat_reconnect_fsm",
+      "suite": "V2-70",
+      "path": "tasks/v2/v50_websocket_heartbeat_reconnect_fsm",
+      "difficulty": "hard",
+      "categories": [
+        "D",
+        "L",
+        "G"
+      ],
+      "description": "WebSocket session state machine accepts text payload frames during CONNECTING state before authentication verification.",
+      "file_count": 4,
+      "test_count": 1,
+      "generated": true,
+      "validated": true,
+      "deterministic_verified": true,
+      "reference_verified": true,
+      "official": false,
+      "evaluated": false,
+      "content_hash": "4ce9a0f2ad6d18e9e9e820b29639f9bdf77b0a7aeeace11f94e39065cdebc575"
+    },
+    "v51_hierarchical_rate_limiter_burst_leak": {
+      "task_id": "v51_hierarchical_rate_limiter_burst_leak",
+      "suite": "V2-70",
+      "path": "tasks/v2/v51_hierarchical_rate_limiter_burst_leak",
+      "difficulty": "hard",
+      "categories": [
+        "J",
+        "G",
+        "H"
+      ],
+      "description": "Hierarchical multi-tier rate limiter only deducts tokens from target child leaf, allowing tenants to collectively exceed parent capacity.",
+      "file_count": 3,
+      "test_count": 1,
+      "generated": true,
+      "validated": true,
+      "deterministic_verified": true,
+      "reference_verified": true,
+      "official": false,
+      "evaluated": false,
+      "content_hash": "29f160454e62e93b97e014b101c49f3b8fc608c09652041190095b8b93fe5c69"
+    },
+    "v52_distributed_trace_context_propagation": {
+      "task_id": "v52_distributed_trace_context_propagation",
+      "suite": "V2-70",
+      "path": "tasks/v2/v52_distributed_trace_context_propagation",
+      "difficulty": "hard",
+      "categories": [
+        "F",
+        "E",
+        "H"
+      ],
+      "description": "Tracing middleware ignores incoming W3C traceparent headers and starts new root traces, breaking distributed trace correlation.",
+      "file_count": 5,
+      "test_count": 1,
+      "generated": true,
+      "validated": true,
+      "deterministic_verified": true,
+      "reference_verified": true,
+      "official": false,
+      "evaluated": false,
+      "content_hash": "79a058e2e23e1f74ce4c0b952833eed3c2870bd2326ac592eb8d7bd0e4a3b0cc"
+    },
+    "v53_message_queue_dedup_sliding_window": {
+      "task_id": "v53_message_queue_dedup_sliding_window",
+      "suite": "V2-70",
+      "path": "tasks/v2/v53_message_queue_dedup_sliding_window",
+      "difficulty": "hard",
+      "categories": [
+        "G",
+        "E"
+      ],
+      "description": "Deduplication window evicts newest messages (pop()) instead of oldest (pop(0)) when capacity is exceeded.",
+      "file_count": 4,
+      "test_count": 1,
+      "generated": true,
+      "validated": true,
+      "deterministic_verified": true,
+      "reference_verified": true,
+      "official": false,
+      "evaluated": false,
+      "content_hash": "cdadb9bd41434059ef0c8faa5008b810aa8bf823d65d5775ea4c163fbbfb7fa5"
+    },
+    "v54_api_versioning_header_router": {
+      "task_id": "v54_api_versioning_header_router",
+      "suite": "V2-70",
+      "path": "tasks/v2/v54_api_versioning_header_router",
+      "difficulty": "hard",
+      "categories": [
+        "H",
+        "E"
+      ],
+      "description": "Versioned router fails to match date-based and case-variant API version headers, routing v2 clients to legacy v1 formats.",
+      "file_count": 4,
+      "test_count": 1,
+      "generated": true,
+      "validated": true,
+      "deterministic_verified": true,
+      "reference_verified": true,
+      "official": false,
+      "evaluated": false,
+      "content_hash": "8f3685a7c4142743184aa53a789a406c43c063cbc67a4b78a79bd7cffc39c3b3"
+    },
+    "v55_leader_election_lease_renewal_split_brain": {
+      "task_id": "v55_leader_election_lease_renewal_split_brain",
+      "suite": "V2-70",
+      "path": "tasks/v2/v55_leader_election_lease_renewal_split_brain",
+      "difficulty": "hard",
+      "categories": [
+        "G",
+        "D"
+      ],
+      "description": "Leader election coordinator returns False on successful leader lease renewals, causing leader nodes to believe they lost leadership.",
+      "file_count": 3,
+      "test_count": 1,
+      "generated": true,
+      "validated": true,
+      "deterministic_verified": true,
+      "reference_verified": true,
+      "official": false,
+      "evaluated": false,
+      "content_hash": "5a280f4deaad2d10f3df6af0784f048695c1aa8f5f8e4505b93aa951b2dd1c4e"
+    },
+    "v56_compensating_transaction_failure_recovery": {
+      "task_id": "v56_compensating_transaction_failure_recovery",
+      "suite": "V2-70",
+      "path": "tasks/v2/v56_compensating_transaction_failure_recovery",
+      "difficulty": "hard",
+      "categories": [
+        "D",
+        "E"
+      ],
+      "description": "Compensating transaction stack executes compensations in FIFO queue order instead of LIFO reverse order on workflow abort.",
+      "file_count": 5,
+      "test_count": 1,
+      "generated": true,
+      "validated": true,
+      "deterministic_verified": true,
+      "reference_verified": true,
+      "official": false,
+      "evaluated": false,
+      "content_hash": "4c4cdcacb96b4dd7aeee1a81687bc3e7e9c59b88c0be0281b5160276b46490bb"
+    },
+    "v57_raft_log_replication_split_vote": {
+      "task_id": "v57_raft_log_replication_split_vote",
+      "suite": "V2-70",
+      "path": "tasks/v2/v57_raft_log_replication_split_vote",
+      "difficulty": "hard",
+      "categories": [
+        "G",
+        "E"
+      ],
+      "description": "Raft node grants votes without checking candidate log up-to-dateness (\u00a75.4.1), electing stale leaders that lose committed state.",
+      "file_count": 3,
+      "test_count": 1,
+      "generated": true,
+      "validated": true,
+      "deterministic_verified": true,
+      "reference_verified": true,
+      "official": false,
+      "evaluated": false,
+      "content_hash": "25735604d0a6de2896cbef0e3f5ce682e8cb6e851232d979e2564d598c0e4d3b"
+    },
+    "v58_byzantine_fault_tolerant_quorum_consensus": {
+      "task_id": "v58_byzantine_fault_tolerant_quorum_consensus",
+      "suite": "V2-70",
+      "path": "tasks/v2/v58_byzantine_fault_tolerant_quorum_consensus",
+      "difficulty": "hard",
+      "categories": [
+        "G",
+        "L"
+      ],
+      "description": "BFT consensus quorum calculator uses truncated integer division, accepting 2 votes instead of 3 in a 4-node PBFT cluster.",
+      "file_count": 3,
+      "test_count": 1,
+      "generated": true,
+      "validated": true,
+      "deterministic_verified": true,
+      "reference_verified": true,
+      "official": false,
+      "evaluated": false,
+      "content_hash": "f6f465eee9e34b9762f95cacdce37cad5c4851372d2fd3f67aead692ad4c9929"
+    },
+    "v59_jit_bytecode_optimizer_dead_code_elimination": {
+      "task_id": "v59_jit_bytecode_optimizer_dead_code_elimination",
+      "suite": "V2-70",
+      "path": "tasks/v2/v59_jit_bytecode_optimizer_dead_code_elimination",
+      "difficulty": "hard",
+      "categories": [
+        "B",
+        "K"
+      ],
+      "description": "JIT dead code elimination pass drops function calls with unused return values, deleting required external side-effects.",
+      "file_count": 4,
+      "test_count": 1,
+      "generated": true,
+      "validated": true,
+      "deterministic_verified": true,
+      "reference_verified": true,
+      "official": false,
+      "evaluated": false,
+      "content_hash": "77115952415ed54bf5052ad56bd7f8f58953c35bd48d63f34be09e9885657c15"
+    },
+    "v60_two_phase_commit_coordinator_crash_recovery": {
+      "task_id": "v60_two_phase_commit_coordinator_crash_recovery",
+      "suite": "V2-70",
+      "path": "tasks/v2/v60_two_phase_commit_coordinator_crash_recovery",
+      "difficulty": "hard",
+      "categories": [
+        "E",
+        "I",
+        "G"
+      ],
+      "description": "2PC coordinator crash recovery aborts transactions in PREPARED state instead of committing forward, violating atomic commit.",
+      "file_count": 4,
+      "test_count": 1,
+      "generated": true,
+      "validated": true,
+      "deterministic_verified": true,
+      "reference_verified": true,
+      "official": false,
+      "evaluated": false,
+      "content_hash": "871d63294e3f272f754662c64f863b7be8acc2909763a6bff66e266863e26659"
+    },
+    "v61_graphql_federation_gateway_query_planner": {
+      "task_id": "v61_graphql_federation_gateway_query_planner",
+      "suite": "V2-70",
+      "path": "tasks/v2/v61_graphql_federation_gateway_query_planner",
+      "difficulty": "hard",
+      "categories": [
+        "H",
+        "E"
+      ],
+      "description": "GraphQL federation query planner fails to inject required prerequisite fields across subgraphs, causing resolution failures.",
+      "file_count": 3,
+      "test_count": 1,
+      "generated": true,
+      "validated": true,
+      "deterministic_verified": true,
+      "reference_verified": true,
+      "official": false,
+      "evaluated": false,
+      "content_hash": "c8e5fbd5215014364040e7f1036d3e8f00fd09add1fb7db268bb4d76dbeabb09"
+    },
+    "v62_lsm_tree_compaction_sst_merge": {
+      "task_id": "v62_lsm_tree_compaction_sst_merge",
+      "suite": "V2-70",
+      "path": "tasks/v2/v62_lsm_tree_compaction_sst_merge",
+      "difficulty": "hard",
+      "categories": [
+        "I",
+        "K"
+      ],
+      "description": "LSM compactor retains deletion tombstones during bottom-tier (max_level) merges, leaking storage space indefinitely.",
+      "file_count": 3,
+      "test_count": 1,
+      "generated": true,
+      "validated": true,
+      "deterministic_verified": true,
+      "reference_verified": true,
+      "official": false,
+      "evaluated": false,
+      "content_hash": "66e25d9b2fa581a2b36a8b32661c6f4ac2a9a2a6d9471337ef3ceb8a93123268"
+    },
+    "v63_oauth2_token_exchange_pkce_replay_attack": {
+      "task_id": "v63_oauth2_token_exchange_pkce_replay_attack",
+      "suite": "V2-70",
+      "path": "tasks/v2/v63_oauth2_token_exchange_pkce_replay_attack",
+      "difficulty": "hard",
+      "categories": [
+        "L",
+        "H",
+        "E"
+      ],
+      "description": "OAuth 2.0 PKCE token exchange handler fails to invalidate authorization codes upon use, allowing token replay attacks.",
+      "file_count": 4,
+      "test_count": 1,
+      "generated": true,
+      "validated": true,
+      "deterministic_verified": true,
+      "reference_verified": true,
+      "official": false,
+      "evaluated": false,
+      "content_hash": "82f65d3116e0c248a21bc977ca1f9ffa7fcc0ce90020ba60f1b36977b5b9f1ed"
+    },
+    "v64_adversarial_telemetry_flaky_retry_storm": {
+      "task_id": "v64_adversarial_telemetry_flaky_retry_storm",
+      "suite": "V2-70",
+      "path": "tasks/v2/v64_adversarial_telemetry_flaky_retry_storm",
+      "difficulty": "adversarial",
+      "categories": [
+        "M",
+        "H",
+        "K"
+      ],
+      "description": "Exponential backoff jitter function erroneously zeroes delays on even seeds, causing zero-interval retry storms.",
+      "file_count": 6,
+      "test_count": 1,
+      "generated": true,
+      "validated": true,
+      "deterministic_verified": true,
+      "reference_verified": true,
+      "official": false,
+      "evaluated": false,
+      "content_hash": "ff2a23c115d620013c0a7b9b3ddc1c0f477f206cc23abb8e71333139010d64cc"
+    },
+    "v65_actor_system_mailbox_deadlock_cycle": {
+      "task_id": "v65_actor_system_mailbox_deadlock_cycle",
+      "suite": "V2-70",
+      "path": "tasks/v2/v65_actor_system_mailbox_deadlock_cycle",
+      "difficulty": "hard",
+      "categories": [
+        "G",
+        "E"
+      ],
+      "description": "Actor reference fails to dispatch response messages back to caller mailbox on ask requests, deadlocking callers.",
+      "file_count": 3,
+      "test_count": 1,
+      "generated": true,
+      "validated": true,
+      "deterministic_verified": true,
+      "reference_verified": true,
+      "official": false,
+      "evaluated": false,
+      "content_hash": "7399de0160f87322cf6010ba6ebf73f6f58681aff9c87b134f8bf1acb7a7a83b"
+    },
+    "v66_ast_pattern_rewriter_variable_shadowing": {
+      "task_id": "v66_ast_pattern_rewriter_variable_shadowing",
+      "suite": "V2-70",
+      "path": "tasks/v2/v66_ast_pattern_rewriter_variable_shadowing",
+      "difficulty": "hard",
+      "categories": [
+        "B",
+        "E"
+      ],
+      "description": "AST alpha-renamer mutates parent scope directly instead of creating nested child scopes, corrupting outer variable bindings.",
+      "file_count": 3,
+      "test_count": 1,
+      "generated": true,
+      "validated": true,
+      "deterministic_verified": true,
+      "reference_verified": true,
+      "official": false,
+      "evaluated": false,
+      "content_hash": "66b85212a667f5d01cfad0dd559508fd0945bc5170de81819e12c2c3a98a2e98"
+    },
+    "v67_b_plus_tree_leaf_split_borrow_rebalance": {
+      "task_id": "v67_b_plus_tree_leaf_split_borrow_rebalance",
+      "suite": "V2-70",
+      "path": "tasks/v2/v67_b_plus_tree_leaf_split_borrow_rebalance",
+      "difficulty": "hard",
+      "categories": [
+        "C",
+        "I"
+      ],
+      "description": "B+ Tree leaf split promotes the maximum key of the right sibling instead of the minimum key, breaking internal router search navigation.",
+      "file_count": 4,
+      "test_count": 1,
+      "generated": true,
+      "validated": true,
+      "deterministic_verified": true,
+      "reference_verified": true,
+      "official": false,
+      "evaluated": false,
+      "content_hash": "39443690eb1ab6c2073710d6a83f7f4cb56711e56eb0a7760db01ec5513f7baa"
+    },
+    "v68_crdt_pn_counter_lww_element_set_convergence": {
+      "task_id": "v68_crdt_pn_counter_lww_element_set_convergence",
+      "suite": "V2-70",
+      "path": "tasks/v2/v68_crdt_pn_counter_lww_element_set_convergence",
+      "difficulty": "hard",
+      "categories": [
+        "E",
+        "G"
+      ],
+      "description": "LWW-Element-Set CRDT implements strict > instead of >=, violating specified add-bias resolution on timestamp ties.",
+      "file_count": 2,
+      "test_count": 1,
+      "generated": true,
+      "validated": true,
+      "deterministic_verified": true,
+      "reference_verified": true,
+      "official": false,
+      "evaluated": false,
+      "content_hash": "962af497b4d7a0286b39efbfb67562a362d45b5081649f9634cdb3f486ff2590"
+    },
+    "v69_service_mesh_circuit_breaker_half_open_oscillation": {
+      "task_id": "v69_service_mesh_circuit_breaker_half_open_oscillation",
+      "suite": "V2-70",
+      "path": "tasks/v2/v69_service_mesh_circuit_breaker_half_open_oscillation",
+      "difficulty": "hard",
+      "categories": [
+        "H",
+        "E",
+        "G"
+      ],
+      "description": "Circuit breaker zeroes consecutive successes during HALF_OPEN probe requests, preventing transition back to CLOSED state.",
+      "file_count": 3,
+      "test_count": 1,
+      "generated": true,
+      "validated": true,
+      "deterministic_verified": true,
+      "reference_verified": true,
+      "official": false,
+      "evaluated": false,
+      "content_hash": "95f36210e9264aedfc203d7078c039e2bfd5127c8afb864a2de6afae1e1cca4b"
+    },
+    "v70_zero_knowledge_merkle_membership_proof": {
+      "task_id": "v70_zero_knowledge_merkle_membership_proof",
+      "suite": "V2-70",
+      "path": "tasks/v2/v70_zero_knowledge_merkle_membership_proof",
+      "difficulty": "hard",
+      "categories": [
+        "L",
+        "C"
+      ],
+      "description": "Merkle membership proof verifier ignores sibling side bit when combining hashes, failing inclusion proofs on right-hand leaves.",
+      "file_count": 4,
+      "test_count": 1,
+      "generated": true,
+      "validated": true,
+      "deterministic_verified": true,
+      "reference_verified": true,
+      "official": false,
+      "evaluated": false,
+      "content_hash": "84ee5ede5b83ff4d791a7d2fe9849b928ad7425c7291b40dca49261ca161c0d3"
+    }
+  }
+}

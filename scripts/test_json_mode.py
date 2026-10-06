@@ -4,7 +4,7 @@ import dotenv
 import openai
 
 dotenv.load_dotenv()
-client = openai.OpenAI(base_url="https://api.studio.nebius.ai/v1", api_key=os.getenv("NEBIUS_API_KEY"))
+client = openai.OpenAI(base_url="https://api.tokenfactory.nebius.com/v1", api_key=os.getenv("NEBIUS_API_KEY"))
 
 prompt = "You are a coding agent. Return ONLY JSON action: {\"type\": \"submit\"}"
 

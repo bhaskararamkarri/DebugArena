@@ -11,6 +11,8 @@ import yaml
 from dotenv import load_dotenv
 from openai import OpenAI
 
+from agentgym.provider import NEBIUS_CANONICAL_ENDPOINT, resolve_provider_config
+
 load_dotenv()
 
 JUDGE_PROMPT = """You are an expert Python code reviewer assessing a bug fix.
@@ -32,14 +34,30 @@ class CodeJudge:
 
     def __init__(
         self,
-        model_name: str = "nvidia/llama-3.1-nemotron-70b-instruct",
-        provider: str = "nebius",
+        model_name: Optional[str] = None,
+        provider: Optional[str] = None,
         config_path: str = "config.yaml",
+        execution_mode: str = "hackathon",
     ):
-        self.model_name = model_name
-        self.provider = provider
+        self.config_path = config_path
         self.config = self._load_config(config_path)
+        self.execution_mode = execution_mode
+        self.model_name = model_name or self._resolve_judge_model()
+
+        if self.execution_mode == "hackathon":
+            self.provider = "nebius"
+        else:
+            self.provider = provider or self.config.get("models", {}).get("nemotron_judge", {}).get("provider", "nebius")
+
         self.client = self._init_client()
+
+    def _resolve_judge_model(self) -> str:
+        models_cfg = self.config.get("models", {})
+        if "nemotron_judge" in models_cfg and "name" in models_cfg["nemotron_judge"]:
+            return models_cfg["nemotron_judge"]["name"]
+        if "judge" in self.config and isinstance(self.config["judge"], dict) and "model" in self.config["judge"]:
+            return self.config["judge"]["model"]
+        raise ValueError(f"Judge model is not configured in '{self.config_path}'.")
 
     def _load_config(self, config_path: str) -> Dict[str, Any]:
         if os.path.exists(config_path):
@@ -48,17 +66,17 @@ class CodeJudge:
         return {}
 
     def _init_client(self) -> Optional[OpenAI]:
-        providers = self.config.get("providers", {})
-        prov_cfg = providers.get(self.provider, {})
-        base_url = prov_cfg.get("base_url", "https://api.studio.nebius.ai/v1")
-        key_env = prov_cfg.get("api_key_env", "NEBIUS_API_KEY")
+        prov_info = resolve_provider_config(self.provider, config_path=self.config_path)
+        base_url = prov_info.get("base_url", NEBIUS_CANONICAL_ENDPOINT if self.provider == "nebius" else "https://openrouter.ai/api/v1")
+        key_env = prov_info.get("api_key_env", "NEBIUS_API_KEY" if self.provider == "nebius" else "")
         api_key = os.getenv(key_env, "")
 
-        if not api_key:
+        if not api_key and self.execution_mode != "hackathon":
             for fb_name in ["nvidia", "openrouter"]:
-                candidate = os.getenv(providers.get(fb_name, {}).get("api_key_env", ""), "")
+                fb_info = resolve_provider_config(fb_name, config_path=self.config_path)
+                candidate = os.getenv(fb_info.get("api_key_env", ""), "")
                 if candidate:
-                    base_url = providers[fb_name].get("base_url")
+                    base_url = fb_info.get("base_url")
                     api_key = candidate
                     break
 

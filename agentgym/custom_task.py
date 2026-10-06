@@ -14,8 +14,10 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, BinaryIO, Dict, List, Optional, Tuple, Union
 
+from agentgym.security import SecurityError, PathTraversalSecurityError, safe_path
 
-class ZipSecurityError(ValueError):
+
+class ZipSecurityError(SecurityError):
     """Raised when an uploaded ZIP archive violates security constraints."""
     pass
 
@@ -179,9 +181,8 @@ class CustomTask:
 
     def save(self, custom_tasks_dir: str = "custom_tasks") -> Path:
         """Saves custom task JSON in an isolated custom tasks directory."""
-        target_dir = Path(custom_tasks_dir) / self.task_id
-        target_dir.mkdir(parents=True, exist_ok=True)
-        task_file = target_dir / "task.json"
+        task_file = safe_path(custom_tasks_dir, f"{self.task_id}/task.json")
+        task_file.parent.mkdir(parents=True, exist_ok=True)
 
         data = self.to_dict()
         with open(task_file, "w", encoding="utf-8") as f:
@@ -190,7 +191,10 @@ class CustomTask:
 
     @classmethod
     def load(cls, task_id: str, custom_tasks_dir: str = "custom_tasks") -> Optional[CustomTask]:
-        task_file = Path(custom_tasks_dir) / task_id / "task.json"
+        try:
+            task_file = safe_path(custom_tasks_dir, f"{task_id}/task.json")
+        except SecurityError:
+            return None
         if not task_file.exists():
             return None
         try:

@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any, Deque, Dict, List, Optional
 
 from agentgym.env import BugFixEnv
+from agentgym.provider import ExecutionMode, ProviderPolicyError, validate_execution_config
 from agentgym.runner import EpisodeRunner
 
 
@@ -27,7 +28,9 @@ class RunStatus(str, Enum):
 class RunConfig:
     run_id: str
     model_name: str = "nemotron_nano"
+    execution_mode: str = "hackathon"
     provider: Optional[str] = None
+    fallback: Optional[str] = None
     suite: str = "all"  # "core", "hard", "v2", "all", "custom"
     task_ids: List[str] = field(default_factory=list)
     workers: int = 4
@@ -37,6 +40,7 @@ class RunConfig:
     use_mock_solver: bool = False
     use_noop_solver: bool = False
     enable_judge: bool = True
+    judge_model: Optional[str] = None
     enable_tracing: bool = False
     config_path: str = "config.yaml"
     tasks_dir: str = "tasks"
@@ -160,6 +164,20 @@ class BenchmarkManager:
     def start_run(self, config: RunConfig) -> str:
         """Launches a benchmark run in a background daemon thread."""
         with self._lock:
+            # Synchronously validate provider policy before any state persistence or thread launch
+            val_res = validate_execution_config(
+                execution_mode=config.execution_mode,
+                provider=config.provider,
+                fallback=config.fallback,
+                config_path=config.config_path,
+                use_mock_solver=config.use_mock_solver,
+                use_noop_solver=config.use_noop_solver,
+                model_name=config.model_name,
+            )
+            config.execution_mode = val_res["execution_mode"]
+            config.provider = val_res["provider"]
+            config.fallback = val_res["fallback"]
+
             run_id = config.run_id
             if self.is_run_active(run_id):
                 raise RuntimeError(f"Run '{run_id}' is already active.")
@@ -218,6 +236,7 @@ class BenchmarkManager:
             runs_dir=str(self.runs_dir),
             config_path=config.config_path,
             enable_judge=config.enable_judge,
+            judge_model=config.judge_model,
             enable_tracing=config.enable_tracing,
         )
 
@@ -287,6 +306,9 @@ class BenchmarkManager:
                 on_step=on_step,
                 on_episode_start=on_ep_start,
                 on_episode_end=on_ep_end,
+                execution_mode=config.execution_mode,
+                provider=config.provider,
+                fallback=config.fallback,
             )
 
             now_iso = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")

@@ -2,7 +2,7 @@
 
 **DebugArena — an arena where coding agents compete on real bugs, scored by hidden tests in a Docker sandbox, and every attempt becomes training data.**
 *Formerly named AgentGym; the Python package keeps the name `agentgym` for compatibility.*
-Nebius × NVIDIA Global AI Hackathon · Track: Agent Gym & Coding Environments
+Nebius × NVIDIA Global AI Hackathon · Track: Coding and Agentic Engineering
 Author: Bhaskar · Document date: 2 Oct 2026 · Build window: 10 days
 
 ---

@@ -1,0 +1,40 @@
+{
+  "os": {
+    "container_platform": "Linux-x86_64",
+    "container_distro": "Debian GNU/Linux 12 (bookworm)",
+    "host_platform": "Windows 11 Home Single Language 10.0.26300"
+  },
+  "python_version": "3.11.8",
+  "docker": {
+    "sandbox_type": "docker",
+    "image_tag": "agentgym-sandbox:python3.11",
+    "image_digest": "sha256:2ef525c972bc5bb94d82efbeae024115c4d7757e219cd06ce9d6aec7a1d7246c",
+    "sandbox_constraints": {
+      "network_disabled": true,
+      "memory_limit": "256m",
+      "cpu_quota": 0.5,
+      "pids_limit": 128,
+      "timeout_seconds": 10
+    }
+  },
+  "packages": {
+    "pytest": "7.4.4",
+    "pydantic": "2.6.4",
+    "pyyaml": "6.0.1",
+    "openai": "1.14.1",
+    "rich": "13.7.1",
+    "streamlit": "1.32.2"
+  },
+  "provider_configuration": {
+    "provider": "nebius",
+    "endpoint_base_url": "https://api.tokenfactory.nebius.com/v1",
+    "execution_mode": "hackathon",
+    "fallback_policy": "strict_error_no_fallback"
+  },
+  "git": {
+    "repository": "https://github.com/bhaskararamkarri/DebugArena.git",
+    "commit_sha": "0587a3b61c06d2eb920eeb8b4f396cab4ef54251",
+    "evaluation_source_commit": "a2c5d80092c7caecb084931a293158c558b8849b",
+    "working_tree_cleanliness": "dirty"
+  }
+}

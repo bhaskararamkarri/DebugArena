@@ -16,6 +16,7 @@ from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TimeEl
 from agentgym.agent import Agent, MockAgent, get_prompt_hash
 from agentgym.env import BugFixEnv
 from agentgym.judge import CodeJudge
+from agentgym.provider import validate_execution_config
 from agentgym.tracer import EpisodeTracer
 
 console = Console()
@@ -31,13 +32,16 @@ class EpisodeRunner:
         config_path: str = "config.yaml",
         enable_judge: bool = True,
         enable_tracing: bool = False,
+        execution_mode: str = "hackathon",
+        judge_model: Optional[str] = None,
     ):
         self.tasks_dir = tasks_dir
         self.runs_dir = Path(runs_dir)
         self.config_path = config_path
         self.enable_judge = enable_judge
+        self.execution_mode = execution_mode
         self.file_lock = threading.Lock()
-        self.judge = CodeJudge(config_path=config_path) if enable_judge else None
+        self.judge = CodeJudge(model_name=judge_model, config_path=config_path, execution_mode=execution_mode) if enable_judge else None
         self.tracer = EpisodeTracer(enabled=enable_tracing)
 
     def run_episode(
@@ -52,6 +56,9 @@ class EpisodeRunner:
         feedback_mode: Optional[str] = None,
         cancel_event: Optional[threading.Event] = None,
         on_step: Optional[Callable[[Dict[str, Any]], None]] = None,
+        execution_mode: Optional[str] = None,
+        provider: Optional[str] = None,
+        fallback: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Runs one full episode on a single task."""
         if cancel_event and cancel_event.is_set():
@@ -67,6 +74,8 @@ class EpisodeRunner:
                 "canceled": True,
             }
 
+        effective_mode = execution_mode or self.execution_mode
+
         env = BugFixEnv(
             tasks_dir=self.tasks_dir,
             max_steps=max_steps,
@@ -79,7 +88,13 @@ class EpisodeRunner:
         original_files = dict(obs.get("files", {}))
 
         if agent is None:
-            agent = Agent(model_name=model_name, config_path=self.config_path)
+            agent = Agent(
+                model_name=model_name,
+                provider=provider,
+                config_path=self.config_path,
+                execution_mode=effective_mode,
+                fallback_provider=fallback,
+            )
 
         if isinstance(agent, MockAgent) and env.current_task:
             agent.set_reference_fix(env.current_task.get("reference_fix", {}))
@@ -236,8 +251,25 @@ class EpisodeRunner:
         on_episode_start: Optional[Callable[[str, str], None]] = None,
         on_episode_end: Optional[Callable[[Dict[str, Any]], None]] = None,
         on_run_progress: Optional[Callable[[int, int, Dict[str, Any]], None]] = None,
+        execution_mode: Optional[str] = None,
+        provider: Optional[str] = None,
+        fallback: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
         """Runs a batch of tasks in parallel using a thread pool with cancellation and callbacks."""
+        effective_mode = execution_mode or self.execution_mode
+        resolved_cfg = validate_execution_config(
+            execution_mode=effective_mode,
+            provider=provider,
+            fallback=fallback,
+            config_path=self.config_path,
+            use_mock_solver=use_mock_solver,
+            use_noop_solver=use_noop_solver,
+            model_name=model_name,
+        )
+        resolved_provider = resolved_cfg["provider"]
+        resolved_fallback = resolved_cfg["fallback"]
+        resolved_mode = resolved_cfg["execution_mode"]
+
         results: List[Dict[str, Any]] = []
         run_folder = self.runs_dir / run_id
         run_folder.mkdir(parents=True, exist_ok=True)
@@ -278,7 +310,7 @@ class EpisodeRunner:
         if completed_task_ids:
             console.print(f"[yellow]Resuming run '{run_id}': skipping {len(completed_task_ids)} already completed tasks, {len(tasks_to_run)} remaining.[/yellow]")
 
-        console.print(f"[bold cyan]Starting batch run:[/bold cyan] {run_id} | Model: {model_name} | Tasks: {len(tasks_to_run)} | Workers: {workers}")
+        console.print(f"[bold cyan]Starting batch run:[/bold cyan] {run_id} | Model: {model_name} | Mode: {resolved_mode} | Provider: {resolved_provider} | Tasks: {len(tasks_to_run)} | Workers: {workers}")
 
         if not tasks_to_run:
             console.print("[green]All requested tasks already completed in this run![/green]")
@@ -314,6 +346,9 @@ class EpisodeRunner:
                     feedback_mode=feedback_mode,
                     cancel_event=cancel_event,
                     on_step=on_step,
+                    execution_mode=resolved_mode,
+                    provider=resolved_provider,
+                    fallback=resolved_fallback,
                 )
                 futures[fut] = (tid, ep_id)
 
@@ -373,6 +408,10 @@ class EpisodeRunner:
         summary_data = {
             "run_id": run_id,
             "model": model_name,
+            "judge_model": self.judge.model_name if self.judge else None,
+            "execution_mode": resolved_mode,
+            "provider": resolved_provider,
+            "fallback": resolved_fallback,
             "protocol": "v2",
             "sandbox_type": sandbox_type,
             "docker_image_digest": docker_image_digest,

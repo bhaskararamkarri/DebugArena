@@ -17,6 +17,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, Optional, Set
 
+from agentgym.security import safe_path, SecurityError, PathTraversalSecurityError
+
 
 @dataclass
 class SandboxResult:
@@ -98,7 +100,7 @@ class LocalSandbox(BaseSandbox):
 
     def write_files(self, files: Dict[str, str]) -> None:
         for rel_path, content in files.items():
-            full_path = self.temp_dir / rel_path
+            full_path = safe_path(self.temp_dir, rel_path)
             full_path.parent.mkdir(parents=True, exist_ok=True)
             full_path.write_text(content, encoding="utf-8")
 
@@ -149,7 +151,7 @@ class LocalSandbox(BaseSandbox):
         """Mounts hidden tests temporarily, executes pytest with junitxml, and cleans them up."""
         written_test_paths: list[Path] = []
         for rel_path, content in test_files.items():
-            p = self.temp_dir / rel_path
+            p = safe_path(self.temp_dir, rel_path)
             p.parent.mkdir(parents=True, exist_ok=True)
             p.write_text(content, encoding="utf-8")
             written_test_paths.append(p)
@@ -275,7 +277,7 @@ class DockerSandbox(BaseSandbox):
 
     def write_files(self, files: Dict[str, str]) -> None:
         for rel_path, content in files.items():
-            p = self.workspace_dir / rel_path
+            p = safe_path(self.workspace_dir, rel_path)
             p.parent.mkdir(parents=True, exist_ok=True)
             p.write_text(content, encoding="utf-8")
 
@@ -337,7 +339,7 @@ class DockerSandbox(BaseSandbox):
     def run_tests(self, test_files: Dict[str, str], timeout: Optional[int] = None) -> TestRunResult:
         # Write hidden tests into separate tests_dir
         for rel_path, content in test_files.items():
-            p = self.tests_dir / rel_path
+            p = safe_path(self.tests_dir, rel_path)
             p.parent.mkdir(parents=True, exist_ok=True)
             p.write_text(content, encoding="utf-8")
 

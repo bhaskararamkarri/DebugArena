@@ -2,7 +2,7 @@
 
 > **DebugArena — an arena where coding agents compete on real bugs, scored by hidden tests in a Docker sandbox, and every attempt becomes training data.**  
 > *Formerly named AgentGym; the Python package keeps the name `agentgym` for compatibility.*  
-> *Built for Nebius × NVIDIA Global AI Hackathon · Track: Agent Gym & Coding Environments*
+> *Built for Nebius × NVIDIA Global AI Hackathon · Track: Coding and Agentic Engineering*
 
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -64,12 +64,21 @@ flowchart TD
 
 ---
 
-## 3. Benchmark Suites & Benchmark V2
+## 3. Benchmark Suites & Task Composition
 
-DebugArena includes **44 verified benchmark tasks** across three suites:
+DebugArena organizes its task inventory across clearly defined lifecycle stages:
+
+### 1. Official Canonical Benchmark (30 Official Benchmark Tasks)
+The authoritative 30 official benchmark tasks evaluated in our canonical Protocol v2 containerized runs (`runs/official/`):
 - **Core-20 (`t01`–`t20`):** 20 baseline debugging tasks (7 easy, 9 medium, 4 hard) covering off-by-one errors, mutable defaults, division truncations, custom sorting, and multi-file interfaces.
 - **Hard-10 (`h01`–`h10`):** 10 multi-step engineering bugs (topological sort cycles, Dijkstra tiebreaking, sliding window limiter, ledger rounding invariants, config precedence).
-- **V2 Pilot Suite (`v01`–`v14`):** 14 advanced SWE and adversarial tasks built with the **Task Factory**, covering all formal taxonomy categories (A–M) including concurrency deadlocks, thread-safe LRU locking, cursor pagination, idempotent webhooks, JSONPath evaluators, markdown table lexers, distributed saga transactions, and adversarial distractor traps.
+
+### 2. Benchmark V2 Suite — Experimental / Candidate (70 Tasks)
+- **V2-70 (`v01`–`v70`):** 70 deep software engineering and adversarial tasks generated via the **Task Factory**, spanning all 13 formal taxonomy categories (Categories A–M). All 70 tasks are 100% verified for determinism (3× repetition check) and reference-fix correctness, pending future official benchmark expansion.
+
+### 3. Total Task Corpus & Historical Milestones
+- **Total Verified Corpus (100 Tasks):** The complete repository corpus comprises 100 tasks (30 Official + 70 V2).
+- **Historical 44-Task Milestone:** Earlier intermediate documentation referenced "44 verified benchmark tasks", representing the pre-scale snapshot consisting of the 30 V1 tasks plus the initial 14 V2 Pilot tasks (`v01`–`v14`) before the full 70-task V2 scale-out. A full task lifecycle registry is maintained in `tasks/manifest.json`.
 
 ### Formal Benchmark V2 Taxonomy (Categories A–M)
 - `Category A`: Basic Debugging
@@ -103,24 +112,40 @@ python scripts/verify_tasks.py --suite all --sandbox local
 ## 4. Setup & Quickstart
 
 ### Prerequisites
-- Python 3.10+
-- Docker (Docker Desktop or Linux Docker daemon running)
+- **Python 3.10+** (tested with Python 3.11 and 3.14)
+- **Git**
+- **Docker** (optional for local/offline baselines and unit tests; recommended for full containerized benchmark isolation)
 
 ### Installation
 ```bash
-git clone <REPO_URL>
-cd debugarena
+# 1. Clone the repository
+git clone https://github.com/bhaskararamkarri/DebugArena.git
+cd DebugArena
 
+# 2. Create and activate virtual environment
 python -m venv venv
 # Linux / macOS:
 source venv/bin/activate
-# Windows:
-venv\Scripts\activate
+# Windows (PowerShell):
+.\venv\Scripts\Activate.ps1
+# Windows (Command Prompt):
+venv\Scripts\activate.bat
 
+# 3. Install editable package and dependencies
 pip install -e .
 ```
 
-### Build Docker Sandbox Image
+### Environment Configuration
+DebugArena supports offline baseline evaluations and unit tests without API keys.
+
+For live model evaluations on Nebius Token Factory:
+Copy `.env.example` to `.env` and set your Nebius API key:
+```ini
+NEBIUS_API_KEY=your_nebius_api_key_here
+```
+*(Optional: `OPENROUTER_API_KEY` / `NVIDIA_API_KEY` for development mode testing).*
+
+### Build Docker Sandbox Image (Optional for Local Baselines / Recommended for Container Isolation)
 ```bash
 docker build -t agentgym-sandbox:python3.11 -f - . <<EOF
 FROM python:3.11-slim
@@ -129,43 +154,69 @@ WORKDIR /workspace
 EOF
 ```
 
-### Configuration
-Copy `.env.example` to `.env` and insert your Nebius API key:
-```ini
-NEBIUS_API_KEY=your_nebius_api_key
-```
-
 ---
 
 ## 5. How to Run
 
-### 1. Offline Baselines (Quick-Start)
-Run the built-in reference solver (upper bound) and no-op submit (lower bound) through the Docker sandbox:
+### 1. Clean-Clone Reproducibility Audit (Automated 3-Level Verification)
+Verify end-to-end repository reproducibility (Level A offline, Level B Docker container, Level C live Nebius):
 ```bash
-# Reference Solver:
-python scripts/run_eval.py --mock-solver --suite core --run-id baseline_reference_core_v2 --sandbox docker --no-judge
-python scripts/run_eval.py --mock-solver --suite hard --run-id baseline_reference_hard_v2 --sandbox docker --no-judge
-
-# No-Op Submit:
-python scripts/run_eval.py --noop-solver --suite core --run-id baseline_noop_core_v2 --sandbox docker --no-judge
-python scripts/run_eval.py --noop-solver --suite hard --run-id baseline_noop_hard_v2 --sandbox docker --no-judge
+python scripts/reproduce_clean.py
 ```
 
-### 2. Live Model Evaluations
+### 2. Run the Test Suite (No API Keys or Docker Required)
+Execute the complete regression, security, and reproducibility test suite:
+```bash
+pytest
+# or with verbose output:
+pytest -v
+```
+
+### 3. Verify Benchmark Tasks (Zero Flakiness Check)
+Verify all tasks deterministic before/after behavior:
+```bash
+# Fast local verification:
+python scripts/verify_tasks.py --suite core --sandbox local
+
+# Full containerized verification:
+python scripts/verify_tasks.py --suite all --sandbox docker
+```
+
+### 4. Offline Baselines (Quick-Start, No API Keys Required)
+Run the built-in reference solver (upper bound) and no-op submit (lower bound):
+```bash
+# Local Sandbox (Fast, no Docker required):
+python scripts/run_eval.py --mock-solver --suite core --run-id baseline_reference_core --sandbox local --no-judge
+python scripts/run_eval.py --noop-solver --suite core --run-id baseline_noop_core --sandbox local --no-judge
+
+# Docker Sandbox (Mandatory Container Isolation):
+python scripts/run_eval.py --mock-solver --suite core --run-id baseline_reference_core_v2 --sandbox docker --no-judge
+python scripts/run_eval.py --noop-solver --suite core --run-id baseline_noop_core_v2 --sandbox docker --no-judge
+```
+
+### 5. Live Model Evaluations on Nebius Token Factory (`NEBIUS_API_KEY` Required)
+Evaluate NVIDIA Nemotron models directly on Nebius infrastructure in official hackathon mode (Nebius-only, zero silent fallback):
 ```bash
 # Evaluate NVIDIA Nemotron Nano (30B):
-python scripts/run_eval.py --model nemotron_nano --suite core --workers 4 --run-id core_nano_v2 --sandbox docker
+python scripts/run_eval.py --model nemotron_nano --suite core --workers 4 --run-id core_nano_v2 --sandbox docker --mode hackathon
 
 # Evaluate NVIDIA Nemotron Super (120B):
-python scripts/run_eval.py --model nemotron_super --suite core --workers 4 --run-id core_super_v2 --sandbox docker
+python scripts/run_eval.py --model nemotron_super --suite core --workers 4 --run-id core_super_v2 --sandbox docker --mode hackathon
 ```
 
-### 3. Launch the Streamlit Dashboard
+### 6. Launch the Real-Time Control Center Dashboard
+Launch the interactive Streamlit Control Center to monitor evaluations, inspect step telemetry, and explore the benchmark leaderboard:
 ```bash
 streamlit run dashboard/app.py
 ```
+Key Dashboard Capabilities:
+- 🚀 **New Evaluation:** Configure and launch official 100-task benchmarks or Custom Coding Tasks with real-time feedback.
+- 🔴 **Live Monitor:** Sub-second telemetry streaming, active task spotlights, and cooperative cancellation.
+- 🏆 **Leaderboard:** Statistical pass rates with 95% Wilson confidence intervals, step efficiency, and return metrics.
+- 📊 **Task Breakdown:** Multi-category taxonomy analytics and error mode categorization.
+- 🎬 **Episode Replay:** Step-by-step inspector displaying model prompts, JSON actions, outputs, and diffs.
 
-### 4. Export Training Datasets (SFT & DPO)
+### 6. Export Training Datasets (SFT & DPO)
 ```bash
 # Export Protocol v2 verified SFT dataset (49 episodes)
 python scripts/export_dataset.py --protocol v2 --format sft --split

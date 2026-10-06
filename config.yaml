@@ -1,8 +1,9 @@
 default_provider: "nebius"
+hackathon_track: "Coding and Agentic Engineering"
 
 providers:
   nebius:
-    base_url: "https://api.studio.nebius.ai/v1"
+    base_url: "https://api.tokenfactory.nebius.com/v1"
     api_key_env: "NEBIUS_API_KEY"
   nvidia:
     base_url: "https://integrate.api.nvidia.com/v1"
@@ -18,19 +19,16 @@ models:
   nemotron_nano:
     name: "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B"
     provider: "nebius"
-    fallback_provider: "openrouter"
     temperature: 0.2
     max_tokens: 2000
   nemotron_super:
     name: "nvidia/nemotron-3-super-120b-a12b"
     provider: "nebius"
-    fallback_provider: "openrouter"
     temperature: 0.2
     max_tokens: 2000
   nemotron_judge:
     name: "nvidia/Nemotron-3-Ultra-550b-a55b"
     provider: "nebius"
-    fallback_provider: "openrouter"
     temperature: 0.0
     max_tokens: 500
 

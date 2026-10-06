@@ -20,6 +20,7 @@ import altair as alt
 import pandas as pd
 import streamlit as st
 
+from agentgym.provider import ExecutionMode, ProviderPolicyError
 from agentgym.custom_task import (
     CustomTask,
     ZipSecurityError,
@@ -141,7 +142,7 @@ if "custom_ref_files" not in st.session_state:
 
 # Sidebar Navigation
 st.sidebar.title("⚔️ DebugArena")
-st.sidebar.caption("Real-Time Benchmark Control Center · 100 Verified Tasks + Custom Eval")
+st.sidebar.caption("Real-Time Benchmark Control Center · Track: Coding and Agentic Engineering")
 st.sidebar.markdown("---")
 
 active_run_id = manager.get_active_run_id()
@@ -162,7 +163,7 @@ page = st.sidebar.radio(
 )
 
 st.sidebar.markdown("---")
-st.sidebar.markdown(f"**Official Tasks:** `{len(tasks_meta)}` (Core: 20 | Hard: 10 | V2: 70)")
+st.sidebar.markdown(f"**Benchmark Tasks:** `{len(tasks_meta)}` (Official: 30 | V2: 70)")
 custom_runs_count = sum(1 for r in runs_data.values() if r.get("is_custom"))
 official_runs_count = len(runs_data) - custom_runs_count
 st.sidebar.markdown(f"**Recorded Runs:** `{len(runs_data)}` (Official: {official_runs_count} | Custom: {custom_runs_count})")
@@ -191,9 +192,16 @@ if page == "🚀 New Evaluation":
         )
 
         with st.form("new_eval_form"):
-            st.subheader("1. Run & Model Configuration")
+            st.subheader("1. Run & Execution Mode Configuration")
             c1, c2 = st.columns(2)
             with c1:
+                exec_mode = st.radio(
+                    "Execution Profile",
+                    ["🏆 Hackathon / Official (Nebius Only — No Fallback)", "🛠️ Development"],
+                    index=0,
+                    help="Hackathon mode guarantees evaluation runs strictly on Nebius Token Factory with zero silent fallback.",
+                )
+                is_hackathon = exec_mode.startswith("🏆")
                 default_run_id = f"eval_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}"
                 run_id_input = st.text_input("Run Identifier", value=default_run_id, help="Unique directory name under runs/")
                 model_keys = list(available_models.keys())
@@ -201,9 +209,13 @@ if page == "🚀 New Evaluation":
                 selected_model_name = available_models[sel_model_key]["name"]
 
             with c2:
-                default_prov = available_models[sel_model_key].get("provider", "nebius")
-                prov_index = available_providers.index(default_prov) if default_prov in available_providers else 0
-                provider_input = st.selectbox("API Provider", available_providers, index=prov_index)
+                if is_hackathon:
+                    provider_input = "nebius"
+                    st.info("🔒 **Provider Policy:** Locked to **Nebius Token Factory**. Silent fallback is disabled.")
+                else:
+                    default_prov = available_models[sel_model_key].get("provider", "nebius")
+                    prov_index = available_providers.index(default_prov) if default_prov in available_providers else 0
+                    provider_input = st.selectbox("API Provider", available_providers, index=prov_index)
                 feedback_mode = st.selectbox("Feedback Mode", ["diagnostic", "realistic", "blind"], index=0, help="Diagnostic (transparent), Realistic (hidden tests masked), Blind (zero-shot, reward masked)")
 
             st.subheader("2. Benchmark Suite & Task Selection")
@@ -247,6 +259,7 @@ if page == "🚀 New Evaluation":
                 cfg = RunConfig(
                     run_id=run_id_input.strip(),
                     model_name=selected_model_name,
+                    execution_mode="hackathon" if is_hackathon else "development",
                     provider=provider_input,
                     suite=suite_choice.lower().split()[0],
                     task_ids=selected_tasks,
@@ -266,6 +279,8 @@ if page == "🚀 New Evaluation":
                     st.info("Switching to 🔴 **Live Monitor** to track real-time execution...")
                     time.sleep(1.0)
                     st.rerun()
+                except ProviderPolicyError as e:
+                    st.error(f"🚨 Provider Policy Error:\n{e}")
                 except Exception as e:
                     st.error(f"Failed to start benchmark run: {e}")
 
@@ -409,6 +424,14 @@ if page == "🚀 New Evaluation":
         with st.form("custom_task_launch_form"):
             cm1, cm2 = st.columns(2)
             with cm1:
+                custom_exec_mode = st.radio(
+                    "Execution Profile",
+                    ["🏆 Hackathon / Official (Nebius Only — No Fallback)", "🛠️ Development"],
+                    index=0,
+                    key="custom_exec_mode_radio",
+                    help="Hackathon mode guarantees evaluation runs strictly on Nebius Token Factory with zero silent fallback.",
+                )
+                custom_is_hackathon = custom_exec_mode.startswith("🏆")
                 auto_task_id = generate_custom_task_id()
                 custom_run_id_input = st.text_input("Custom Run Identifier", value=auto_task_id, help="Unique identifier for this custom evaluation.")
                 model_keys = list(available_models.keys())
@@ -416,9 +439,13 @@ if page == "🚀 New Evaluation":
                 sel_model_name = available_models[sel_m_key]["name"]
 
             with cm2:
-                def_prov = available_models[sel_m_key].get("provider", "nebius")
-                p_idx = available_providers.index(def_prov) if def_prov in available_providers else 0
-                custom_provider = st.selectbox("API Provider", available_providers, index=p_idx, key="custom_prov_select")
+                if custom_is_hackathon:
+                    custom_provider = "nebius"
+                    st.info("🔒 **Provider Policy:** Locked to **Nebius Token Factory**. Silent fallback is disabled.")
+                else:
+                    def_prov = available_models[sel_m_key].get("provider", "nebius")
+                    p_idx = available_providers.index(def_prov) if def_prov in available_providers else 0
+                    custom_provider = st.selectbox("API Provider", available_providers, index=p_idx, key="custom_prov_select")
                 custom_feedback = st.selectbox("Feedback Mode", ["diagnostic", "realistic", "blind"], index=0, help="Diagnostic (detailed), Realistic (hidden tests masked), Blind (zero-shot)")
 
             ce1, ce2, ce3 = st.columns(3)
@@ -457,6 +484,7 @@ if page == "🚀 New Evaluation":
                 cfg = RunConfig(
                     run_id=custom_run_id_input.strip(),
                     model_name=sel_model_name,
+                    execution_mode="hackathon" if custom_is_hackathon else "development",
                     provider=custom_provider,
                     suite="custom",
                     task_ids=[custom_run_id_input.strip()],
@@ -475,6 +503,8 @@ if page == "🚀 New Evaluation":
                     st.info("Switching to 🔴 **Live Monitor** to observe agent actions in real time...")
                     time.sleep(1.0)
                     st.rerun()
+                except ProviderPolicyError as e:
+                    st.error(f"🚨 Provider Policy Error:\n{e}")
                 except Exception as e:
                     st.error(f"Failed to start custom evaluation: {e}")
 

@@ -9,6 +9,15 @@ from .sandbox import Sandbox, SandboxResult
 from .agent import Agent, MockAgent
 from .runner import EpisodeRunner
 from .manager import BenchmarkManager, RunConfig, RunStatus, RunState, get_benchmark_manager
+from .security import SecurityError, PathTraversalSecurityError, safe_path
+from .provider import (
+    ExecutionMode,
+    HACKATHON_TRACK_NAME,
+    NEBIUS_CANONICAL_ENDPOINT,
+    ProviderPolicyError,
+    validate_execution_config,
+    resolve_provider_config,
+)
 from .custom_task import (
     CustomTask,
     ZipSecurityError,
@@ -33,6 +42,15 @@ __all__ = [
     "RunStatus",
     "RunState",
     "get_benchmark_manager",
+    "SecurityError",
+    "PathTraversalSecurityError",
+    "safe_path",
+    "ExecutionMode",
+    "HACKATHON_TRACK_NAME",
+    "NEBIUS_CANONICAL_ENDPOINT",
+    "ProviderPolicyError",
+    "validate_execution_config",
+    "resolve_provider_config",
     "CustomTask",
     "ZipSecurityError",
     "extract_zip_safely",

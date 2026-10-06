@@ -10,6 +10,7 @@ import yaml
 
 from agentgym.reward import RewardCalculator
 from agentgym.sandbox import BaseSandbox, Sandbox
+from agentgym.security import SecurityError
 from task_factory.feedback import get_feedback_adapter, BaseFeedbackAdapter
 
 
@@ -200,8 +201,11 @@ class BugFixEnv:
             if not path or not isinstance(content, str):
                 self.last_output = "Error: 'edit' action requires valid 'path' and string 'content'."
             else:
-                self.sandbox.write_files({path: content})
-                self.last_output = f"File updated: {path}"
+                try:
+                    self.sandbox.write_files({path: content})
+                    self.last_output = f"File updated: {path}"
+                except SecurityError as e:
+                    self.last_output = f"Security error: Invalid path '{path}'."
 
         elif action_type == "run":
             cmd = action.get("cmd", "")

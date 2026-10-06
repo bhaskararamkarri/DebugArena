@@ -4,7 +4,7 @@ import dotenv
 import openai
 
 dotenv.load_dotenv()
-client = openai.OpenAI(base_url="https://api.studio.nebius.ai/v1", api_key=os.getenv("NEBIUS_API_KEY"))
+client = openai.OpenAI(base_url="https://api.tokenfactory.nebius.com/v1", api_key=os.getenv("NEBIUS_API_KEY"))
 
 # Test Nano
 try:
@@ -16,7 +16,7 @@ try:
     )
     msg = res_nano.choices[0].message
     print("Nebius Nano content:", repr(msg.content))
-    print("Nebius Nano reasoning:", repr(msg.reasoning[:100] if msg.reasoning else None))
+    print("Nebius Nano reasoning:", repr(getattr(msg, "reasoning", None)[:100] if getattr(msg, "reasoning", None) else None))
 except Exception as e:
     print("Nebius Nano error:", e)
 

@@ -1,0 +1,199 @@
+{
+  "report_type": "DebugArena Clean-Clone Reproducibility Audit",
+  "schema_version": "2.0",
+  "timestamp": "2026-10-06T18:29:05Z",
+  "environment": {
+    "os": "Windows-11-10.0.26300-SP0",
+    "python_version": "3.14.5",
+    "executable": "C:\\Users\\BHASKARARAM\\AppData\\Local\\Programs\\Python\\Python314\\python.exe"
+  },
+  "git_provenance": {
+    "is_git_repo": true,
+    "commit_sha": "0587a3b61c06d2eb920eeb8b4f396cab4ef54251",
+    "branch": "main",
+    "clean": false,
+    "modified_files": [
+      "MVP.md",
+      "PROGRESS.md",
+      "README.md",
+      "SUBMISSION.md",
+      "agentgym/__init__.py",
+      "agentgym/agent.py",
+      "agentgym/custom_task.py",
+      "agentgym/env.py",
+      "agentgym/judge.py",
+      "agentgym/manager.py",
+      "agentgym/runner.py",
+      "agentgym/sandbox.py",
+      "config.yaml",
+      "dashboard/app.py",
+      "dataset/debugarena_dpo.jsonl",
+      "scripts/run_eval.py",
+      "scripts/test_json_mode.py",
+      "scripts/test_nebius.py"
+    ],
+    "untracked_files": [
+      ".agent/",
+      ".agents/",
+      ".gemini/",
+      ".gsd/",
+      "GSD-STYLE.md",
+      "PROJECT_RULES.md",
+      "VERSION",
+      "adapters/",
+      "agentgym/provider.py",
+      "agentgym/security.py",
+      "dataset/debugarena_dpo_train.jsonl",
+      "dataset/debugarena_dpo_val.jsonl",
+      "model_capabilities.yaml",
+      "reports/reproducibility_report.json",
+      "runs/official/",
+      "runs/repro_clean/",
+      "runs/repro_mock_core/",
+      "scripts/build_official_artifacts.py",
+      "scripts/generate_task_manifest.py",
+      "scripts/reproduce_clean.py",
+      "scripts/search_repo.ps1",
+      "scripts/search_repo.sh",
+      "scripts/setup_search.ps1",
+      "scripts/setup_search.sh",
+      "scripts/validate-agents.ps1",
+      "scripts/validate-agents.sh",
+      "scripts/validate-all.ps1",
+      "scripts/validate-all.sh",
+      "scripts/validate-encoding.ps1",
+      "scripts/validate-encoding.sh",
+      "scripts/validate-skills.ps1",
+      "scripts/validate-skills.sh",
+      "scripts/validate-templates.ps1",
+      "scripts/validate-templates.sh",
+      "scripts/validate-workflows.ps1",
+      "scripts/validate-workflows.sh",
+      "tasks/manifest.json",
+      "tests/test_benchmark_composition.py",
+      "tests/test_documentation_placeholders.py",
+      "tests/test_judge_config.py",
+      "tests/test_official_benchmark.py",
+      "tests/test_path_traversal.py",
+      "tests/test_provider_policy.py",
+      "tests/test_reproducibility.py",
+      "tests/test_track_name.py"
+    ]
+  },
+  "task_manifest_hashes": {
+    "full_task_corpus_hash": "b41e631ee10b7aa7b1edf70eadac5158ff5363d495b110837ac555eda2701af3",
+    "official_task_manifest_hash": "016fa52aa64aa6875ebf1615663c49eecbd7d4b2616167f02732145f418cad9f"
+  },
+  "fresh_clone_verification": {
+    "fresh_clone": true,
+    "clone_path": "C:/Users/BHASKA~1/AppData/Local/Temp/debugarena_clean_clone_audit",
+    "fresh_virtualenv": true,
+    "clean_git_state": true,
+    "existing_venv_reused": false,
+    "existing_runs_reused": false,
+    "existing_env_reused": false,
+    "global_debugarena_import_detected": false,
+    "git_commit": "186c3d9275fc55f658034b8a31e17070ff1a8def",
+    "pip_install": {
+      "status": "PASS",
+      "exit_code": 0
+    },
+    "import_resolution": {
+      "imported_path": "C:/Users/BHASKA~1/AppData/Local/Temp/debugarena_clean_clone_audit/agentgym/__init__.py",
+      "is_local_to_clone": true
+    },
+    "pytest_result": {
+      "status": "PASS",
+      "exit_code": 0,
+      "stdout": "...................................................................s.... [ 58%]\n...............................sssss...............                      [100%]\n117 passed, 6 skipped in 78.81s (0:01:18)",
+      "stderr": ""
+    },
+    "task_verification_core": {
+      "status": "PASS",
+      "exit_code": 0
+    },
+    "offline_baseline_result": {
+      "status": "PASS",
+      "run_id": "repro_mock_core",
+      "total_tasks": 20,
+      "solved_tasks": 20,
+      "success_rate": 1.0,
+      "avg_return": 0.54
+    },
+    "task_inventory": {
+      "status": "PASS",
+      "total_tasks": 100,
+      "official_tasks_count": 30,
+      "v2_tasks_count": 70,
+      "missing_on_disk": [],
+      "full_task_corpus_hash": "b41e631ee10b7aa7b1edf70eadac5158ff5363d495b110837ac555eda2701af3",
+      "official_task_manifest_hash": "016fa52aa64aa6875ebf1615663c49eecbd7d4b2616167f02732145f418cad9f"
+    },
+    "full_task_corpus_hash": "b41e631ee10b7aa7b1edf70eadac5158ff5363d495b110837ac555eda2701af3",
+    "official_task_manifest_hash": "016fa52aa64aa6875ebf1615663c49eecbd7d4b2616167f02732145f418cad9f",
+    "status": "PASS"
+  },
+  "reproducibility_levels": {
+    "level_a_offline": {
+      "status": "PASS",
+      "description": "Full offline installation, unit tests, task registry validation, and local mock solver in fresh clone.",
+      "required_files": {
+        "README.md": true,
+        "SUBMISSION.md": true,
+        "PROGRESS.md": true,
+        "pyproject.toml": true,
+        "config.yaml": true,
+        ".env.example": true,
+        "tasks/manifest.json": true,
+        "runs/official/manifest.json": true,
+        "runs/official/results.json": true,
+        "runs/official/environment.json": true,
+        "runs/official/summary.json": true,
+        "runs/official/trajectories.jsonl": true,
+        "runs/official/README.md": true
+      },
+      "task_inventory": {
+        "status": "PASS",
+        "total_tasks": 100,
+        "official_tasks_count": 30,
+        "v2_tasks_count": 70,
+        "missing_on_disk": [],
+        "full_task_corpus_hash": "b41e631ee10b7aa7b1edf70eadac5158ff5363d495b110837ac555eda2701af3",
+        "official_task_manifest_hash": "016fa52aa64aa6875ebf1615663c49eecbd7d4b2616167f02732145f418cad9f"
+      },
+      "unit_tests": {
+        "status": "PASS",
+        "exit_code": 0,
+        "summary": "117 passed, 6 skipped in 65.68s (0:01:05)"
+      },
+      "offline_baseline": {
+        "status": "PASS",
+        "run_id": "repro_mock_core",
+        "total_tasks": 20,
+        "solved_tasks": 20,
+        "success_rate": 1.0,
+        "avg_return": 0.54
+      }
+    },
+    "level_b_docker": {
+      "status": "NOT_EXECUTED_DOCKER_UNAVAILABLE",
+      "description": "Containerized benchmark execution in isolated Docker sandbox.",
+      "docker_status": {
+        "available": false,
+        "reason": "Error while fetching server API version: (2, 'CreateFile', 'The system cannot find the file specified.')",
+        "note": "Docker daemon unavailable on host. Local subprocess sandbox is used for offline verification."
+      },
+      "reproduction_command": "docker build -t agentgym-sandbox:python3.11 -f - . <<EOF\nFROM python:3.11-slim\nRUN pip install --no-cache-dir pytest\nWORKDIR /workspace\nEOF\npytest tests/ -v\npython scripts/verify_tasks.py --suite all --sandbox docker"
+    },
+    "level_c_live_nebius": {
+      "status": "NOT_EXECUTED_CREDENTIALS_REQUIRED",
+      "description": "Live model evaluation against Nebius Token Factory.",
+      "credential_status": {
+        "configured": false,
+        "note": "NEBIUS_API_KEY is not set. Level C (live model inference) requires external credentials."
+      },
+      "reproduction_command": "export NEBIUS_API_KEY='your_key'\npython scripts/run_eval.py --model nemotron_super --suite core --sandbox local --run-id live_eval_smoke"
+    }
+  },
+  "overall_verdict": "REPRODUCIBLE (Level A Clean-Clone Certified)"
+}

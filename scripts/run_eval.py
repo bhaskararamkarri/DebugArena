@@ -16,6 +16,7 @@ from rich.console import Console
 from rich.table import Table
 
 from agentgym.env import BugFixEnv
+from agentgym.provider import ExecutionMode, ProviderPolicyError, validate_execution_config
 from agentgym.runner import EpisodeRunner
 
 console = Console()
@@ -28,6 +29,27 @@ def parse_args():
         type=str,
         default="nvidia/llama-3.1-nemotron-nano-4b-instruct",
         help="Model ID or alias (e.g., nemotron_nano, nemotron_super)",
+    )
+    parser.add_argument(
+        "--mode",
+        "--execution-mode",
+        dest="execution_mode",
+        type=str,
+        default="hackathon",
+        choices=["hackathon", "development"],
+        help="Execution mode: 'hackathon' (strict Nebius-only, no fallback) or 'development'",
+    )
+    parser.add_argument(
+        "--provider",
+        type=str,
+        default=None,
+        help="API provider (e.g., nebius, openrouter, nvidia). In hackathon mode, only 'nebius' is allowed.",
+    )
+    parser.add_argument(
+        "--fallback",
+        type=str,
+        default=None,
+        help="Optional fallback provider (forbidden in hackathon mode).",
     )
     parser.add_argument(
         "--suite",
@@ -81,6 +103,12 @@ def parse_args():
         "--no-judge",
         action="store_true",
         help="Disable Nemotron judge code quality scoring",
+    )
+    parser.add_argument(
+        "--judge-model",
+        type=str,
+        default=None,
+        help="Override judge model identifier (defaults to config.yaml models.nemotron_judge.name)",
     )
     parser.add_argument(
         "--trace",
@@ -148,16 +176,32 @@ def main():
         console.print("[red]No valid tasks selected to evaluate.[/red]")
         sys.exit(1)
 
+    try:
+        val_cfg = validate_execution_config(
+            execution_mode=args.execution_mode,
+            provider=args.provider,
+            fallback=args.fallback,
+            config_path="config.yaml",
+            use_mock_solver=args.mock_solver,
+            use_noop_solver=args.noop_solver,
+            model_name=model_name,
+        )
+    except ProviderPolicyError as e:
+        console.print(f"[bold red]Provider Configuration Error:[/bold red]\n{e}")
+        sys.exit(1)
+
     runner = EpisodeRunner(
         tasks_dir="tasks",
         runs_dir="runs",
         config_path="config.yaml",
         enable_judge=not args.no_judge,
+        judge_model=args.judge_model,
         enable_tracing=trace_enabled,
+        execution_mode=val_cfg["execution_mode"],
     )
 
     console.print(f"\n[bold green]DebugArena Evaluation Run: {run_id}[/bold green]")
-    console.print(f"Model: [cyan]{model_name}[/cyan] | Sandbox: [yellow]{args.sandbox}[/yellow] | Tasks: [magenta]{len(task_ids)}[/magenta]\n")
+    console.print(f"Model: [cyan]{model_name}[/cyan] | Mode: [magenta]{val_cfg['execution_mode']}[/magenta] | Provider: [green]{val_cfg['provider']}[/green] | Sandbox: [yellow]{args.sandbox}[/yellow] | Tasks: [magenta]{len(task_ids)}[/magenta]\n")
 
     results = runner.run_batch(
         task_ids=task_ids,
@@ -168,6 +212,9 @@ def main():
         sandbox_mode=args.sandbox,
         use_mock_solver=args.mock_solver,
         use_noop_solver=args.noop_solver,
+        execution_mode=val_cfg["execution_mode"],
+        provider=val_cfg["provider"],
+        fallback=val_cfg["fallback"],
     )
 
     # Render summary table

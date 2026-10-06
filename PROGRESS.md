@@ -2,7 +2,7 @@
 
 **Date:** 2026-10-04  
 **Project:** DebugArena (formerly AgentGym) — Multi-Turn Python Bug-Fix RL Environment (Nebius × NVIDIA Hackathon)  
-**Track:** Agent Gym & Coding Environments  
+**Track:** Coding and Agentic Engineering  
 
 ---
 

@@ -1,6 +1,6 @@
 # Hackathon Submission Form Package
 
-This file contains ready-to-paste text for the **Nebius × NVIDIA Global AI Hackathon** submission portal (Track: *Agent Gym & Coding Environments*).
+This file contains ready-to-paste text for the **Nebius × NVIDIA Global AI Hackathon** submission portal (Track: *Coding and Agentic Engineering*).
 
 ---
 
@@ -65,8 +65,8 @@ Judges can test DebugArena in under 2 minutes without needing API keys using the
 ### Quickstart Smoke Test (No API Keys Needed)
 ```bash
 # 1. Clone the repository
-git clone <REPO_URL>
-cd debugarena
+git clone https://github.com/bhaskararamkarri/DebugArena.git
+cd DebugArena
 
 # 2. Set up virtual environment and install dependencies
 python -m venv venv

@@ -12,6 +12,14 @@ import yaml
 from dotenv import load_dotenv
 from openai import OpenAI
 
+from agentgym.provider import (
+    ExecutionMode,
+    NEBIUS_CANONICAL_ENDPOINT,
+    ProviderPolicyError,
+    resolve_provider_config,
+    validate_execution_config,
+)
+
 load_dotenv()
 
 SYSTEM_PROMPT = """You are an autonomous AI coding agent fixing a bug in a Python repository inside an isolated Linux sandbox.
@@ -204,24 +212,30 @@ class Agent:
         config_path: str = "config.yaml",
         temperature: float = 0.2,
         max_tokens: int = 4096,
+        execution_mode: str = "hackathon",
+        fallback_provider: Optional[str] = None,
     ):
+        self.config_path = config_path
         self.config = self._load_config(config_path)
         self.temperature = temperature
         self.max_tokens = max_tokens
+        self.execution_mode = execution_mode
+        self.fallback_provider = fallback_provider
 
         models_cfg = self.config.get("models", {})
         default_model = models_cfg.get("nemotron_nano", {}).get("name", "nvidia/nemotron-3-nano-30b-a3b")
         self.model_name = model_name or default_model
 
-        if provider:
-            self.provider = provider
-        else:
-            found_prov = None
-            for m_key, m_info in models_cfg.items():
-                if m_info.get("name") == self.model_name:
-                    found_prov = m_info.get("provider")
-                    break
-            self.provider = found_prov or self.config.get("default_provider", "openrouter")
+        # Authoritative validation of provider policy
+        val_res = validate_execution_config(
+            execution_mode=self.execution_mode,
+            provider=provider,
+            fallback=self.fallback_provider,
+            config_path=config_path,
+            model_name=self.model_name,
+        )
+        self.provider = val_res["provider"]
+        self.fallback_provider = val_res["fallback"]
 
         self.client = self._init_client()
         self.conversation_history: List[Dict[str, str]] = []
@@ -233,23 +247,28 @@ class Agent:
         return {}
 
     def _init_client(self) -> OpenAI:
-        providers = self.config.get("providers", {})
-        prov_cfg = providers.get(self.provider, {})
-        base_url = prov_cfg.get("base_url", "https://openrouter.ai/api/v1")
-        key_env = prov_cfg.get("api_key_env", "")
+        prov_info = resolve_provider_config(self.provider, config_path=self.config_path)
+        base_url = prov_info.get("base_url", NEBIUS_CANONICAL_ENDPOINT if self.provider == "nebius" else "https://openrouter.ai/api/v1")
+        key_env = prov_info.get("api_key_env", "NEBIUS_API_KEY" if self.provider == "nebius" else "")
         api_key = os.getenv(key_env, "") if key_env else ""
 
-        # If designated provider has no key, check alternatives in order
-        if not api_key and self.provider != "mock":
-            for candidate_prov in ["openrouter", "nebius", "nvidia"]:
-                cand_cfg = providers.get(candidate_prov, {})
-                cand_key_env = cand_cfg.get("api_key_env", "")
-                cand_key = os.getenv(cand_key_env, "") if cand_key_env else ""
-                if cand_key:
-                    base_url = cand_cfg.get("base_url")
-                    api_key = cand_key
-                    self.provider = candidate_prov
-                    break
+        if self.execution_mode == "hackathon":
+            if not api_key and self.provider != "mock":
+                raise ProviderPolicyError(
+                    "Hackathon execution requires Nebius.\n"
+                    f"Nebius API configuration is missing (environment variable '{key_env}' is not set or empty).\n"
+                    "Set the required Nebius credentials/configuration before launching the official evaluation.\n"
+                    "No provider fallback is enabled in hackathon mode."
+                )
+        else:
+            # Development mode fallback if configured and primary key is missing
+            if not api_key and self.fallback_provider:
+                fb_info = resolve_provider_config(self.fallback_provider, config_path=self.config_path)
+                fb_key = os.getenv(fb_info.get("api_key_env", ""), "")
+                if fb_key:
+                    base_url = fb_info.get("base_url", base_url)
+                    api_key = fb_key
+                    self.provider = self.fallback_provider
 
         if not api_key:
             api_key = "dummy_key"
