@@ -151,10 +151,14 @@ def extract_zip_safely(
     return extracted_files
 
 
-def generate_custom_task_id() -> str:
+def generate_custom_task_id(prefix: Optional[str] = None) -> str:
     """Generates a collision-resistant unique custom task identifier."""
     ts = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%d_%H%M%S")
     rand_suffix = uuid.uuid4().hex[:4]
+    if prefix:
+        clean_prefix = re.sub(r"[^a-zA-Z0-9_]", "_", prefix.strip().lower())[:20].strip("_")
+        if clean_prefix:
+            return f"custom_{clean_prefix}_{ts}_{rand_suffix}"
     return f"custom_{ts}_{rand_suffix}"
 
 
@@ -164,6 +168,7 @@ class CustomTask:
     task_id: str
     description: str
     repo_files: Dict[str, str]
+    title: str = ""
     tests: Dict[str, str] = field(default_factory=dict)
     reference_fix: Dict[str, str] = field(default_factory=dict)
     suite: str = "custom"
@@ -171,6 +176,13 @@ class CustomTask:
     has_oracle: bool = True
     created_at: str = ""
     metadata: Dict[str, Any] = field(default_factory=dict)
+    tags: List[str] = field(default_factory=list)
+
+    def __post_init__(self):
+        if not self.title and self.description:
+            # Extract first sentence or up to 60 characters as title
+            first_line = self.description.strip().split("\n")[0].strip()
+            self.title = first_line[:60] if len(first_line) > 60 else first_line
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)

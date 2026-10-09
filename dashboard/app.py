@@ -432,23 +432,19 @@ elif page == "🚀 New Evaluation":
                             tmp_path = tmp.name
 
                         task_id = generate_custom_task_id(task_title)
-                        task_dest = Path("custom_tasks") / task_id
-
-                        extracted_files = extract_zip_safely(tmp_path, task_dest)
+                        extracted_files = extract_zip_safely(tmp_path)
                         os.unlink(tmp_path)
 
                         # Separate repo files and tests
                         repo_files: Dict[str, str] = {}
                         tests: Dict[str, str] = {}
-                        for fpath in task_dest.rglob("*"):
-                            if fpath.is_file():
-                                rel = str(fpath.relative_to(task_dest)).replace("\\", "/")
-                                content = fpath.read_text(encoding="utf-8", errors="replace")
-                                if "test" in rel.lower():
-                                    tests[rel] = content
-                                else:
-                                    repo_files[rel] = content
+                        for rel, content in extracted_files.items():
+                            if "test" in rel.lower():
+                                tests[rel] = content
+                            else:
+                                repo_files[rel] = content
 
+                        now_iso = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
                         custom_task = CustomTask(
                             task_id=task_id,
                             title=task_title,
@@ -456,7 +452,7 @@ elif page == "🚀 New Evaluation":
                             difficulty=c_diff,
                             repo_files=repo_files,
                             tests=tests if tests else {"test_main.py": "def test_placeholder(): assert True"},
-                            task_dir=str(task_dest),
+                            created_at=now_iso,
                         )
                         custom_task.save()
                         st.success(f"Custom task `{task_id}` created successfully with {len(repo_files)} source files and {len(tests)} test files!")
@@ -674,6 +670,9 @@ elif page == "🏆 Leaderboard":
         sr = (solved / total * 100) if total > 0 else 0.0
         ci = summary.get("wilson_95_ci", compute_wilson_ci(solved, total))
 
+        avg_judge = summary.get("avg_judge_score", state.get("avg_judge_score"))
+        judge_display = f"{avg_judge:.2f}" if (avg_judge is not None and isinstance(avg_judge, (int, float))) else "N/A"
+
         entry = {
             "Rank": 1,
             "Model": clean_model,
@@ -684,7 +683,7 @@ elif page == "🏆 Leaderboard":
             "Solved / Total": f"{solved}/{total}",
             "Avg Steps": summary.get("avg_steps", state.get("avg_steps", 0.0)),
             "Avg Return": summary.get("avg_return", state.get("avg_return", 0.0)),
-            "Avg Judge Score": summary.get("avg_judge_score", 0.0),
+            "Avg Judge Score": judge_display,
         }
 
         if item.get("is_eligible") and item.get("category") == "official":
@@ -755,7 +754,8 @@ elif page == "📊 Benchmark Analysis":
                 model_name = format_model_label(rid, summary.get("model", rid))
                 for ep in episodes:
                     tid = ep.get("task_id", "")
-                    solved = 1.0 if ep.get("solved") else 0.0
+                    is_solved = bool(ep.get("success") or ep.get("solved") or ep.get("status") in ["PASS", "SOLVED"])
+                    solved = 1.0 if is_solved else 0.0
                     matrix_records.append({
                         "Model": model_name,
                         "Task": tid,
@@ -782,10 +782,11 @@ elif page == "📊 Benchmark Analysis":
                 tid = ep.get("task_id", "")
                 t_meta = tasks_meta.get(tid, {})
                 diff = t_meta.get("difficulty", "medium").capitalize()
+                is_solved = bool(ep.get("success") or ep.get("solved") or ep.get("status") in ["PASS", "SOLVED"])
                 diff_records.append({
                     "Model": model_name,
                     "Difficulty": diff,
-                    "Solved": 1 if ep.get("solved") else 0,
+                    "Solved": 1 if is_solved else 0,
                 })
 
         if diff_records:
@@ -928,24 +929,24 @@ elif page == "🎬 Episode Replay":
             for idx, step_record in enumerate(steps):
                 step_num = step_record.get("step", idx + 1)
                 action = step_record.get("action", {})
-                tool = action.get("tool", "unknown_tool")
+                tool = action.get("type") or action.get("tool") or "action"
                 ret = step_record.get("return", step_record.get("reward", 0.0))
                 done = step_record.get("done", False)
 
-                with st.expander(f"Step {step_num}: Tool `{tool}` | Return: `{ret:.3f}` | Done: `{done}`", expanded=(idx == len(steps)-1)):
+                with st.expander(f"Step {step_num}: Action `{tool}` | Return: `{ret:.3f}` | Done: `{done}`", expanded=(idx == len(steps)-1)):
                     c_act, c_obs = st.columns(2)
 
                     with c_act:
                         st.markdown("**Agent Action / Arguments:**")
                         st.json(action)
 
-                        thought = step_record.get("thought", "")
+                        thought = action.get("thought") or step_record.get("thought", "")
                         if thought:
                             st.markdown(f"**Agent Reasoning / Thought:**\n> {thought}")
 
                     with c_obs:
                         st.markdown("**Environment Feedback / Observation:**")
-                        obs = step_record.get("observation", step_record.get("feedback", ""))
+                        obs = step_record.get("output", step_record.get("observation", step_record.get("feedback", "")))
                         if isinstance(obs, dict):
                             st.json(obs)
                         else:

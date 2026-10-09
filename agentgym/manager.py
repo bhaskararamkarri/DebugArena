@@ -24,10 +24,50 @@ class RunStatus(str, Enum):
     CANCELLED = "cancelled"
 
 
+class ConfigView(dict):
+    """Dictionary subclass supporting attribute-style dot-access with alias mapping."""
+
+    def __getattr__(self, name: str) -> Any:
+        if name in self:
+            return self[name]
+        if name == "model" and "model_name" in self:
+            return self["model_name"]
+        if name == "model_name" and "model" in self:
+            return self["model"]
+        if name == "sandbox_type" and "sandbox_mode" in self:
+            return self["sandbox_mode"]
+        if name == "sandbox_mode" and "sandbox_type" in self:
+            return self["sandbox_type"]
+        if name == "timeout" and "timeout_seconds" in self:
+            return self["timeout_seconds"]
+        if name == "timeout_seconds" and "timeout" in self:
+            return self["timeout"]
+        return None
+
+    def __setitem__(self, name: str, value: Any) -> None:
+        super().__setitem__(name, value)
+        if name == "model":
+            super().__setitem__("model_name", value)
+        elif name == "model_name":
+            super().__setitem__("model", value)
+        elif name == "sandbox_type":
+            super().__setitem__("sandbox_mode", value)
+        elif name == "sandbox_mode":
+            super().__setitem__("sandbox_type", value)
+        elif name == "timeout":
+            super().__setitem__("timeout_seconds", value)
+        elif name == "timeout_seconds":
+            super().__setitem__("timeout", value)
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        self[name] = value
+
+
 @dataclass
 class RunConfig:
     run_id: str
     model_name: str = "nemotron_nano"
+    model: Optional[str] = None
     execution_mode: str = "hackathon"
     provider: Optional[str] = None
     fallback: Optional[str] = None
@@ -35,8 +75,11 @@ class RunConfig:
     task_ids: List[str] = field(default_factory=list)
     workers: int = 4
     max_steps: int = 10
+    timeout_seconds: int = 10
     sandbox_mode: str = "docker"  # "docker", "local"
+    sandbox_type: Optional[str] = None
     feedback_mode: str = "diagnostic"  # "diagnostic", "realistic", "blind"
+    notes: str = ""
     use_mock_solver: bool = False
     use_noop_solver: bool = False
     enable_judge: bool = True
@@ -45,6 +88,16 @@ class RunConfig:
     config_path: str = "config.yaml"
     tasks_dir: str = "tasks"
     runs_dir: str = "runs"
+
+    def __post_init__(self):
+        if self.model and (not self.model_name or self.model_name == "nemotron_nano"):
+            self.model_name = self.model
+        elif not self.model:
+            self.model = self.model_name
+        if self.sandbox_type:
+            self.sandbox_mode = self.sandbox_type
+        elif not self.sandbox_type:
+            self.sandbox_type = self.sandbox_mode
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
@@ -70,12 +123,25 @@ class RunState:
     avg_return: float = 0.0
     avg_steps: float = 0.0
     success_rate: float = 0.0
-    config: Dict[str, Any] = field(default_factory=dict)
+    config: Any = field(default_factory=dict)
+    recent_logs: List[str] = field(default_factory=list)
     error: Optional[str] = None
+
+    def __post_init__(self):
+        if not isinstance(self.config, ConfigView):
+            if isinstance(self.config, dict):
+                cfg_dict = dict(self.config)
+                if "run_id" not in cfg_dict:
+                    cfg_dict["run_id"] = self.run_id
+                self.config = ConfigView(cfg_dict)
+            else:
+                self.config = ConfigView({"run_id": self.run_id})
 
     def to_dict(self) -> Dict[str, Any]:
         d = asdict(self)
         d["status"] = self.status.value
+        if isinstance(self.config, ConfigView):
+            d["config"] = dict(self.config)
         return d
 
     @classmethod
@@ -160,6 +226,27 @@ class BenchmarkManager:
                 if t.is_alive():
                     return rid
             return None
+
+    def get_active_run(self) -> Optional[RunState]:
+        """Returns the currently active running state, or the most recent run state."""
+        with self._lock:
+            rid = self.get_active_run_id()
+            if rid and rid in self._active_states:
+                return self._active_states[rid]
+            # Check for any active state marked RUNNING
+            for state in self._active_states.values():
+                if state.status == RunStatus.RUNNING:
+                    return state
+            # Return latest active state if any exist
+            if self._active_states:
+                latest_id = list(self._active_states.keys())[-1]
+                return self._active_states[latest_id]
+            return None
+
+    def get_all_active_runs(self) -> List[RunState]:
+        """Returns a list of all currently tracked active run states."""
+        with self._lock:
+            return list(self._active_states.values())
 
     def start_run(self, config: RunConfig) -> str:
         """Launches a benchmark run in a background daemon thread."""
@@ -248,6 +335,12 @@ class BenchmarkManager:
                     st.current_step = record.get("step", 0)
                     st.current_pass_rate = record.get("pass_rate", 0.0)
                     st.current_reward = record.get("reward", 0.0)
+                    action_type = record.get("action", {}).get("type", "unknown")
+                    ts = record.get("timestamp") or datetime.datetime.now(datetime.timezone.utc).strftime("%H:%M:%S")
+                    log_line = f"[{ts}] Task {st.current_task_id} step {st.current_step}: action={action_type}, pass_rate={st.current_pass_rate:.2f}, reward={st.current_reward:+.2f}"
+                    st.recent_logs.append(log_line)
+                    if len(st.recent_logs) > 200:
+                        st.recent_logs = st.recent_logs[-200:]
                 if run_id in self._event_buffers:
                     self._event_buffers[run_id].append({
                         "type": "step",
@@ -262,8 +355,13 @@ class BenchmarkManager:
 
         def on_ep_start(task_id: str, ep_id: str):
             with self._lock:
+                now_ts = datetime.datetime.now(datetime.timezone.utc).strftime("%H:%M:%S")
                 if run_id in self._active_states:
-                    self._active_states[run_id].current_task_id = task_id
+                    st = self._active_states[run_id]
+                    st.current_task_id = task_id
+                    st.recent_logs.append(f"[{now_ts}] Starting task {task_id} ({ep_id})")
+                    if len(st.recent_logs) > 200:
+                        st.recent_logs = st.recent_logs[-200:]
                 if run_id in self._event_buffers:
                     self._event_buffers[run_id].append({
                         "type": "episode_start",
@@ -274,12 +372,17 @@ class BenchmarkManager:
 
         def on_ep_end(ep_summary: Dict[str, Any]):
             with self._lock:
+                now_ts = datetime.datetime.now(datetime.timezone.utc).strftime("%H:%M:%S")
                 if run_id in self._active_states:
                     st = self._active_states[run_id]
                     st.completed_tasks += 1
                     if ep_summary.get("success"):
                         st.solved_tasks += 1
                     st.success_rate = round(st.solved_tasks / max(1, st.completed_tasks), 4)
+                    res_str = "SOLVED" if ep_summary.get("success") else "FAILED"
+                    st.recent_logs.append(f"[{now_ts}] Completed task {ep_summary.get('task_id')}: {res_str} in {ep_summary.get('steps')} steps (return: {ep_summary.get('return', 0.0):+.2f})")
+                    if len(st.recent_logs) > 200:
+                        st.recent_logs = st.recent_logs[-200:]
                     st.save(runs_dir=str(self.runs_dir))
                 if run_id in self._event_buffers:
                     self._event_buffers[run_id].append({
