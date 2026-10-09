@@ -33,7 +33,7 @@
   },
   "git": {
     "repository": "https://github.com/bhaskararamkarri/DebugArena.git",
-    "commit_sha": "0587a3b61c06d2eb920eeb8b4f396cab4ef54251",
+    "commit_sha": "e97aa0f16a790c01f916cfb7019e931660b08664",
     "evaluation_source_commit": "a2c5d80092c7caecb084931a293158c558b8849b",
     "working_tree_cleanliness": "dirty"
   }

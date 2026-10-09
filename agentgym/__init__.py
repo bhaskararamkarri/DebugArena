@@ -9,8 +9,10 @@ from .sandbox import Sandbox, SandboxResult
 from .agent import Agent, MockAgent
 from .runner import EpisodeRunner
 from .manager import BenchmarkManager, RunConfig, RunStatus, RunState, get_benchmark_manager
+from .taxonomy import EvaluationStatus, FailureCategory, classify_episode_outcome
 from .security import SecurityError, PathTraversalSecurityError, safe_path
 from .provider import (
+    ConfigurationError,
     ExecutionMode,
     HACKATHON_TRACK_NAME,
     NEBIUS_CANONICAL_ENDPOINT,
@@ -45,6 +47,10 @@ __all__ = [
     "SecurityError",
     "PathTraversalSecurityError",
     "safe_path",
+    "EvaluationStatus",
+    "FailureCategory",
+    "classify_episode_outcome",
+    "ConfigurationError",
     "ExecutionMode",
     "HACKATHON_TRACK_NAME",
     "NEBIUS_CANONICAL_ENDPOINT",

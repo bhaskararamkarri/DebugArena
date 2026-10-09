@@ -20,12 +20,12 @@ models:
     name: "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B"
     provider: "nebius"
     temperature: 0.2
-    max_tokens: 2000
+    max_tokens: 4096
   nemotron_super:
     name: "nvidia/nemotron-3-super-120b-a12b"
     provider: "nebius"
     temperature: 0.2
-    max_tokens: 2000
+    max_tokens: 4096
   nemotron_judge:
     name: "nvidia/Nemotron-3-Ultra-550b-a55b"
     provider: "nebius"

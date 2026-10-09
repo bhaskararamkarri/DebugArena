@@ -20,20 +20,26 @@ HACKATHON_TRACK_NAME: str = "Coding and Agentic Engineering"
 NEBIUS_CANONICAL_ENDPOINT: str = "https://api.tokenfactory.nebius.com/v1"
 
 
+class ConfigurationError(Exception):
+    """Raised when configuration file is missing, unreadable, or malformed."""
+    pass
+
+
 class ProviderPolicyError(ValueError):
     """Raised when provider configuration or execution mode contracts are violated."""
     pass
 
 
 def load_config(config_path: str = "config.yaml") -> Dict[str, Any]:
-    """Loads configuration YAML safely."""
+    """Loads configuration YAML safely, failing fast on malformed content."""
     p = Path(config_path)
     if p.exists():
         try:
             with open(p, "r", encoding="utf-8") as f:
-                return yaml.safe_load(f) or {}
-        except Exception:
-            return {}
+                data = yaml.safe_load(f)
+                return data if isinstance(data, dict) else {}
+        except Exception as e:
+            raise ConfigurationError(f"Failed to parse configuration YAML at '{config_path}': {e}") from e
     return {}
 
 

@@ -3,7 +3,7 @@
   "benchmark_identity": "DebugArena Canonical Official Benchmark Run",
   "repository": {
     "git_repository": "https://github.com/bhaskararamkarri/DebugArena.git",
-    "commit_sha": "0587a3b61c06d2eb920eeb8b4f396cab4ef54251",
+    "commit_sha": "e97aa0f16a790c01f916cfb7019e931660b08664",
     "evaluation_source_commit": "a2c5d80092c7caecb084931a293158c558b8849b",
     "branch": "main",
     "working_tree_cleanliness": "dirty (audit remediation phase active)",
@@ -55,7 +55,7 @@
     "fallback_policy": "strict_error_no_fallback"
   },
   "configuration": {
-    "config_hash": "62d2ed26014c62e8003c31f6d8ca335de3ef90c72ef6dc5f389169c700b64262",
+    "config_hash": "c63edf2858064fef90cf7b4940cb2f0196f6634345002492b753841e31edc84d",
     "sandbox_type": "docker",
     "prompt_hash": "3a7da531c7e9e6a0",
     "temperature": 0.2,

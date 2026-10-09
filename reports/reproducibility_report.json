@@ -1,7 +1,7 @@
 {
   "report_type": "DebugArena Clean-Clone Reproducibility Audit",
   "schema_version": "2.0",
-  "timestamp": "2026-10-06T18:29:05Z",
+  "timestamp": "2026-10-09T05:03:56Z",
   "environment": {
     "os": "Windows-11-10.0.26300-SP0",
     "python_version": "3.14.5",
@@ -9,75 +9,25 @@
   },
   "git_provenance": {
     "is_git_repo": true,
-    "commit_sha": "0587a3b61c06d2eb920eeb8b4f396cab4ef54251",
+    "commit_sha": "e97aa0f16a790c01f916cfb7019e931660b08664",
     "branch": "main",
     "clean": false,
     "modified_files": [
-      "MVP.md",
-      "PROGRESS.md",
-      "README.md",
-      "SUBMISSION.md",
       "agentgym/__init__.py",
       "agentgym/agent.py",
-      "agentgym/custom_task.py",
-      "agentgym/env.py",
       "agentgym/judge.py",
-      "agentgym/manager.py",
+      "agentgym/provider.py",
       "agentgym/runner.py",
       "agentgym/sandbox.py",
       "config.yaml",
-      "dashboard/app.py",
-      "dataset/debugarena_dpo.jsonl",
-      "scripts/run_eval.py",
-      "scripts/test_json_mode.py",
-      "scripts/test_nebius.py"
+      "runs/official/README.md",
+      "runs/official/environment.json",
+      "runs/official/manifest.json",
+      "scripts/build_official_artifacts.py"
     ],
     "untracked_files": [
-      ".agent/",
-      ".agents/",
-      ".gemini/",
-      ".gsd/",
-      "GSD-STYLE.md",
-      "PROJECT_RULES.md",
-      "VERSION",
-      "adapters/",
-      "agentgym/provider.py",
-      "agentgym/security.py",
-      "dataset/debugarena_dpo_train.jsonl",
-      "dataset/debugarena_dpo_val.jsonl",
-      "model_capabilities.yaml",
-      "reports/reproducibility_report.json",
-      "runs/official/",
-      "runs/repro_clean/",
-      "runs/repro_mock_core/",
-      "scripts/build_official_artifacts.py",
-      "scripts/generate_task_manifest.py",
-      "scripts/reproduce_clean.py",
-      "scripts/search_repo.ps1",
-      "scripts/search_repo.sh",
-      "scripts/setup_search.ps1",
-      "scripts/setup_search.sh",
-      "scripts/validate-agents.ps1",
-      "scripts/validate-agents.sh",
-      "scripts/validate-all.ps1",
-      "scripts/validate-all.sh",
-      "scripts/validate-encoding.ps1",
-      "scripts/validate-encoding.sh",
-      "scripts/validate-skills.ps1",
-      "scripts/validate-skills.sh",
-      "scripts/validate-templates.ps1",
-      "scripts/validate-templates.sh",
-      "scripts/validate-workflows.ps1",
-      "scripts/validate-workflows.sh",
-      "tasks/manifest.json",
-      "tests/test_benchmark_composition.py",
-      "tests/test_documentation_placeholders.py",
-      "tests/test_judge_config.py",
-      "tests/test_official_benchmark.py",
-      "tests/test_path_traversal.py",
-      "tests/test_provider_policy.py",
-      "tests/test_reproducibility.py",
-      "tests/test_track_name.py"
+      "agentgym/taxonomy.py",
+      "tests/test_taxonomy_and_error_handling.py"
     ]
   },
   "task_manifest_hashes": {
@@ -93,7 +43,7 @@
     "existing_runs_reused": false,
     "existing_env_reused": false,
     "global_debugarena_import_detected": false,
-    "git_commit": "186c3d9275fc55f658034b8a31e17070ff1a8def",
+    "git_commit": "63ea1e5b2f81880227d3cffed4c89c78c029ceb8",
     "pip_install": {
       "status": "PASS",
       "exit_code": 0
@@ -105,7 +55,7 @@
     "pytest_result": {
       "status": "PASS",
       "exit_code": 0,
-      "stdout": "...................................................................s.... [ 58%]\n...............................sssss...............                      [100%]\n117 passed, 6 skipped in 78.81s (0:01:18)",
+      "stdout": "...................................................................s.... [ 50%]\n...............................sssss..................................   [100%]\n136 passed, 6 skipped in 73.62s (0:01:13)",
       "stderr": ""
     },
     "task_verification_core": {
@@ -164,7 +114,7 @@
       "unit_tests": {
         "status": "PASS",
         "exit_code": 0,
-        "summary": "117 passed, 6 skipped in 65.68s (0:01:05)"
+        "summary": "136 passed, 6 skipped in 74.48s (0:01:14)"
       },
       "offline_baseline": {
         "status": "PASS",

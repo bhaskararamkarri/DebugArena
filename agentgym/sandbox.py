@@ -306,6 +306,8 @@ class DockerSandbox(BaseSandbox):
                 mem_limit=self.mem_limit,
                 nano_cpus=int(self.cpu_limit * 1e9),
                 pids_limit=self.pids_limit,
+                security_opt=["no-new-privileges:true"],
+                cap_drop=["ALL"],
                 detach=True,
                 remove=False,
             )
@@ -368,6 +370,8 @@ class DockerSandbox(BaseSandbox):
                 mem_limit=self.mem_limit,
                 nano_cpus=int(self.cpu_limit * 1e9),
                 pids_limit=self.pids_limit,
+                security_opt=["no-new-privileges:true"],
+                cap_drop=["ALL"],
                 detach=True,
                 remove=False,
             )

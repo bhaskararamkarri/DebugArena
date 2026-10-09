@@ -12,6 +12,7 @@ from dotenv import load_dotenv
 from openai import OpenAI
 
 from agentgym.provider import NEBIUS_CANONICAL_ENDPOINT, resolve_provider_config
+from agentgym.taxonomy import EvaluationStatus
 
 load_dotenv()
 
@@ -92,11 +93,13 @@ class CodeJudge:
         final_files: Dict[str, str],
         pass_rate: float,
     ) -> Dict[str, Any]:
-        """Evaluates code quality and returns score (1-5) and rationale."""
+        """Evaluates code quality and returns score (1-5), status, and rationale."""
         # If tests failed, score is bounded
         if pass_rate < 1.0:
+            score = 1 if pass_rate == 0.0 else 2
             return {
-                "score": 1 if pass_rate == 0.0 else 2,
+                "score": score,
+                "status": EvaluationStatus.FAIL.value if pass_rate == 0.0 else EvaluationStatus.PARTIAL.value,
                 "rationale": f"Tests did not fully pass (pass rate: {pass_rate:.1%}).",
             }
 
@@ -123,12 +126,22 @@ class CodeJudge:
                     data = json.loads(m.group(0))
                     score = int(data.get("score", 4))
                     score = max(1, min(5, score))
-                    return {"score": score, "rationale": data.get("rationale", "")}
-            except Exception:
-                pass
+                    return {
+                        "score": score,
+                        "status": EvaluationStatus.PASS.value,
+                        "rationale": data.get("rationale", "Evaluation completed by LLM judge."),
+                    }
+            except Exception as e:
+                return {
+                    "score": None,
+                    "status": EvaluationStatus.JUDGE_UNAVAILABLE.value,
+                    "rationale": f"LLM Judge evaluation failed: {str(e)}",
+                    "error": str(e),
+                }
 
-        # Heuristic fallback when offline or API unavailable
-        # Passed 100% tests cleanly
-        score = 4
-        rationale = "Tests passed completely with direct root-cause fix."
-        return {"score": score, "rationale": rationale}
+        # Offline or API unavailable - never fabricate numeric scores
+        return {
+            "score": None,
+            "status": EvaluationStatus.JUDGE_UNAVAILABLE.value,
+            "rationale": "LLM Judge is offline or API credentials are not configured.",
+        }

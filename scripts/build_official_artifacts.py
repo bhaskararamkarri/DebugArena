@@ -3,12 +3,56 @@
 import hashlib
 import json
 import re
+import subprocess
 from pathlib import Path
+
+
+def get_git_info() -> dict:
+    info = {"commit_sha": "unknown", "branch": "main", "clean": True}
+    try:
+        res = subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True, check=True)
+        info["commit_sha"] = res.stdout.strip()
+        b_res = subprocess.run(["git", "rev-parse", "--abbrev-ref", "HEAD"], capture_output=True, text=True)
+        info["branch"] = b_res.stdout.strip() if b_res.returncode == 0 else "main"
+        s_res = subprocess.run(["git", "status", "--porcelain"], capture_output=True, text=True)
+        info["clean"] = (len(s_res.stdout.strip()) == 0)
+    except Exception:
+        pass
+    return info
+
+
+def compute_all_task_hashes() -> tuple[dict, str, str]:
+    manifest_path = Path("tasks/manifest.json")
+    with open(manifest_path, "r", encoding="utf-8") as f:
+        mdata = json.load(f)
+
+    all_hashes = {}
+    official_hashes = {}
+    for tid, meta in sorted(mdata.get("tasks", {}).items()):
+        p = Path(meta.get("path", "")) / "task.json"
+        if p.exists():
+            with open(p, "rb") as tf:
+                h = hashlib.sha256(tf.read()).hexdigest()
+                all_hashes[tid] = h
+                if meta.get("official", False):
+                    official_hashes[tid] = h
+
+    full_corpus_hash = hashlib.sha256(
+        json.dumps(all_hashes, sort_keys=True).encode("utf-8")
+    ).hexdigest()
+
+    official_manifest_hash = hashlib.sha256(
+        json.dumps(official_hashes, sort_keys=True).encode("utf-8")
+    ).hexdigest()
+
+    return official_hashes, official_manifest_hash, full_corpus_hash
 
 
 def main():
     official_dir = Path("runs/official")
     official_dir.mkdir(parents=True, exist_ok=True)
+
+    git_info = get_git_info()
 
     # Load core_super_v2 and hard_super_v2 summaries and trajectories
     with open("runs/core_super_v2/summary.json", "r", encoding="utf-8") as f:
@@ -66,21 +110,9 @@ def main():
     with open("config.yaml", "rb") as f:
         config_hash = hashlib.sha256(f.read()).hexdigest()
 
-    task_hashes = {}
+    official_hashes, official_task_manifest_hash, full_task_corpus_hash = compute_all_task_hashes()
+    task_manifest_hash = official_task_manifest_hash
     task_ids = [ep["task_id"] for ep in combined_episodes]
-    for tid in task_ids:
-        if tid.startswith("t"):
-            p = Path(f"tasks/{tid}/task.json")
-        else:
-            p = Path(f"tasks/hard/{tid}/task.json")
-        with open(p, "rb") as f:
-            task_hashes[tid] = hashlib.sha256(f.read()).hexdigest()
-
-    task_manifest_hash = hashlib.sha256(
-        json.dumps(task_hashes, sort_keys=True).encode("utf-8")
-    ).hexdigest()
-    official_task_manifest_hash = task_manifest_hash
-    full_task_corpus_hash = "b41e631ee10b7aa7b1edf70eadac5158ff5363d495b110837ac555eda2701af3"
 
     # System prompt hash
     with open("agentgym/agent.py", "r", encoding="utf-8") as f:
@@ -136,10 +168,10 @@ def main():
         "benchmark_identity": "DebugArena Canonical Official Benchmark Run",
         "repository": {
             "git_repository": "https://github.com/bhaskararamkarri/DebugArena.git",
-            "commit_sha": "0587a3b61c06d2eb920eeb8b4f396cab4ef54251",
+            "commit_sha": git_info.get("commit_sha", "0587a3b61c06d2eb920eeb8b4f396cab4ef54251"),
             "evaluation_source_commit": "a2c5d80092c7caecb084931a293158c558b8849b",
-            "branch": "main",
-            "working_tree_cleanliness": "dirty (audit remediation phase active)",
+            "branch": git_info.get("branch", "main"),
+            "working_tree_cleanliness": "clean" if git_info.get("clean") else "dirty (audit remediation phase active)",
             "benchmark_version": "2.0",
             "task_manifest_hash": task_manifest_hash,
             "official_task_manifest_hash": official_task_manifest_hash,
@@ -280,9 +312,9 @@ def main():
         },
         "git": {
             "repository": "https://github.com/bhaskararamkarri/DebugArena.git",
-            "commit_sha": "0587a3b61c06d2eb920eeb8b4f396cab4ef54251",
+            "commit_sha": git_info.get("commit_sha", "0587a3b61c06d2eb920eeb8b4f396cab4ef54251"),
             "evaluation_source_commit": "a2c5d80092c7caecb084931a293158c558b8849b",
-            "working_tree_cleanliness": "dirty",
+            "working_tree_cleanliness": "clean" if git_info.get("clean") else "dirty",
         },
     }
 
@@ -290,7 +322,7 @@ def main():
         json.dump(env_data, f, indent=2)
 
     # README.md
-    readme_content = """# Canonical Official Benchmark Result: DebugArena
+    readme_content = f"""# Canonical Official Benchmark Result: DebugArena
 
 This directory (`runs/official/`) stores the **ONE authoritative canonical benchmark result** for the DebugArena evaluation suite.
 
@@ -321,12 +353,13 @@ This directory (`runs/official/`) stores the **ONE authoritative canonical bench
 
 ## 3. Cryptographic Hashes & Provenance
 
-- **Git Commit SHA (Audit):** `0587a3b61c06d2eb920eeb8b4f396cab4ef54251`
+- **Git Commit SHA (Audit):** `{git_info.get('commit_sha')}`
 - **Git Commit SHA (Source Run):** `a2c5d80092c7caecb084931a293158c558b8849b`
-- **Working Tree Status:** `dirty (audit remediation phase active)`
-- **Configuration Hash (`config.yaml`):** `62d2ed26014c62e8003c31f6d8ca335de3ef90c72ef6dc5f389169c700b64262`
-- **Task Manifest Hash (30 Tasks):** `016fa52aa64aa6875ebf1615663c49eecbd7d4b2616167f02732145f418cad9f`
-- **System Prompt Hash:** `3a7da531c7e9e6a0`
+- **Working Tree Status:** `{'clean' if git_info.get('clean') else 'dirty (audit remediation phase active)'}`
+- **Configuration Hash (`config.yaml`):** `{config_hash}`
+- **Task Manifest Hash (30 Tasks):** `{official_task_manifest_hash}`
+- **Full Task Corpus Hash (100 Tasks):** `{full_task_corpus_hash}`
+- **System Prompt Hash:** `{prompt_hash}`
 - **Docker Image Digest:** `sha256:2ef525c972bc5bb94d82efbeae024115c4d7757e219cd06ce9d6aec7a1d7246c`
 
 ---
@@ -354,6 +387,7 @@ This canonical official result evaluates the **30 core empirical benchmark tasks
         f.write(readme_content)
 
     print("Successfully built canonical official benchmark artifacts in runs/official/")
+
 
 
 if __name__ == "__main__":

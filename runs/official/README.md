@@ -29,11 +29,12 @@ This directory (`runs/official/`) stores the **ONE authoritative canonical bench
 
 ## 3. Cryptographic Hashes & Provenance
 
-- **Git Commit SHA (Audit):** `0587a3b61c06d2eb920eeb8b4f396cab4ef54251`
+- **Git Commit SHA (Audit):** `e97aa0f16a790c01f916cfb7019e931660b08664`
 - **Git Commit SHA (Source Run):** `a2c5d80092c7caecb084931a293158c558b8849b`
 - **Working Tree Status:** `dirty (audit remediation phase active)`
-- **Configuration Hash (`config.yaml`):** `62d2ed26014c62e8003c31f6d8ca335de3ef90c72ef6dc5f389169c700b64262`
+- **Configuration Hash (`config.yaml`):** `c63edf2858064fef90cf7b4940cb2f0196f6634345002492b753841e31edc84d`
 - **Task Manifest Hash (30 Tasks):** `016fa52aa64aa6875ebf1615663c49eecbd7d4b2616167f02732145f418cad9f`
+- **Full Task Corpus Hash (100 Tasks):** `b41e631ee10b7aa7b1edf70eadac5158ff5363d495b110837ac555eda2701af3`
 - **System Prompt Hash:** `3a7da531c7e9e6a0`
 - **Docker Image Digest:** `sha256:2ef525c972bc5bb94d82efbeae024115c4d7757e219cd06ce9d6aec7a1d7246c`
 

@@ -77,14 +77,22 @@ def validate_action_schema(action: Any) -> Tuple[bool, str, Dict[str, Any]]:
 
         if not path or not isinstance(path, str):
             return False, "'edit' action requires a valid string 'path'.", {}
+        if "\x00" in path:
+            return False, "'edit' action path contains illegal null bytes.", {}
         if content is None or not isinstance(content, str):
             return False, "'edit' action requires string 'content'.", {}
+        if len(content) > 5_000_000:
+            return False, "'edit' action content exceeds maximum size limit (5MB).", {}
 
     if act_type == "run":
         cmd = normalized.get("cmd") or normalized.get("command")
         normalized["cmd"] = cmd
         if not cmd or not isinstance(cmd, str):
             return False, "'run' action requires a valid string 'cmd'.", {}
+        if "\x00" in cmd:
+            return False, "'run' action cmd contains illegal null bytes.", {}
+        if len(cmd) > 10_000:
+            return False, "'run' action cmd exceeds maximum length limit (10KB).", {}
 
     return True, "", normalized
 

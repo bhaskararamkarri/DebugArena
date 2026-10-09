@@ -17,6 +17,7 @@ from agentgym.agent import Agent, MockAgent, get_prompt_hash
 from agentgym.env import BugFixEnv
 from agentgym.judge import CodeJudge
 from agentgym.provider import validate_execution_config
+from agentgym.taxonomy import EvaluationStatus, FailureCategory, classify_episode_outcome
 from agentgym.tracer import EpisodeTracer
 
 console = Console()
@@ -214,12 +215,23 @@ class EpisodeRunner:
         invalid_json_count = sum(1 for r in step_records if r.get("action", {}).get("type") == "run" and "echo 'Invalid JSON action'" in r.get("action", {}).get("cmd", ""))
         has_oracle = final_info.get("has_oracle", True)
 
+        eval_status, failure_category = classify_episode_outcome(
+            pass_rate=final_info.get("pass_rate", 0.0),
+            regression=final_info.get("regression", False),
+            timed_out=final_info.get("timed_out", False),
+            ran_out_of_steps=final_info.get("ran_out_of_steps", False),
+            invalid_json_count=invalid_json_count,
+            has_oracle=has_oracle,
+            submitted=final_info.get("submitted", False),
+        )
+
         summary = {
             "episode_id": episode_id,
             "task_id": task_id,
             "model": model_name,
             "success": success if has_oracle else None,
-            "status": "SOLVE_ONLY" if not has_oracle else ("SOLVED" if success else "FAILED"),
+            "status": eval_status.value,
+            "failure_category": failure_category.value,
             "final_pass_rate": final_info.get("pass_rate", 0.0),
             "has_oracle": has_oracle,
             "solve_only": not has_oracle,
@@ -370,15 +382,21 @@ class EpisodeRunner:
                             pass
                 except Exception as e:
                     console.print(f"[red]Error on task {tid}: {e}[/red]")
+                    err_status, err_cat = classify_episode_outcome(
+                        pass_rate=0.0,
+                        error=str(e),
+                    )
                     err_res = {
                         "episode_id": ep_id,
                         "task_id": tid,
                         "model": model_name,
                         "success": False,
+                        "status": err_status.value,
+                        "failure_category": err_cat.value,
                         "final_pass_rate": 0.0,
                         "steps": 0,
                         "return": -1.0,
-                        "judge_score": 1,
+                        "judge_score": None,
                         "error": str(e),
                     }
                     results.append(err_res)
