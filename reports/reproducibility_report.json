@@ -1,7 +1,7 @@
 {
   "report_type": "DebugArena Clean-Clone Reproducibility Audit",
   "schema_version": "2.0",
-  "timestamp": "2026-10-09T05:03:56Z",
+  "timestamp": "2026-10-09T07:18:55Z",
   "environment": {
     "os": "Windows-11-10.0.26300-SP0",
     "python_version": "3.14.5",
@@ -9,26 +9,11 @@
   },
   "git_provenance": {
     "is_git_repo": true,
-    "commit_sha": "e97aa0f16a790c01f916cfb7019e931660b08664",
+    "commit_sha": "7b4d87d3211f7858448287cca125ae7e671139a3",
     "branch": "main",
-    "clean": false,
-    "modified_files": [
-      "agentgym/__init__.py",
-      "agentgym/agent.py",
-      "agentgym/judge.py",
-      "agentgym/provider.py",
-      "agentgym/runner.py",
-      "agentgym/sandbox.py",
-      "config.yaml",
-      "runs/official/README.md",
-      "runs/official/environment.json",
-      "runs/official/manifest.json",
-      "scripts/build_official_artifacts.py"
-    ],
-    "untracked_files": [
-      "agentgym/taxonomy.py",
-      "tests/test_taxonomy_and_error_handling.py"
-    ]
+    "clean": true,
+    "modified_files": [],
+    "untracked_files": []
   },
   "task_manifest_hashes": {
     "full_task_corpus_hash": "b41e631ee10b7aa7b1edf70eadac5158ff5363d495b110837ac555eda2701af3",
@@ -43,7 +28,7 @@
     "existing_runs_reused": false,
     "existing_env_reused": false,
     "global_debugarena_import_detected": false,
-    "git_commit": "63ea1e5b2f81880227d3cffed4c89c78c029ceb8",
+    "git_commit": "c0e342496e358861b01d8f84b4b3beb61644543f",
     "pip_install": {
       "status": "PASS",
       "exit_code": 0
@@ -55,7 +40,7 @@
     "pytest_result": {
       "status": "PASS",
       "exit_code": 0,
-      "stdout": "...................................................................s.... [ 50%]\n...............................sssss..................................   [100%]\n136 passed, 6 skipped in 73.62s (0:01:13)",
+      "stdout": "......................................................................s. [ 49%]\n........................................................................ [ 99%]\n.                                                                        [100%]\n144 passed, 1 skipped in 87.35s (0:01:27)",
       "stderr": ""
     },
     "task_verification_core": {
@@ -114,7 +99,7 @@
       "unit_tests": {
         "status": "PASS",
         "exit_code": 0,
-        "summary": "136 passed, 6 skipped in 74.48s (0:01:14)"
+        "summary": "144 passed, 1 skipped in 74.97s (0:01:14)"
       },
       "offline_baseline": {
         "status": "PASS",
@@ -126,12 +111,13 @@
       }
     },
     "level_b_docker": {
-      "status": "NOT_EXECUTED_DOCKER_UNAVAILABLE",
+      "status": "PASS",
       "description": "Containerized benchmark execution in isolated Docker sandbox.",
       "docker_status": {
-        "available": false,
-        "reason": "Error while fetching server API version: (2, 'CreateFile', 'The system cannot find the file specified.')",
-        "note": "Docker daemon unavailable on host. Local subprocess sandbox is used for offline verification."
+        "available": true,
+        "version": "29.8.2",
+        "api_version": "1.56",
+        "os": "linux"
       },
       "reproduction_command": "docker build -t agentgym-sandbox:python3.11 -f - . <<EOF\nFROM python:3.11-slim\nRUN pip install --no-cache-dir pytest\nWORKDIR /workspace\nEOF\npytest tests/ -v\npython scripts/verify_tasks.py --suite all --sandbox docker"
     },
